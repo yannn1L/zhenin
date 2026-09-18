@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1A1A2E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Zhenin - Generator dokumen keperawatan dengan AI">
+<title>Zhenin · Keperawatan Suite</title>
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- Libs -->
+<script src="/lib/index.umd.js" defer></script>
+<script src="/lib/FileSaver.min.js" defer></script>
+<link rel="stylesheet" href="/lib/prism.css">
+<script src="/lib/prism.min.js" defer></script>
+
+<!-- Styles -->
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/layout.css">
+<link rel="stylesheet" href="/css/components.css">
+</head>
+<body data-page="splash">
+
+<!-- ============================================================
+     GLOBAL LOADING OVERLAY
+     ============================================================ -->
+<div class="loading-overlay" id="loadingOverlay" aria-hidden="true">
+  <div class="loading-box">
+    <div class="loading-orb">
+      <div class="loading-orb-inner"></div>
+    </div>
+    <div class="loading-text" id="loadingText">Memproses...</div>
+  </div>
+</div>
+
+<!-- ============================================================
+     TOAST CONTAINER
+     ============================================================ -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ============================================================
+     APP ROOT
+     ============================================================ -->
+<div class="app" id="app">
+
+  <!-- ===== SCREEN: SPLASH ===== -->
+  <section class="screen screen-splash active" data-screen="splash">
+    <div class="splash-logo">
+      <svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
+        <path d="M50 5 L95 50 L50 95 L5 50 Z" stroke="#C9A961" stroke-width="1.5" fill="none" opacity="0.3"/>
+        <path d="M50 15 L85 50 L50 85 L15 50 Z" stroke="#C9A961" stroke-width="2" fill="none"/>
+        <path d="M50 30 L50 70 M30 50 L70 50" stroke="#A67BC8" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="50" cy="50" r="8" fill="#6B3FA0" stroke="#C9A961" stroke-width="2"/>
+        <circle cx="50" cy="50" r="3" fill="#C9A961"/>
+        <path d="M50 15 L50 5 M50 95 L50 85 M15 50 L5 50 M95 50 L85 50" stroke="#C9A961" stroke-width="1.5" opacity="0.5"/>
+      </svg>
+    </div>
+    <h1 class="splash-title">ZHENIN</h1>
+    <p class="splash-subtitle">Keperawatan Suite</p>
+    <div class="splash-loader">
+      <div class="splash-loader-fill"></div>
+    </div>
+    <div class="splash-version" id="splashVersion">v2.0.0</div>
+  </section>
+
+  <!-- ===== SCREEN: LOGIN ===== -->
+  <section class="screen screen-login" data-screen="login">
+    <div class="login-container">
+      <div class="login-header">
+        <div class="login-logo">
+          <svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
+            <path d="M50 15 L85 50 L50 85 L15 50 Z" stroke="#C9A961" stroke-width="2" fill="none"/>
+            <path d="M50 30 L50 70 M30 50 L70 50" stroke="#A67BC8" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="50" cy="50" r="8" fill="#6B3FA0" stroke="#C9A961" stroke-width="2"/>
+          </svg>
+        </div>
+        <h1 class="login-title">ZHENIN</h1>
+        <p class="login-subtitle">Masukkan password akses Anda</p>
+      </div>
+
+      <form class="login-form" id="loginForm" autocomplete="off">
+        <div class="form-field">
+          <label for="passwordInput">Password Akses</label>
+          <div class="input-wrap">
+            <input
+              type="text"
+              id="passwordInput"
+              name="password"
+              placeholder="USER-XXXX-XXXX"
+              autocomplete="off"
+              autocapitalize="characters"
+              spellcheck="false"
+              maxlength="20"
+              required>
+            <button type="button" class="input-icon-btn" id="togglePassword" title="Tampilkan/sembunyikan">
+              <span id="togglePasswordIcon">👁</span>
+            </button>
+          </div>
+          <div class="form-hint" id="loginHint">
+            Password didapat dari admin setelah pembelian
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="loginBtn">
+          <span class="btn-text">Masuk</span>
+          <span class="btn-spinner" hidden></span>
+        </button>
+
+        <div class="login-help">
+          Belum punya akses?
+          <button type="button" class="link-btn" id="contactAdminBtn">Hubungi Admin</button>
+        </div>
+      </form>
+
+      <div class="login-footer">
+        <div class="login-version" id="loginVersion">v2.0.0</div>
+        <div class="login-legal">
+          Dengan masuk, Anda menyetujui
+          <button type="button" class="link-btn" id="termsBtn">Syarat & Ketentuan</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SCREEN: HOME ===== -->
+  <section class="screen screen-home" data-screen="home">
+    <div class="app-header">
+      <div class="app-header-left">
+        <div class="user-avatar" id="userAvatar">U</div>
+        <div class="user-info">
+          <div class="user-greeting">Selamat datang,</div>
+          <div class="user-name" id="userNameDisplay">User</div>
+        </div>
+      </div>
+      <div class="app-header-right">
+        <button class="icon-btn" id="btnRefresh" title="Refresh">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 4v6h-6M1 20v-6h6"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg>
+        </button>
+        <button class="icon-btn" id="btnProfile" title="Profile">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="screen-scroll" id="homeScroll">
+      <!-- Promo Banner (dismissible) -->
+      <div class="promo-banner" id="promoBanner" hidden>
+        <div class="promo-content">
+          <span class="promo-icon">🎉</span>
+          <div class="promo-text">
+            <div class="promo-title" id="promoTitle">PROMO LAUNCHING</div>
+            <div class="promo-desc" id="promoDesc">Diskon 20% paket Ultimate!</div>
+          </div>
+          <button class="promo-close" id="promoClose" aria-label="Tutup">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Token Card -->
+      <div class="token-card">
+        <div class="token-card-bg"></div>
+        <div class="token-card-inner">
+          <div class="token-card-header">
+            <div class="token-label">
+              <span class="token-icon">💎</span>
+              Token AI Tersisa
+            </div>
+            <div class="token-status" id="tokenStatus">Aktif</div>
+          </div>
+          <div class="token-count" id="tokenCount">0</div>
+          <div class="token-footer">
+            <div class="token-note">💡 Token tidak akan hangus</div>
+            <button class="btn btn-ghost btn-sm" id="btnTopup">Top-up</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Token Warning (kalau < 2) -->
+      <div class="alert alert-warning" id="tokenWarning" hidden>
+        <div class="alert-icon">⚠️</div>
+        <div class="alert-content">
+          <div class="alert-title">Token hampir habis</div>
+          <div class="alert-desc">Hubungi admin untuk top-up token Anda.</div>
+        </div>
+        <button class="btn btn-sm btn-warning" id="btnWarningTopup">Top-up</button>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="section-header">
+        <h2 class="section-title">Buat Dokumen</h2>
+      </div>
+      <div class="quick-actions">
+        <button class="quick-action" data-action="create-lp">
+          <div class="quick-action-glow glow-lp"></div>
+          <div class="quick-action-icon">📄</div>
+          <div class="quick-action-title">Laporan LP</div>
+          <div class="quick-action-desc">Buat LP dengan AI</div>
+          <div class="quick-action-arrow">→</div>
+        </button>
+        <button class="quick-action" data-action="create-askep">
+          <div class="quick-action-glow glow-askep"></div>
+          <div class="quick-action-icon">📋</div>
+          <div class="quick-action-title">Asuhan Askep</div>
+          <div class="quick-action-desc">Buat Askep + SOAP</div>
+          <div class="quick-action-arrow">→</div>
+        </button>
+      </div>
+
+      <!-- Recent Documents -->
+      <div class="section-header">
+        <h2 class="section-title">Dokumen Terbaru</h2>
+        <button class="link-btn" id="btnSeeAll">Lihat Semua →</button>
+      </div>
+      <div class="doc-list" id="docList">
+        <!-- Populated by JS -->
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty-state" id="emptyDocs" hidden>
+        <div class="empty-icon">📭</div>
+        <div class="empty-title">Belum ada dokumen</div>
+        <div class="empty-desc">Mulai buat dokumen pertama Anda dengan AI</div>
+        <button class="btn btn-primary btn-sm" data-action="create-askep">✨ Buat Sekarang</button>
+      </div>
+
+      <div class="screen-bottom-spacer"></div>
+    </div>
+
+    <!-- Bottom Nav -->
+    <nav class="bottom-nav" id="bottomNav">
+      <button class="nav-item active" data-nav="home">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">Home</span>
+      </button>
+      <button class="nav-item" data-nav="generate">
+        <span class="nav-icon">✨</span>
+        <span class="nav-label">Generate</span>
+      </button>
+      <button class="nav-item" data-nav="files">
+        <span class="nav-icon">📁</span>
+        <span class="nav-label">File</span>
+      </button>
+      <button class="nav-item" data-nav="profile">
+        <span class="nav-icon">👤</span>
+        <span class="nav-label">Profile</span>
+      </button>
+    </nav>
+  </section>
+
+  <!-- ===== SCREEN: AI GENERATOR ===== -->
+  <section class="screen screen-ai" data-screen="ai">
+    <div class="app-header">
+      <button class="icon-btn" data-back="home">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+      </button>
+      <div class="app-header-center">
+        <div class="app-header-title">Generate AI</div>
+      </div>
+      <button class="icon-btn" id="btnAiHelp" title="Panduan">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="screen-scroll">
+      <form class="ai-form" id="aiForm" autocomplete="off">
+        <!-- Type Selection -->
+        <div class="form-section">
+          <label class="form-label required">Jenis Dokumen</label>
+          <div class="type-selector">
+            <button type="button" class="type-option" data-type="askep">
+              <span class="type-option-icon">📋</span>
+              <span class="type-option-label">ASKEP</span>
+              <span class="type-option-desc">+ SOAP 3 hari</span>
+            </button>
+            <button type="button" class="type-option" data-type="lp">
+              <span class="type-option-icon">📄</span>
+              <span class="type-option-label">LP</span>
+              <span class="type-option-desc">5 BAB lengkap</span>
+            </button>
+          </div>
+          <input type="hidden" id="aiType" value="askep">
+        </div>
+
+        <!-- Topic -->
+        <div class="form-section">
+          <label class="form-label required" for="aiTopic">Topik / Judul</label>
+          <input
+            type="text"
+            id="aiTopic"
+            class="form-input"
+            placeholder="Contoh: Hipertensi Grade II"
+            maxlength="120"
+            required>
+          <div class="form-hint">
+            <button type="button" class="link-btn" id="btnTopicSuggest">Lihat topik populer →</button>
+          </div>
+        </div>
+
+        <!-- Patient Data (Collapsible) -->
+        <div class="form-section">
+          <button type="button" class="collapsible-toggle" id="patientToggle">
+            <span class="collapsible-icon">👤</span>
+            <span class="collapsible-text">
+              <span class="collapsible-title">Data Pasien</span>
+              <span class="collapsible-sub">Opsional · Kosongkan jika ingin AI generate</span>
+            </span>
+            <span class="collapsible-chevron">▼</span>
+          </button>
+
+          <div class="collapsible-body" id="patientBody" hidden>
+            <div class="form-field">
+              <label for="pName">Nama Pasien</label>
+              <input type="text" id="pName" class="form-input" placeholder="Tn. A" maxlength="60">
+              <div class="form-hint">Kosong = AI akan generate nama contoh</div>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label for="pAge">Umur</label>
+                <input type="text" id="pAge" class="form-input" placeholder="60" maxlength="3" inputmode="numeric">
+              </div>
+              <div class="form-field">
+                <label for="pGender">Jenis Kelamin</label>
+                <select id="pGender" class="form-input">
+                  <option value="">—</option>
+                  <option value="Laki-laki">Laki-laki</option>
+                  <option value="Perempuan">Perempuan</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-field">
+              <label for="pRoom">Ruang Rawat</label>
+              <input type="text" id="pRoom" class="form-input" placeholder="C5 - Ruang Infeksius" maxlength="80">
+            </div>
+            <div class="form-field">
+              <label for="pDx">Dx. Medis</label>
+              <input type="text" id="pDx" class="form-input" placeholder="Hipertensi Grade II" maxlength="80">
+            </div>
+            <div class="form-field">
+              <label for="pComplaint">Keluhan Utama</label>
+              <textarea id="pComplaint" class="form-input" rows="3" placeholder="Sakit kepala bagian belakang sejak 3 hari..." maxlength="500"></textarea>
+            </div>
+            <div class="form-field">
+              <label for="pDetail">Detail Tambahan</label>
+              <textarea id="pDetail" class="form-input" rows="3" placeholder="Riwayat hipertensi sejak 2018, DM tipe 2 sejak 2020..." maxlength="500"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Prompt Mode -->
+        <div class="form-section">
+          <label class="form-label">Mode Prompt</label>
+          <div class="prompt-mode">
+            <button type="button" class="prompt-option active" data-mode="template">
+              <span class="prompt-option-icon">⚡</span>
+              <span class="prompt-option-title">Template</span>
+              <span class="prompt-option-desc">Cepat & terarah</span>
+            </button>
+            <button type="button" class="prompt-option" data-mode="custom">
+              <span class="prompt-option-icon">✏️</span>
+              <span class="prompt-option-title">Custom</span>
+              <span class="prompt-option-desc">Kontrol penuh</span>
+            </button>
+          </div>
+          <input type="hidden" id="aiMode" value="template">
+        </div>
+
+        <!-- Custom Prompt (hidden default) -->
+        <div class="form-section" id="customPromptSection" hidden>
+          <label class="form-label required" for="aiCustomPrompt">Prompt Anda</label>
+          <textarea
+            id="aiCustomPrompt"
+            class="form-input"
+            rows="6"
+            placeholder="Buatkan LP tentang... dengan fokus pada..."
+            maxlength="1500"></textarea>
+          <div class="form-hint warning">
+            ⚠️ Gunakan bahasa keperawatan. Prompt off-topic akan ditolak.
+          </div>
+        </div>
+
+        <!-- Cost Info -->
+        <div class="cost-info">
+          <span class="cost-icon">💎</span>
+          <span>Membutuhkan <strong>1 token</strong> · Tersisa <strong id="costRemaining">0</strong> token</span>
+        </div>
+
+        <!-- Submit -->
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary btn-block btn-lg" id="btnGenerate">
+            <span class="btn-icon">✨</span>
+            <span class="btn-text">Generate dengan AI</span>
+            <span class="btn-spinner" hidden></span>
+          </button>
+        </div>
+      </form>
+
+      <div class="screen-bottom-spacer"></div>
+    </div>
+  </section>
+
+  <!-- ===== SCREEN: LOADING ===== -->
+  <section class="screen screen-loading" data-screen="loading">
+    <div class="loading-fullscreen">
+      <div class="loading-orb-large">
+        <div class="loading-orb-ring"></div>
+        <div class="loading-orb-inner"></div>
+        <div class="loading-orb-pulse"></div>
+      </div>
+      <h2 class="loading-title">MENYUSUN DOKUMEN</h2>
+      <p class="loading-message" id="loadingMessage">Menganalisis topik...</p>
+      <div class="loading-bar">
+        <div class="loading-bar-fill" id="loadingBarFill"></div>
+      </div>
+      <div class="loading-hint">
+        Jika gagal dalam 60 detik, token akan dikembalikan otomatis
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" id="btnCancelLoading">
+        Batalkan
+      </button>
+    </div>
+  </section>
+
+  <!-- ===== SCREEN: RESULT ===== -->
+  <section class="screen screen-result" data-screen="result">
+    <div class="app-header">
+      <button class="icon-btn" data-back="home">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+      </button>
+      <div class="app-header-center">
+        <div class="app-header-title" id="resultTitle">Dokumen</div>
+      </div>
+      <button class="icon-btn" id="btnResultMenu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="1"/>
+          <circle cx="19" cy="12" r="1"/>
+          <circle cx="5" cy="12" r="1"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="result-body" id="resultBody">
+      <div class="paper" id="resultPaper">
+        <!-- Rendered content -->
+      </div>
+    </div>
+
+    <div class="result-actions">
+      <button class="btn btn-secondary" id="btnRegenerate">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 4v6h-6M1 20v-6h6"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+        Regenerate
+      </button>
+      <button class="btn btn-primary" id="btnExport">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Export DOCX
+      </button>
+    </div>
+  </section>
+
+  <!-- ===== SCREEN: PROFILE ===== -->
+  <section class="screen screen-profile" data-screen="profile">
+    <div class="app-header">
+      <button class="icon-btn" data-back="home">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+      </button>
+      <div class="app-header-center">
+        <div class="app-header-title">Profile</div>
+      </div>
+      <div style="width:36px;"></div>
+    </div>
+
+    <div class="screen-scroll">
+      <div class="profile-hero">
+        <div class="profile-avatar-large" id="profileAvatar">U</div>
+        <div class="profile-name" id="profileName">User</div>
+        <div class="profile-code" id="profileCode">USER-XXXX-XXXX</div>
+      </div>
+
+      <div class="profile-stats">
+        <div class="profile-stat">
+          <div class="profile-stat-value" id="statToken">0</div>
+          <div class="profile-stat-label">Token</div>
+        </div>
+        <div class="profile-stat">
+          <div class="profile-stat-value" id="statDocs">0</div>
+          <div class="profile-stat-label">Dokumen</div>
+        </div>
+        <div class="profile-stat">
+          <div class="profile-stat-value" id="statDevice">1</div>
+          <div class="profile-stat-label">Device</div>
+        </div>
+      </div>
+
+      <div class="menu-group">
+        <div class="menu-group-title">Data Saya</div>
+        <button class="menu-item" data-menu="export-json">
+          <div class="menu-item-icon">📤</div>
+          <div class="menu-item-content">
+            <div class="menu-item-title">Export Data</div>
+            <div class="menu-item-sub">Backup semua dokumen (JSON)</div>
+          </div>
+          <div class="menu-item-arrow">→</div>
+        </button>
+        <button class="menu-item" data-menu="import-json">
+          <div class="menu-item-icon">📥</div>
+          <div class="menu-item-content">
+            <div class="menu-item-title">Import Data</div>
+            <div class="menu-item-sub">Restore dari file backup</div>
+          </div>
+          <div class="menu-item-arrow">→</div>
+        </button>
+      </div>
+
+      <div class="menu-group">
+        <div class="menu-group-title">Bantuan</div>
+        <button class="menu-item" data-menu="help">
+          <div class="menu-item-icon">📖</div>
+          <div class="menu-item-content">
+            <div class="menu-item-title">Panduan Penggunaan</div>
+            <div class="menu-item-sub">Cara pakai aplikasi</div>
+          </div>
+          <div class="menu-item-arrow">→</div>
+        </button>
+        <button class="menu-item" data-menu="contact">
+          <div class="menu-item-icon">💬</div>
+          <div class="menu-item-content">
+            <div class="menu-item-title">Hubungi Admin</div>
+            <div class="menu-item-sub" id="contactHours">Jam operasional</div>
+          </div>
+          <div class="menu-item-arrow">→</div>
+        </button>
+      </div>
+
+      <div class="menu-group">
+        <button class="menu-item menu-item-danger" data-menu="logout">
+          <div class="menu-item-icon">🚪</div>
+          <div class="menu-item-content">
+            <div class="menu-item-title">Keluar</div>
+            <div class="menu-item-sub">Logout dari aplikasi</div>
+          </div>
+          <div class="menu-item-arrow">→</div>
+        </button>
+      </div>
+
+      <div class="app-info">
+        <div>Zhenin Keperawatan Suite</div>
+        <div id="appVersionInfo">v2.0.0</div>
+      </div>
+
+      <div class="screen-bottom-spacer"></div>
+    </div>
+
+    <nav class="bottom-nav">
+      <button class="nav-item" data-nav="home">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">Home</span>
+      </button>
+      <button class="nav-item" data-nav="generate">
+        <span class="nav-icon">✨</span>
+        <span class="nav-label">Generate</span>
+      </button>
+      <button class="nav-item" data-nav="files">
+        <span class="nav-icon">📁</span>
+        <span class="nav-label">File</span>
+      </button>
+      <button class="nav-item active" data-nav="profile">
+        <span class="nav-icon">👤</span>
+        <span class="nav-label">Profile</span>
+      </button>
+    </nav>
+  </section>
+
+  <!-- ===== SCREEN: ADMIN (diload dinamis) ===== -->
+  <section class="screen screen-admin" data-screen="admin" hidden>
+    <div id="adminRoot"></div>
+  </section>
+
+</div>
+
+<!-- ============================================================
+     MODAL: CONTACT ADMIN
+     ============================================================ -->
+<div class="modal-overlay" id="modalContact" hidden>
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">Hubungi Admin</h3>
+      <button class="icon-btn modal-close" data-close="modalContact">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="contact-card">
+        <div class="contact-row">
+          <span class="contact-label">Admin</span>
+          <span class="contact-value" id="contactName">Tian Sumual</span>
+        </div>
+        <div class="contact-row">
+          <span class="contact-label">WhatsApp</span>
+          <a class="contact-value link" id="contactWa" href="#" target="_blank" rel="noopener">0896-0397-0045</a>
+        </div>
+        <div class="contact-row">
+          <span class="contact-label">Jam Operasional</span>
+          <span class="contact-value" id="contactHoursFull">Senin-Jumat, 10:00-14:00 & 16:00-21:00 WITA</span>
+        </div>
+        <div class="contact-note" id="contactNote">
+          🤣 Admin masih mahasiswa, jadwal bisa tidak menentu
+        </div>
+      </div>
+      <p class="modal-desc text-center">
+        Untuk pembelian password atau top-up token, silakan hubungi admin via WhatsApp.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary btn-block" id="contactWaBtn">💬 Chat via WhatsApp</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL: HELP
+     ============================================================ -->
+<div class="modal-overlay" id="modalHelp" hidden>
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 class="modal-title">📖 Panduan Penggunaan</h3>
+      <button class="icon-btn modal-close" data-close="modalHelp">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="help-section">
+        <h4>1. Cara Membuat Dokumen</h4>
+        <ol class="help-list">
+          <li>Klik <strong>Generate AI</strong> atau tombol <strong>Buat</strong> di home</li>
+          <li>Pilih jenis: <strong>LP</strong> atau <strong>Askep</strong></li>
+          <li>Isi <strong>Topik</strong> (wajib) — contoh: "Hipertensi"</li>
+          <li>Isi <strong>Data Pasien</strong> (opsional) — kalau kosong, AI generate sendiri</li>
+          <li>Klik <strong>Generate dengan AI</strong></li>
+          <li>Tunggu ~30 detik sampai dokumen selesai</li>
+          <li>Export ke <strong>DOCX</strong> untuk dikumpulkan</li>
+        </ol>
+      </div>
+
+      <div class="help-section">
+        <h4>2. Token & Pembelian</h4>
+        <ul class="help-list">
+          <li><strong>1 token = 1 dokumen</strong> yang di-generate AI</li>
+          <li>Token <strong>tidak akan hangus</strong> — pakai kapan saja</li>
+          <li>Kalau AI gagal, <strong>token dikembalikan otomatis</strong></li>
+          <li>Untuk beli token: hubungi admin via WhatsApp</li>
+        </ul>
+      </div>
+
+      <div class="help-section">
+        <h4>3. Tips Prompt</h4>
+        <ul class="help-list">
+          <li>✅ Gunakan bahasa keperawatan yang profesional</li>
+          <li>✅ Sebutkan diagnosis dan umur pasien untuk hasil lebih akurat</li>
+          <li>❌ Hindari prompt di luar topik keperawatan (akan ditolak)</li>
+          <li>❌ Hindari permintaan resep, cerita, kode program</li>
+        </ul>
+      </div>
+
+      <div class="help-section">
+        <h4>4. Masalah Umum</h4>
+        <ul class="help-list">
+          <li><strong>Password tidak bisa login?</strong> Hubungi admin untuk reset device</li>
+          <li><strong>Token tidak bertambah setelah top-up?</strong> Refresh aplikasi</li>
+          <li><strong>AI error/timeout?</strong> Coba lagi, token otomatis kembali</li>
+          <li><strong>Ganti HP?</strong> Hubungi admin untuk reset device binding</li>
+        </ul>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary btn-block" data-close="modalHelp">Mengerti</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL: TOPIC SUGGESTIONS
+     ============================================================ -->
+<div class="modal-overlay" id="modalTopics" hidden>
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">Topik Populer</h3>
+      <button class="icon-btn modal-close" data-close="modalTopics">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="topic-grid" id="topicGrid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL: CONFIRM
+     ============================================================ -->
+<div class="modal-overlay" id="modalConfirm" hidden>
+  <div class="modal modal-sm">
+    <div class="modal-body text-center">
+      <div class="confirm-icon" id="confirmIcon">❓</div>
+      <h3 class="confirm-title" id="confirmTitle">Konfirmasi</h3>
+      <p class="confirm-desc" id="confirmDesc">Apakah Anda yakin?</p>
+    </div>
+    <div class="modal-footer modal-footer-row">
+      <button class="btn btn-secondary" id="confirmCancel">Batal</button>
+      <button class="btn btn-danger" id="confirmOk">Ya, Lanjutkan</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCRIPT BOOTSTRAP
+     ============================================================ -->
+<script>
+  // Detect admin mode from URL
+  (function () {
+    const params = new URLSearchParams(window.location.search);
+    const isAdmin = params.get('admin') === '1';
+
+    if (isAdmin) {
+      document.body.setAttribute('data-mode', 'admin');
+      document.body.setAttribute('data-page', 'admin');
+      // Show admin screen
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      const adminScreen = document.querySelector('.screen-admin');
+      if (adminScreen) {
+        adminScreen.hidden = false;
+        adminScreen.classList.add('active');
+      }
+      // Load admin bundle dynamically
+      const script = document.createElement('script');
+      script.type = 'module';
+      script.src = '/js/admin.js';
+      script.onerror = function () {
+        document.getElementById('adminRoot').innerHTML =
+          '<div style="padding:40px;text-align:center;color:#F87171;">Admin module gagal dimuat</div>';
+      };
+      document.head.appendChild(script);
+    } else {
+      // Load user app
+      const script = document.createElement('script');
+      script.type = 'module';
+      script.src = '/js/app.js';
+      document.head.appendChild(script);
+    }
+  })();
+</script>
+</body>
+</html>
