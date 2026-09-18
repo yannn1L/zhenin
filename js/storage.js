@@ -1,6 +1,6 @@
 /* ============================================================
-   ZHENIN - Storage Module (UPDATED Sprint 2B)
-   LocalStorage wrapper + Backup + Monitor + Admin Session
+   ZHENIN - Storage Module (v2.3.0)
+   LocalStorage + Backup + Monitor + Profile Extended
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -9,9 +9,6 @@ import { CONFIG } from './config.js';
    BASE STORAGE
    ============================================================ */
 export const Storage = {
-  /**
-   * Save data ke localStorage dengan error handling
-   */
   save(key, data) {
     try {
       const json = JSON.stringify(data);
@@ -26,17 +23,10 @@ export const Storage = {
           message: 'Penyimpanan penuh. Export data lalu bersihkan.'
         };
       }
-      return {
-        success: false,
-        error: 'UNKNOWN',
-        message: e.message
-      };
+      return { success: false, error: 'UNKNOWN', message: e.message };
     }
   },
 
-  /**
-   * Load data dari localStorage
-   */
   load(key, fallback = null) {
     try {
       const raw = localStorage.getItem(key);
@@ -49,9 +39,6 @@ export const Storage = {
     }
   },
 
-  /**
-   * Remove item
-   */
   remove(key) {
     try {
       localStorage.removeItem(key);
@@ -62,24 +49,15 @@ export const Storage = {
     }
   },
 
-  /**
-   * Cek apakah key ada
-   */
   has(key) {
     return localStorage.getItem(key) !== null;
   },
 
-  /**
-   * Get size (bytes) dari value
-   */
   sizeOf(key) {
     const raw = localStorage.getItem(key);
     return raw ? new Blob([raw]).size : 0;
   },
 
-  /**
-   * Get all keys dengan prefix (FIX: guard null key)
-   */
   keys(prefix = '') {
     const result = [];
     const len = localStorage.length;
@@ -90,13 +68,25 @@ export const Storage = {
     return result;
   },
 
-  /**
-   * Clear all dengan prefix
-   */
   clearPrefix(prefix) {
     this.keys(prefix).forEach(k => this.remove(k));
   }
 };
+
+/* ============================================================
+   DEFAULT PROFILE
+   ============================================================ */
+function getDefaultProfile() {
+  return {
+    nama: '',
+    nim: '',
+    kelompok: '',
+    tempatPraktik: '',
+    periodePraktik: '',
+    ci: '',
+    updatedAt: 0
+  };
+}
 
 /* ============================================================
    DATA ACCESS
@@ -120,19 +110,32 @@ export const Data = {
     return Storage.save(CONFIG.STORAGE.ASKEP, list);
   },
 
-  // ===== Profile =====
+  // ===== Profile (Extended) =====
   getProfile() {
-    return Storage.load(CONFIG.STORAGE.PROFILE, {
-      nama: '',
-      nim: '',
-      kelompok: '',
-      tempatPraktik: '',
-      periode: '',
-      ci: ''
-    });
+    const saved = Storage.load(CONFIG.STORAGE.PROFILE, null);
+    const defaults = getDefaultProfile();
+    if (!saved || typeof saved !== 'object') return defaults;
+    // Merge - pastikan semua field ada
+    return { ...defaults, ...saved };
   },
   saveProfile(profile) {
-    return Storage.save(CONFIG.STORAGE.PROFILE, profile);
+    const data = {
+      ...getDefaultProfile(),
+      ...profile,
+      updatedAt: Date.now()
+    };
+    return Storage.save(CONFIG.STORAGE.PROFILE, data);
+  },
+  isProfileComplete() {
+    const p = this.getProfile();
+    return !!(p.nama && p.nama.trim());
+  },
+  getProfileInitials() {
+    const p = this.getProfile();
+    if (!p.nama) return 'U';
+    const parts = p.nama.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   },
 
   // ===== Layout =====
@@ -163,7 +166,7 @@ export const Data = {
     return Storage.remove(CONFIG.STORAGE.SESSION);
   },
 
-  // ===== Admin Session (NEW) =====
+  // ===== Admin Session =====
   getAdminSession() {
     const s = Storage.load(CONFIG.STORAGE.ADMIN_SESSION, null);
     if (!s) return null;
@@ -186,11 +189,49 @@ export const Data = {
   },
   saveDeviceHash(hash) {
     return Storage.save(CONFIG.STORAGE.DEVICE, hash);
+  },
+
+  // ===== Promo Cache =====
+  getPromoCache() {
+    const cache = Storage.load(CONFIG.STORAGE.PROMO_CACHE, null);
+    if (!cache) return null;
+    // Cache expired?
+    if (Date.now() - cache.fetchedAt > CONFIG.TIMING.PROMO_CACHE_MS) {
+      return null;
+    }
+    return cache.data;
+  },
+  savePromoCache(data) {
+    return Storage.save(CONFIG.STORAGE.PROMO_CACHE, {
+      fetchedAt: Date.now(),
+      data
+    });
+  },
+
+  // ===== Onboarding =====
+  isOnboarded() {
+    return Storage.load(CONFIG.STORAGE.ONBOARDED, false) === true;
+  },
+  setOnboarded() {
+    return Storage.save(CONFIG.STORAGE.ONBOARDED, true);
+  },
+  resetOnboarding() {
+    return Storage.remove(CONFIG.STORAGE.ONBOARDED);
+  },
+
+  // ===== Promo Dismissed =====
+  isPromoDismissed() {
+    const ts = Storage.load(CONFIG.STORAGE.PROMO_DISMISSED, 0);
+    if (!ts) return false;
+    return (Date.now() - ts) < CONFIG.TIMING.PROMO_DISMISS_MS;
+  },
+  setPromoDismissed() {
+    return Storage.save(CONFIG.STORAGE.PROMO_DISMISSED, Date.now());
   }
 };
 
 /* ============================================================
-   STORAGE MONITOR (OPTIMIZED dengan cache 2 detik)
+   STORAGE MONITOR
    ============================================================ */
 export const StorageMonitor = {
   _cache: null,
@@ -219,6 +260,8 @@ export const StorageMonitor = {
       promoDismissed: getSize(CONFIG.STORAGE.PROMO_DISMISSED),
       onboarded: getSize(CONFIG.STORAGE.ONBOARDED),
       adminSession: getSize(CONFIG.STORAGE.ADMIN_SESSION),
+      promoCache: getSize(CONFIG.STORAGE.PROMO_CACHE),
+      templatesCache: getSize(CONFIG.STORAGE.CACHED_TEMPLATES),
       total: 0
     };
 
@@ -258,7 +301,7 @@ export const StorageMonitor = {
 };
 
 /* ============================================================
-   BACKUP MANAGEMENT
+   BACKUP
    ============================================================ */
 export const Backup = {
   createSnapshot(label = 'Manual backup') {
@@ -314,9 +357,7 @@ export const Backup = {
   restore(snapshotId) {
     const snapshots = this.getAll();
     const snap = snapshots.find(s => s.id === snapshotId);
-    if (!snap) {
-      return { success: false, error: 'Snapshot tidak ditemukan' };
-    }
+    if (!snap) return { success: false, error: 'Snapshot tidak ditemukan' };
 
     try {
       if (snap.data.lp) Data.saveLP(snap.data.lp);
@@ -341,7 +382,7 @@ export const Backup = {
 };
 
 /* ============================================================
-   EXPORT / IMPORT JSON
+   EXPORT / IMPORT
    ============================================================ */
 export const ExportImport = {
   async exportJSON() {
@@ -383,9 +424,7 @@ export const ExportImport = {
       reader.onload = (e) => {
         try {
           const data = JSON.parse(e.target.result);
-          if (!data || typeof data !== 'object') {
-            throw new Error('File tidak valid');
-          }
+          if (!data || typeof data !== 'object') throw new Error('File tidak valid');
 
           const lpIn = Array.isArray(data.lp) ? data.lp : [];
           const askepIn = Array.isArray(data.askep) ? data.askep : [];
@@ -414,10 +453,7 @@ export const ExportImport = {
 
           resolve({
             success: true,
-            imported: {
-              lp: lpIn.length,
-              askep: askepIn.length
-            }
+            imported: { lp: lpIn.length, askep: askepIn.length }
           });
         } catch (err) {
           reject(new Error('File tidak valid: ' + err.message));
@@ -438,6 +474,7 @@ export const ExportImport = {
     Storage.remove(CONFIG.STORAGE.SESSION);
     Storage.remove(CONFIG.STORAGE.PROMO_DISMISSED);
     Storage.remove(CONFIG.STORAGE.ONBOARDED);
+    Storage.remove(CONFIG.STORAGE.PROMO_CACHE);
     return { success: true };
   }
 };

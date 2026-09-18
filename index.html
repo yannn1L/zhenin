@@ -24,6 +24,7 @@
 </head>
 <body data-page="splash">
 
+<!-- Loading Overlay -->
 <div class="loading-overlay" id="loadingOverlay" aria-hidden="true">
   <div class="loading-box">
     <div class="loading-orb">
@@ -33,11 +34,13 @@
   </div>
 </div>
 
+<!-- Toast Container -->
 <div class="toast-container" id="toastContainer"></div>
 
+<!-- App Root -->
 <div class="app" id="app">
 
-  <!-- SCREEN: SPLASH -->
+  <!-- ===== SPLASH ===== -->
   <section class="screen screen-splash active" data-screen="splash">
     <div class="splash-logo">
       <svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
@@ -54,10 +57,10 @@
     <div class="splash-loader">
       <div class="splash-loader-fill"></div>
     </div>
-    <div class="splash-version" id="splashVersion">v2.0.0</div>
+    <div class="splash-version" id="splashVersion">v2.3.0</div>
   </section>
 
-  <!-- SCREEN: LOGIN -->
+  <!-- ===== LOGIN ===== -->
   <section class="screen screen-login" data-screen="login">
     <div class="login-container">
       <div class="login-header">
@@ -76,16 +79,10 @@
         <div class="form-field">
           <label for="passwordInput">Password Akses</label>
           <div class="input-wrap">
-            <input
-              type="text"
-              id="passwordInput"
-              name="password"
-              placeholder="USER-XXXX-XXXX"
-              autocomplete="off"
-              autocapitalize="characters"
-              spellcheck="false"
-              maxlength="20"
-              required>
+            <input type="text" id="passwordInput" name="password"
+              placeholder="USER-XXXX-XXXX" autocomplete="off"
+              autocapitalize="characters" spellcheck="false"
+              maxlength="20" required>
             <button type="button" class="input-icon-btn" id="clearPassword" title="Hapus" aria-label="Hapus">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M18 6L6 18M6 6l12 12"/>
@@ -109,7 +106,7 @@
       </form>
 
       <div class="login-footer">
-        <div class="login-version" id="loginVersion">v2.0.0</div>
+        <div class="login-version" id="loginVersion">v2.3.0</div>
         <div class="login-legal">
           Dengan masuk, Anda menyetujui
           <button type="button" class="link-btn" id="termsBtn">Syarat & Ketentuan</button>
@@ -118,7 +115,7 @@
     </div>
   </section>
 
-  <!-- SCREEN: HOME -->
+  <!-- ===== HOME ===== -->
   <section class="screen screen-home" data-screen="home">
     <div class="app-header">
       <div class="app-header-left">
@@ -243,7 +240,7 @@
     </nav>
   </section>
 
-  <!-- SCREEN: AI GENERATOR -->
+  <!-- ===== AI GENERATOR ===== -->
   <section class="screen screen-ai" data-screen="ai">
     <div class="app-header">
       <button class="icon-btn" data-back="home">
@@ -284,13 +281,9 @@
 
         <div class="form-section">
           <label class="form-label required" for="aiTopic">Topik / Judul</label>
-          <input
-            type="text"
-            id="aiTopic"
-            class="form-input"
+          <input type="text" id="aiTopic" class="form-input"
             placeholder="Contoh: Hipertensi Grade II"
-            maxlength="120"
-            required>
+            maxlength="120" required>
           <div class="form-hint">
             <button type="button" class="link-btn" id="btnTopicSuggest">Lihat topik populer →</button>
           </div>
@@ -364,10 +357,7 @@
 
         <div class="form-section" id="customPromptSection" hidden>
           <label class="form-label required" for="aiCustomPrompt">Prompt Anda</label>
-          <textarea
-            id="aiCustomPrompt"
-            class="form-input"
-            rows="6"
+          <textarea id="aiCustomPrompt" class="form-input" rows="6"
             placeholder="Buatkan LP tentang... dengan fokus pada..."
             maxlength="1500"></textarea>
           <div class="form-hint warning">
@@ -393,7 +383,7 @@
     </div>
   </section>
 
-  <!-- SCREEN: LOADING -->
+  <!-- ===== LOADING ===== -->
   <section class="screen screen-loading" data-screen="loading">
     <div class="loading-fullscreen">
       <div class="loading-orb-large">
@@ -415,7 +405,7 @@
     </div>
   </section>
 
-  <!-- SCREEN: RESULT -->
+  <!-- ===== RESULT ===== -->
   <section class="screen screen-result" data-screen="result">
     <div class="app-header">
       <button class="icon-btn" data-back="home">
@@ -458,7 +448,7 @@
     </div>
   </section>
 
-  <!-- SCREEN: PROFILE -->
+  <!-- ===== PROFILE ===== -->
   <section class="screen screen-profile" data-screen="profile">
     <div class="app-header">
       <button class="icon-btn" data-back="home">
@@ -473,12 +463,14 @@
     </div>
 
     <div class="screen-scroll">
+      <!-- Profile Hero -->
       <div class="profile-hero">
         <div class="profile-avatar-large" id="profileAvatar">U</div>
         <div class="profile-name" id="profileName">User</div>
         <div class="profile-code" id="profileCode">USER-XXXX-XXXX</div>
       </div>
 
+      <!-- Stats -->
       <div class="profile-stats">
         <div class="profile-stat">
           <div class="profile-stat-value" id="statToken">0</div>
@@ -494,8 +486,23 @@
         </div>
       </div>
 
+      <!-- Identitas Mahasiswa -->
+      <div class="menu-group">
+        <div class="menu-group-title">Identitas Mahasiswa</div>
+        <div class="menu-group-info">
+          ℹ️ Data ini dipakai otomatis di bagian <strong>IDENTITAS MAHASISWA</strong> pada Askep/LP.
+        </div>
+        <div class="profile-fields" id="profileFieldsContainer">
+          <!-- Rendered by Profile module -->
+        </div>
+      </div>
+
+      <!-- Storage Widget -->
       <div class="menu-group">
         <div class="menu-group-title">Data Saya</div>
+        <div class="storage-widget" id="storageWidget">
+          <!-- Rendered by Profile module -->
+        </div>
         <button class="menu-item" data-menu="export-json">
           <div class="menu-item-icon">📤</div>
           <div class="menu-item-content">
@@ -514,6 +521,7 @@
         </button>
       </div>
 
+      <!-- Bantuan -->
       <div class="menu-group">
         <div class="menu-group-title">Bantuan</div>
         <button class="menu-item" data-menu="help">
@@ -532,8 +540,17 @@
           </div>
           <div class="menu-item-arrow">→</div>
         </button>
+        <button class="menu-item" data-menu="onboarding">
+          <div class="menu-item-icon">🎓</div>
+          <div class="menu-item-content">
+            <div class="menu-item-title">Tampilkan Tutorial</div>
+            <div class="menu-item-sub">Lihat lagi panduan awal</div>
+          </div>
+          <div class="menu-item-arrow">→</div>
+        </button>
       </div>
 
+      <!-- Logout -->
       <div class="menu-group">
         <button class="menu-item menu-item-danger" data-menu="logout">
           <div class="menu-item-icon">🚪</div>
@@ -547,7 +564,7 @@
 
       <div class="app-info">
         <div>Zhenin Keperawatan Suite</div>
-        <div id="appVersionInfo">v2.0.0</div>
+        <div id="appVersionInfo">v2.3.0</div>
       </div>
 
       <div class="screen-bottom-spacer"></div>
@@ -573,14 +590,14 @@
     </nav>
   </section>
 
-  <!-- SCREEN: ADMIN (dynamic) -->
+  <!-- ===== ADMIN (dynamic) ===== -->
   <section class="screen screen-admin" data-screen="admin" hidden>
     <div id="adminRoot"></div>
   </section>
 
 </div>
 
-<!-- MODAL: CONTACT ADMIN -->
+<!-- MODAL: CONTACT -->
 <div class="modal-overlay" id="modalContact" hidden>
   <div class="modal">
     <div class="modal-header">
@@ -610,7 +627,7 @@
         </div>
       </div>
       <p class="modal-desc text-center">
-        Untuk pembelian password atau top-up token, silakan hubungi admin via WhatsApp.
+        Untuk pembelian password atau top-up token, hubungi admin via WhatsApp.
       </p>
     </div>
     <div class="modal-footer">
@@ -645,7 +662,15 @@
       </div>
 
       <div class="help-section">
-        <h4>2. Token & Pembelian</h4>
+        <h4>2. Lengkapi Profil Anda</h4>
+        <p style="font-size:13px;color:var(--z-text-muted);line-height:1.6;margin-bottom:8px;">
+          Buka <strong>Profile</strong> → isi <strong>Identitas Mahasiswa</strong> (nama, NIM, kelompok, dll).
+          Data ini akan <strong>otomatis muncul</strong> di bagian IDENTITAS MAHASISWA pada Askep/LP.
+        </p>
+      </div>
+
+      <div class="help-section">
+        <h4>3. Token & Pembelian</h4>
         <ul class="help-list">
           <li><strong>1 token = 1 dokumen</strong> yang di-generate AI</li>
           <li>Token <strong>tidak akan hangus</strong> — pakai kapan saja</li>
@@ -655,7 +680,7 @@
       </div>
 
       <div class="help-section">
-        <h4>3. Tips Prompt</h4>
+        <h4>4. Tips Prompt</h4>
         <ul class="help-list">
           <li>✅ Gunakan bahasa keperawatan yang profesional</li>
           <li>✅ Sebutkan diagnosis dan umur pasien untuk hasil lebih akurat</li>
@@ -665,7 +690,7 @@
       </div>
 
       <div class="help-section">
-        <h4>4. Masalah Umum</h4>
+        <h4>5. Masalah Umum</h4>
         <ul class="help-list">
           <li><strong>Password tidak bisa login?</strong> Hubungi admin untuk reset device</li>
           <li><strong>Token tidak bertambah setelah top-up?</strong> Refresh aplikasi</li>

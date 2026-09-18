@@ -1475,3 +1475,113 @@ select.form-input {
 @media (min-width: 1024px) {
   .screen-bottom-spacer { height: 40px; }
 }
+
+   PROFILE FIELDS (v2.3.0)
+   ============================================================ */
+.profile-fields {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.profile-fields .form-field {
+  margin-bottom: 12px;
+}
+.profile-fields .form-field:last-child {
+  margin-bottom: 4px;
+}
+.profile-fields .form-label {
+  font-size: 0.625rem;
+  letter-spacing: 0.8px;
+}
+.profile-fields .form-input {
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  min-height: 40px;
+}
+
+.menu-group-info {
+  padding: 0 16px 12px;
+  font-size: 0.75rem;
+  color: var(--z-text-muted);
+  line-height: 1.5;
+  border-bottom: 1px solid var(--z-border);
+  margin-bottom: 8px;
+}
+.menu-group-info strong {
+  color: var(--z-gold);
+  font-weight: 600;
+}
+
+/* ============================================================
+   STORAGE WIDGET (v2.3.0)
+   ============================================================ */
+.storage-widget {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--z-border);
+  margin-bottom: 4px;
+}
+.storage-widget-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.storage-widget-icon {
+  font-size: 1rem;
+}
+.storage-widget-title {
+  flex: 1;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--z-text);
+}
+.storage-widget-pct {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--z-success);
+  font-family: 'JetBrains Mono', monospace;
+}
+.storage-widget-pct.warning {
+  color: var(--z-warning);
+}
+.storage-widget-pct.critical {
+  color: var(--z-error);
+}
+.storage-widget-bar {
+  height: 5px;
+  background: rgba(107, 63, 160, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.storage-widget-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4ADE80, #22C55E);
+  border-radius: 3px;
+  transition: width 0.3s, background 0.3s;
+}
+.storage-widget-fill.warning {
+  background: linear-gradient(90deg, #FBBF24, #F59E0B);
+}
+.storage-widget-fill.critical {
+  background: linear-gradient(90deg, #F87171, #DC2626);
+}
+.storage-widget-info {
+  font-size: 0.6875rem;
+  color: var(--z-text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  margin-bottom: 6px;
+}
+.storage-widget-detail {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.625rem;
+  color: var(--z-text-dim);
+}
+.storage-widget-detail span {
+  background: rgba(107, 63, 160, 0.15);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
