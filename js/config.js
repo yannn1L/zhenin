@@ -11,9 +11,7 @@ export const CONFIG = {
   APP_BUILD: '2025-09-18',
   
   // ===== BACKEND =====
-  // Ganti dengan URL Apps Script Anda
-  // Format: https://script.google.com/macros/s/XXX/exec
-  APPS_SCRIPT_URL: '',
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxyICAEaetJyO1xjxMcH3pdbpr-LZxi6y0jvF1sFOViyNjHz3PNsvzhaktkNs9z2XuA/exec',
   
   // ===== CONTACT =====
   CONTACT: {
