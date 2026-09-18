@@ -1,17 +1,15 @@
 /* ============================================================
    ZHENIN - Config
-   Konstanta aplikasi, endpoint, dan pengaturan global
    ============================================================ */
 
 export const CONFIG = {
   // ===== APP =====
   APP_NAME: 'Zhenin',
   APP_FULL_NAME: 'Zhenin Keperawatan Suite',
-  APP_VERSION: '2.0.0',
-  APP_BUILD: '2025-09-18',
+  APP_VERSION: '2.1.0',
+  APP_BUILD: '2025-09-19',
   
   // ===== BACKEND =====
-  // Ganti dengan URL Apps Script Anda
   APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxyICAEaetJyO1xjxMcH3pdbpr-LZxi6y0jvF1sFOViyNjHz3PNsvzhaktkNs9z2XuA/exec',
   
   // ===== CONTACT =====
@@ -24,7 +22,7 @@ export const CONFIG = {
     note: 'Admin masih mahasiswa, jadwal bisa tidak menentu 🤣'
   },
   
-  // ===== DEVICE NAME PARSING =====
+  // ===== DEVICE PATTERNS =====
   DEVICE_PATTERNS: [
     { pattern: /iPhone/, name: 'iPhone' },
     { pattern: /iPad/, name: 'iPad' },
@@ -63,7 +61,8 @@ export const CONFIG = {
     LAYOUT: 'zhenin_layout_v1',
     PROMO_DISMISSED: 'zhenin_promo_dismissed',
     ONBOARDED: 'zhenin_onboarded',
-    ADMIN_SESSION: 'zhenin_admin_session_v1'
+    ADMIN_SESSION: 'zhenin_admin_session_v1',
+    CACHED_TEMPLATES: 'zhenin_cached_templates_v1' // ⚠️ NEW
   },
   
   // ===== TIMING =====
@@ -72,9 +71,10 @@ export const CONFIG = {
     AUTOBACKUP_MS: 10 * 60 * 1000,
     SESSION_MAX_AGE_MS: 365 * 24 * 60 * 60 * 1000,
     SESSION_REFRESH_MS: 60 * 60 * 1000,
-    AI_TIMEOUT_MS: 60 * 1000,
+    AI_TIMEOUT_MS: 90000,
     SPLASH_DURATION_MS: 2800,
-    TOAST_DURATION_MS: 3200
+    TOAST_DURATION_MS: 3200,
+    TEMPLATES_CACHE_MS: 24 * 60 * 60 * 1000 // 24 jam
   },
   
   // ===== LIMITS =====
@@ -140,7 +140,12 @@ export const CONFIG = {
     { package: 'Core', price: 34900, token: 10, popular: true },
     { package: 'Pro', price: 99900, token: 30, popular: false },
     { package: 'Ultimate', price: 199900, token: 80, popular: false }
-  ]
+  ],
+  
+  // ===== FALLBACK STRUCTURES (untuk preview only) =====
+  // Struktur asli ada di Google Sheets (sheet: templates)
+  FALLBACK_LP_STRUCTURE: '# BAB I : TINJAUAN TEORI KASUS\n\n## A. Konsep Penyakit\n### 1. Pengertian\n### 2. Penyebab / Etiologi\n### 3. Patofisiologi\n### 4. Tanda dan Gejala\n### 5. Pemeriksaan Penunjang\n### 6. Penatalaksanaan Medis\n\n## B. Pathway / Pohon Masalah\n\n\\page\n\n# BAB II : KONSEP KEBUTUHAN DASAR MANUSIA\n...',
+  FALLBACK_ASKEP_STRUCTURE: '## A. IDENTITAS PASIEN\n\n\\page\n\n## B. RIWAYAT KESEHATAN\n...\n\n[TABEL_TTD]'
 };
 
 Object.freeze(CONFIG);
