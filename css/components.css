@@ -1583,3 +1583,268 @@ select.form-input {
   padding: 2px 6px;
   border-radius: 4px;
 }
+
+/* ============================================================
+   RESULT SCREEN TOOLBAR (v2.3.0)
+   ============================================================ */
+.result-toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 8px 16px;
+  background: var(--z-night);
+  border-bottom: 1px solid var(--z-border);
+  flex-shrink: 0;
+}
+.result-mode-btn {
+  flex: 1;
+  padding: 8px 12px;
+  background: rgba(74, 44, 90, 0.3);
+  border: 1px solid transparent;
+  border-radius: var(--z-r-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--z-text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.result-mode-btn:hover {
+  background: rgba(74, 44, 90, 0.5);
+  color: var(--z-gold);
+}
+.result-mode-btn.active {
+  background: var(--z-grad-primary);
+  color: white;
+  border-color: var(--z-border-strong);
+  box-shadow: 0 2px 8px rgba(107, 63, 160, 0.3);
+}
+
+.result-editor {
+  display: block;
+  width: 100%;
+  min-height: 60vh;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px;
+  background: white;
+  color: #000;
+  border: none;
+  border-radius: var(--z-r-sm);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  resize: vertical;
+  outline: none;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+.result-editor.hidden {
+  display: none;
+}
+.paper.hidden {
+  display: none;
+}
+.paper.paper-editing {
+  outline: 2px solid var(--z-gold);
+  outline-offset: 4px;
+  cursor: text;
+}
+.paper.paper-editing:hover {
+  outline-color: var(--z-lavender);
+}
+
+/* Loading Timer */
+.loading-timer {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.25rem;
+  color: var(--z-gold);
+  letter-spacing: 2px;
+  margin-top: var(--z-s-sm);
+  text-shadow: 0 0 12px rgba(201, 169, 97, 0.4);
+}
+
+/* ============================================================
+   FILES SCREEN (v2.3.0)
+   ============================================================ */
+.files-filter {
+  display: flex;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(15, 11, 26, 0.6);
+  border-bottom: 1px solid var(--z-border);
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+.files-filter::-webkit-scrollbar { height: 0; }
+.files-filter-btn {
+  padding: 6px 14px;
+  background: rgba(74, 44, 90, 0.3);
+  border: 1px solid transparent;
+  border-radius: var(--z-r-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--z-text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.files-filter-btn:hover {
+  background: rgba(74, 44, 90, 0.5);
+  color: var(--z-gold);
+}
+.files-filter-btn.active {
+  background: var(--z-grad-primary);
+  color: white;
+  border-color: var(--z-border-strong);
+}
+
+.doc-list-full {
+  padding: 0 16px;
+}
+.doc-list-full .doc-item {
+  padding: 16px;
+}
+.doc-list-full .doc-icon {
+  width: 52px;
+  height: 52px;
+  font-size: 1.5rem;
+}
+.doc-list-full .doc-title {
+  font-size: 0.9375rem;
+}
+
+/* ============================================================
+   DOC ACTIONS MENU (v2.3.0)
+   ============================================================ */
+   
+#modalDocActions .menu-item {
+  border-bottom: 1px solid var(--z-border);
+}
+#modalDocActions .menu-item:last-child {
+  border-bottom: none;
+}
+
+/* ============================================================
+   RENAME MODAL (v2.3.0)
+   ============================================================ */
+#modalRename .form-field {
+  margin-bottom: 0;
+}
+
+/* ============================================================
+   ONBOARDING (v2.3.0)
+   ============================================================ */
+.onboarding-container {
+  position: relative;
+  background: var(--z-deep);
+  border-radius: var(--z-r-xl);
+  max-width: 480px;
+  width: 100%;
+  padding: 32px 24px 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--z-border);
+  animation: z-modal-in 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  margin: auto;
+}
+@media (max-width: 600px) {
+  .onboarding-container {
+    border-radius: var(--z-r-lg);
+    margin: 16px;
+    max-width: calc(100% - 32px);
+  }
+}
+
+.onboarding-skip {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: transparent;
+  border: none;
+  color: var(--z-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: var(--z-r-sm);
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.onboarding-skip:hover {
+  background: rgba(74, 44, 90, 0.4);
+  color: var(--z-gold);
+}
+
+.onboarding-slides {
+  position: relative;
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.onboarding-slide {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 20px;
+  animation: z-slide-up 0.3s ease;
+}
+.onboarding-slide.active {
+  display: flex;
+}
+
+.onboarding-slide-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+  line-height: 1;
+  filter: drop-shadow(0 0 20px rgba(201, 169, 97, 0.4));
+}
+.onboarding-slide-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--z-gold);
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+  line-height: 1.3;
+}
+.onboarding-slide-desc {
+  font-size: 0.9375rem;
+  color: var(--z-text);
+  line-height: 1.6;
+  max-width: 340px;
+}
+
+.onboarding-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.onboarding-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(166, 123, 200, 0.3);
+  transition: all 0.2s;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+.onboarding-dot.active {
+  background: var(--z-gold);
+  width: 24px;
+  border-radius: 4px;
+  box-shadow: 0 0 12px rgba(201, 169, 97, 0.6);
+}
+
+.onboarding-actions {
+  display: flex;
+  gap: 8px;
+}
+.onboarding-actions .btn {
+  flex: 1;
+}

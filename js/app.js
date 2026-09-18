@@ -1,6 +1,6 @@
 /* ============================================================
-   ZHENIN - App.js (Main Application) v2.3.0
-   Sprint 2C+ : Profile Enhancement + Token Manager
+   ZHENIN - App.js (v2.3.0)
+   Sprint 2C+ : AI Generation Flow Integration
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -8,9 +8,10 @@ import { Storage, Data, StorageMonitor, Backup, ExportImport } from './storage.j
 import { Auth, ContactAdmin, DeviceFingerprint } from './auth.js';
 import Profile from './profile.js';
 import TokenManager from './token-manager.js';
+import AI from './ai.js';
 
 /* ============================================================
-   APP STATE
+   STATE
    ============================================================ */
 const State = {
   currentScreen: 'splash',
@@ -20,7 +21,9 @@ const State = {
     mode: 'mobile-portrait',
     previewVisible: true,
     splitRatio: 0.5
-  }
+  },
+  currentDoc: null,
+  viewMode: 'preview'
 };
 
 /* ============================================================
@@ -67,16 +70,14 @@ function sleep(ms) {
 }
 
 /* ============================================================
-   UI COMPONENTS
+   UI
    ============================================================ */
 const UI = {
   toast(message, type = 'info', duration = CONFIG.TIMING.TOAST_DURATION_MS) {
     const container = $('#toastContainer');
     if (!container) return;
 
-    const icons = {
-      success: '✓', error: '✕', warning: '⚠', info: 'ℹ'
-    };
+    const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
 
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
@@ -119,22 +120,22 @@ const UI = {
       s.classList.toggle('active', s.dataset.screen === screenId);
     });
     State.currentScreen = screenId;
-
     document.body.setAttribute('data-page', screenId);
 
+    // Bottom nav
     $$('.bottom-nav .nav-item').forEach(item => {
       const nav = item.dataset.nav;
-      const screenMap = { home: 'home', generate: 'ai', files: 'home', profile: 'profile' };
+      const screenMap = { home: 'home', generate: 'ai', files: 'files', profile: 'profile' };
       item.classList.toggle('active', screenMap[nav] === screenId);
     });
 
     const scroll = $(`.screen[data-screen="${screenId}"] .screen-scroll`);
     if (scroll) scroll.scrollTop = 0;
 
-    // Refresh screen-specific data
-    if (screenId === 'profile') {
-      Profile.init();
-    }
+    // Refresh data per screen
+    if (screenId === 'profile') Profile.init();
+    if (screenId === 'files') renderFilesList();
+    if (screenId === 'home') renderDocList();
 
     if (screenId !== 'splash' && screenId !== 'login') {
       try {
@@ -202,12 +203,14 @@ const UI = {
   }
 };
 
+// Expose UI ke window untuk dipakai module lain
+window.UI = UI;
+
 /* ============================================================
    LAYOUT MANAGER
    ============================================================ */
 const LayoutManager = {
   currentMode: null,
-
   detect() {
     const w = window.innerWidth;
     const h = window.innerHeight;
@@ -216,7 +219,6 @@ const LayoutManager = {
     if (w < 1024) return portrait ? 'tablet-portrait' : 'tablet-landscape';
     return 'desktop';
   },
-
   apply() {
     const mode = this.detect();
     if (mode === this.currentMode) return;
@@ -224,13 +226,10 @@ const LayoutManager = {
     State.layout.mode = mode;
     document.body.setAttribute('data-layout', mode);
   },
-
   init() {
     this.apply();
     window.addEventListener('resize', debounce(() => this.apply(), 100));
-    window.addEventListener('orientationchange', () => {
-      setTimeout(() => this.apply(), 150);
-    });
+    window.addEventListener('orientationchange', () => setTimeout(() => this.apply(), 150));
   }
 };
 
@@ -242,14 +241,12 @@ const SessionManager = {
   isRefreshing: false,
 
   async refresh(silent = true) {
-    if (this.isRefreshing) return { success: false, reason: 'already_refreshing' };
-    if (!Auth.isLoggedIn()) return { success: false, reason: 'not_logged_in' };
+    if (this.isRefreshing) return { success: false };
+    if (!Auth.isLoggedIn()) return { success: false };
 
     this.isRefreshing = true;
-
     try {
       const result = await Auth.refreshSession();
-
       if (result.success) {
         State.session = result.session;
         TokenManager.reset();
@@ -257,7 +254,7 @@ const SessionManager = {
         if (!silent) UI.toast('Token diperbarui', 'success');
         return { success: true };
       } else {
-        if (result.error && result.error !== 'Network error' && result.error !== 'Failed to fetch') {
+        if (result.error && !['Network error', 'Failed to fetch'].includes(result.error)) {
           Auth.logout();
           State.session = null;
           UI.toast('Session berakhir. Silakan login kembali.', 'error', 5000);
@@ -274,9 +271,7 @@ const SessionManager = {
 
   start() {
     this.stop();
-    this.refreshTimer = setInterval(() => {
-      this.refresh(true);
-    }, CONFIG.TIMING.SESSION_REFRESH_MS);
+    this.refreshTimer = setInterval(() => this.refresh(true), CONFIG.TIMING.SESSION_REFRESH_MS);
   },
 
   stop() {
@@ -307,13 +302,10 @@ const SessionManager = {
    ============================================================ */
 const BackButton = {
   initialized: false,
-
   handlePop() {
     const current = State.currentScreen;
-    if (current === 'home' || current === 'login' || current === 'splash') {
-      UI.confirm(
-        'Keluar aplikasi?',
-        'Anda yakin ingin keluar dari Zhenin?',
+    if (['home', 'login', 'splash'].includes(current)) {
+      UI.confirm('Keluar aplikasi?', 'Anda yakin ingin keluar dari Zhenin?',
         { icon: '🚪', okText: 'Keluar' }
       ).then(confirmed => {
         if (!confirmed) {
@@ -327,12 +319,10 @@ const BackButton = {
 
     const parents = {
       'ai': 'home', 'profile': 'home', 'result': 'home',
-      'loading': 'ai', 'admin': 'home'
+      'loading': 'ai', 'files': 'home', 'admin': 'home'
     };
-    const parent = parents[current] || 'home';
-    UI.goTo(parent);
+    UI.goTo(parents[current] || 'home');
   },
-
   init() {
     if (this.initialized) return;
     this.initialized = true;
@@ -341,35 +331,10 @@ const BackButton = {
 };
 
 /* ============================================================
-   ONBOARDING (Placeholder - Full di Response 3)
-   ============================================================ */
-const Onboarding = {
-  shouldShow() {
-    return !Data.isOnboarded();
-  },
-  show() {
-    // Placeholder - akan diimplementasikan di Response 3
-    console.log('[Onboarding] Will show in Response 3');
-  }
-};
-
-/* ============================================================
-   PROMO (Placeholder - Full di Response 3)
-   ============================================================ */
-const Promo = {
-  async load() {
-    // Placeholder - akan diimplementasikan di Response 3
-    const banner = $('#promoBanner');
-    if (banner) banner.hidden = true;
-  }
-};
-
-/* ============================================================
    SPLASH
    ============================================================ */
 async function initSplash() {
-  const versionEls = ['splashVersion', 'loginVersion', 'appVersionInfo'];
-  versionEls.forEach(id => {
+  ['splashVersion', 'loginVersion', 'appVersionInfo'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.textContent = `v${CONFIG.APP_VERSION}`;
   });
@@ -397,8 +362,7 @@ function initLogin() {
   const clearBtn = $('#clearPassword');
 
   input.addEventListener('input', (e) => {
-    let v = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
-    e.target.value = v;
+    e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
   });
 
   if (clearBtn) {
@@ -433,8 +397,7 @@ function initLogin() {
         await sleep(300);
         UI.goTo('home');
 
-        // Show onboarding untuk user baru
-        if (Onboarding.shouldShow()) {
+        if (!Data.isOnboarded()) {
           setTimeout(() => Onboarding.show(), 800);
         }
       } else {
@@ -462,7 +425,9 @@ async function initUserApp() {
   TokenManager.refreshAllUI();
   initHome();
   initAIScreen();
+  initResultScreen();
   initProfile();
+  initFilesScreen();
   initBottomNav();
   initModals();
   initShortcuts();
@@ -471,10 +436,7 @@ async function initUserApp() {
   SessionManager.init();
   BackButton.init();
 
-  // Load promo (async)
   Promo.load().catch(() => {});
-
-  // Initial silent refresh
   setTimeout(() => SessionManager.refresh(true), 2000);
 }
 
@@ -491,26 +453,17 @@ function initHome() {
     btn.addEventListener('click', () => goToGenerate('askep'));
   });
 
-  const refreshBtn = $('#btnRefresh');
-  if (refreshBtn) {
-    refreshBtn.addEventListener('click', async () => {
-      refreshBtn.style.transform = 'rotate(360deg)';
-      setTimeout(() => refreshBtn.style.transform = '', 500);
-      await SessionManager.refresh(false);
-    });
-  }
+  $('#btnRefresh')?.addEventListener('click', async function() {
+    this.style.transform = 'rotate(360deg)';
+    setTimeout(() => this.style.transform = '', 500);
+    await SessionManager.refresh(false);
+  });
 
-  const profileBtn = $('#btnProfile');
-  if (profileBtn) {
-    profileBtn.addEventListener('click', () => UI.goTo('profile'));
-  }
-
+  $('#btnProfile')?.addEventListener('click', () => UI.goTo('profile'));
   $('#btnTopup')?.addEventListener('click', () => showContactModal('topup'));
   $('#btnWarningTopup')?.addEventListener('click', () => showContactModal('topup'));
 
-  $('#btnSeeAll')?.addEventListener('click', () => {
-    UI.toast('Fitur "Lihat Semua" akan tersedia di Sprint 2D', 'info');
-  });
+  $('#btnSeeAll')?.addEventListener('click', () => UI.goTo('files'));
 
   $('#promoClose')?.addEventListener('click', () => {
     Data.setPromoDismissed();
@@ -520,13 +473,7 @@ function initHome() {
 }
 
 function renderDocList() {
-  const lp = Data.getLP();
-  const askep = Data.getAskep();
-  const all = [
-    ...lp.map(d => ({ ...d, _type: 'lp' })),
-    ...askep.map(d => ({ ...d, _type: 'askep' }))
-  ].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 5);
-
+  const all = getAllDocs().slice(0, 5);
   const listEl = $('#docList');
   const emptyEl = $('#emptyDocs');
 
@@ -538,44 +485,55 @@ function renderDocList() {
 
   if (emptyEl) emptyEl.hidden = true;
 
-  listEl.innerHTML = all.map(doc => {
-    const icon = doc._type === 'lp' ? '📄' : '📋';
-    const typeLabel = doc._type === 'lp' ? 'LP' : 'Askep';
-    const timeAgo = formatTimeAgo(doc.createdAt || Date.now());
+  listEl.innerHTML = all.map(doc => renderDocItem(doc)).join('');
+  bindDocListEvents(listEl);
+}
 
-    return `
-      <div class="doc-item" data-doc-id="${escapeHtml(doc.id)}" data-doc-type="${doc._type}">
-        <div class="doc-icon ${doc._type}">${icon}</div>
-        <div class="doc-info">
-          <div class="doc-title">${escapeHtml(doc.judul || 'Tanpa Judul')}</div>
-          <div class="doc-meta">
-            <span>${typeLabel}</span>
-            <span class="dot"></span>
-            <span>${timeAgo}</span>
-          </div>
+function getAllDocs() {
+  const lp = Data.getLP().map(d => ({ ...d, _type: 'lp' }));
+  const askep = Data.getAskep().map(d => ({ ...d, _type: 'askep' }));
+  return [...lp, ...askep].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+}
+
+function renderDocItem(doc) {
+  const icon = doc._type === 'lp' ? '📄' : '📋';
+  const typeLabel = doc._type === 'lp' ? 'LP' : 'Askep';
+  const timeAgo = formatTimeAgo(doc.createdAt || Date.now());
+
+  return `
+    <div class="doc-item" data-doc-id="${escapeHtml(doc.id)}" data-doc-type="${doc._type}">
+      <div class="doc-icon ${doc._type}">${icon}</div>
+      <div class="doc-info">
+        <div class="doc-title">${escapeHtml(doc.judul || 'Tanpa Judul')}</div>
+        <div class="doc-meta">
+          <span>${typeLabel}</span>
+          <span class="dot"></span>
+          <span>${timeAgo}</span>
         </div>
-        <button class="doc-menu" data-doc-menu="${escapeHtml(doc.id)}" data-doc-menu-type="${doc._type}">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="1"/>
-            <circle cx="19" cy="12" r="1"/>
-            <circle cx="5" cy="12" r="1"/>
-          </svg>
-        </button>
       </div>
-    `;
-  }).join('');
+      <button class="doc-menu" data-doc-menu="${escapeHtml(doc.id)}" data-doc-menu-type="${doc._type}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="1"/>
+          <circle cx="19" cy="12" r="1"/>
+          <circle cx="5" cy="12" r="1"/>
+        </svg>
+      </button>
+    </div>
+  `;
+}
 
-  $$('[data-doc-id]').forEach(el => {
+function bindDocListEvents(container) {
+  container.querySelectorAll('[data-doc-id]').forEach(el => {
     el.addEventListener('click', (e) => {
       if (e.target.closest('[data-doc-menu]')) return;
       openDocument(el.dataset.docId, el.dataset.docType);
     });
   });
 
-  $$('[data-doc-menu]').forEach(el => {
+  container.querySelectorAll('[data-doc-menu]').forEach(el => {
     el.addEventListener('click', (e) => {
       e.stopPropagation();
-      showDocMenu(el.dataset.docMenu, el.dataset.docMenuType);
+      showDocActionsMenu(el.dataset.docMenu, el.dataset.docMenuType);
     });
   });
 }
@@ -595,23 +553,24 @@ function goToGenerate(type = 'askep') {
 }
 
 function openDocument(docId, docType) {
-  UI.toast(`Fitur buka dokumen akan tersedia di Sprint 2D`, 'info');
-}
-
-function showDocMenu(docId, docType) {
-  UI.toast(`Menu dokumen akan tersedia di Sprint 2D`, 'info');
+  const doc = AI.getDocument(docId, docType);
+  if (!doc) {
+    UI.toast('Dokumen tidak ditemukan', 'error');
+    return;
+  }
+  State.currentDoc = { ...doc, _type: docType };
+  AI.setCurrentDocId(docId);
+  renderResultScreen();
+  UI.goTo('result');
 }
 
 /* ============================================================
-   AI SCREEN
+   AI SCREEN - Submits AI Generation
    ============================================================ */
 function initAIScreen() {
   const form = $('#aiForm');
   if (form) {
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      UI.toast('AI generation akan diaktifkan di Response 2', 'info');
-    });
+    form.addEventListener('submit', handleAISubmit);
   }
 
   $$('.type-option').forEach(btn => {
@@ -646,13 +605,426 @@ function initAIScreen() {
     });
   }
 
-  $('#btnTopicSuggest')?.addEventListener('click', () => {
-    showTopicSuggestions();
+  $('#btnTopicSuggest')?.addEventListener('click', showTopicSuggestions);
+  $('#btnAiHelp')?.addEventListener('click', () => UI.openModal('modalHelp'));
+}
+
+/**
+ * Handle AI Form Submit
+ */
+async function handleAISubmit(e) {
+  e.preventDefault();
+
+  const btn = $('#btnGenerate');
+  UI.setBtnLoading(btn, true);
+
+  try {
+    // 1. Build request
+    const requestBody = await AI.generate();
+
+    // 2. Go to loading screen
+    UI.goTo('loading');
+    AI.startLoadingScreen();
+
+    // 3. Call backend
+    const result = await AI.callBackend(requestBody);
+
+    // 4. Stop loading
+    AI.stopLoadingScreen();
+
+    // 5. Handle result
+    if (result.success && result.result) {
+      // Save doc
+      const formData = AI.collectFormData();
+      const prompt = requestBody.prompt;
+      const doc = AI.saveResult(result.result, formData, prompt);
+
+      // Update token
+      if (typeof result.remainingToken === 'number') {
+        TokenManager.updateFromResponse(result.remainingToken);
+      }
+
+      // Set current doc
+      State.currentDoc = { ...doc, _type: formData.type };
+      AI.setCurrentDocId(doc.id);
+
+      // Render result
+      renderResultScreen();
+
+      // Show toast sukses
+      UI.toast('✅ Dokumen berhasil dibuat!', 'success');
+
+      // Go to result
+      UI.goTo('result');
+
+    } else {
+      // Error dari backend
+      const errorMsg = result.error || 'AI gagal';
+      const mapped = AI.mapError({ message: errorMsg });
+
+      // Refresh token (mungkin di-refund)
+      await SessionManager.refresh(true);
+
+      // Back to form
+      UI.goTo('ai');
+      UI.toast(mapped.text, mapped.type, 5000);
+    }
+
+  } catch (err) {
+    console.error('AI Submit error:', err);
+    AI.stopLoadingScreen();
+
+    const mapped = AI.mapError(err);
+
+    // Kalau belum di loading, balik ke form
+    if (State.currentScreen === 'loading') {
+      UI.goTo('ai');
+    }
+
+    // Handle special cases
+    if (err.code === 'NO_TOKEN') {
+      UI.confirm(
+        'Token Habis',
+        'Token Anda habis. Hubungi admin untuk top-up.',
+        { icon: '💎', okText: 'Hubungi Admin', danger: false }
+      ).then(confirmed => {
+        if (confirmed) showContactModal('topup');
+      });
+    } else {
+      UI.toast(mapped.text, mapped.type, 5000);
+    }
+  } finally {
+    UI.setBtnLoading(btn, false);
+  }
+}
+
+/* ============================================================
+   RESULT SCREEN
+   ============================================================ */
+function initResultScreen() {
+  $$('[data-view-mode]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('[data-view-mode]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      setResultViewMode(btn.dataset.viewMode);
+    });
   });
 
-  $('#btnAiHelp')?.addEventListener('click', () => {
-    UI.openModal('modalHelp');
+  $('#btnRegenerate')?.addEventListener('click', handleRegenerate);
+  $('#btnExport')?.addEventListener('click', handleExportDocx);
+  $('#btnResultMenu')?.addEventListener('click', () => {
+    if (State.currentDoc) {
+      showDocActionsMenu(State.currentDoc.id, State.currentDoc._type);
+    }
   });
+}
+
+function renderResultScreen() {
+  const doc = State.currentDoc;
+  if (!doc) return;
+
+  const titleEl = $('#resultTitle');
+  if (titleEl) titleEl.textContent = doc.judul || 'Dokumen';
+
+  // Render paper (preview)
+  const paperEl = $('#resultPaper');
+  if (paperEl) {
+    paperEl.innerHTML = renderMarkdownToHtml(doc.content || '');
+  }
+
+  // Set markdown editor content
+  const editorEl = $('#resultEditor');
+  if (editorEl) editorEl.value = doc.content || '';
+
+  // Reset to preview mode
+  setResultViewMode('preview');
+}
+
+function setResultViewMode(mode) {
+  State.viewMode = mode;
+  const paper = $('#resultPaper');
+  const editor = $('#resultEditor');
+
+  $$('[data-view-mode]').forEach(b => {
+    b.classList.toggle('active', b.dataset.viewMode === mode);
+  });
+
+  if (mode === 'preview') {
+    if (paper) paper.classList.remove('hidden');
+    if (editor) editor.classList.add('hidden');
+    // Re-render markdown from editor
+    if (paper && editor) {
+      paper.innerHTML = renderMarkdownToHtml(editor.value);
+    }
+  } else if (mode === 'edit') {
+    // Toggle contenteditable pada paper
+    if (paper) {
+      paper.classList.remove('hidden');
+      paper.setAttribute('contenteditable', 'true');
+      paper.classList.add('paper-editing');
+    }
+    if (editor) editor.classList.add('hidden');
+  } else if (mode === 'markdown') {
+    if (paper) {
+      paper.classList.add('hidden');
+      paper.removeAttribute('contenteditable');
+      paper.classList.remove('paper-editing');
+    }
+    if (editor) editor.classList.remove('hidden');
+  }
+}
+
+async function handleRegenerate() {
+  const request = AI.getCurrentRequest();
+  if (!request) {
+    UI.toast('Request tidak tersedia', 'warning');
+    return;
+  }
+
+  const confirmed = await UI.confirm(
+    'Regenerate Dokumen?',
+    'AI akan membuat ulang dokumen. Membutuhkan 1 token.',
+    { icon: '🔄', okText: 'Regenerate', danger: false }
+  );
+
+  if (!confirmed) return;
+  if (!TokenManager.hasEnough(1)) {
+    UI.toast('Token habis', 'warning');
+    return;
+  }
+
+  // Trigger AI submit lagi
+  $('#aiForm').dispatchEvent(new Event('submit'));
+}
+
+async function handleExportDocx() {
+  if (!State.currentDoc) {
+    UI.toast('Dokumen tidak ditemukan', 'error');
+    return;
+  }
+
+  // Placeholder - akan diimplementasikan di Sprint 2D
+  UI.toast('Export DOCX akan tersedia di Sprint 2D', 'info');
+}
+
+/* ============================================================
+   MARKDOWN RENDERER (Basic - akan diupgrade di Sprint 2D)
+   ============================================================ */
+function renderMarkdownToHtml(markdown) {
+  if (!markdown) return '<p style="color:#94a3b8;text-align:center;padding:40px;">Dokumen kosong</p>';
+
+  // Replace placeholders dulu
+  let text = replacePlaceholders(markdown);
+
+  const lines = text.split('\n');
+  const blocks = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const raw = lines[i];
+    const trimmed = raw.trim();
+    if (!trimmed) { i++; continue; }
+
+    // Page break
+    if (trimmed === '\\page' || trimmed === '[PAGE_BREAK]') {
+      blocks.push('<div class="pv-pagebreak"></div>');
+      i++; continue;
+    }
+
+    // HR
+    if (/^-{3,}$/.test(trimmed)) {
+      blocks.push('<hr class="pv-hr">');
+      i++; continue;
+    }
+
+    // Signature
+    if (trimmed === '[TABEL_TTD]') {
+      blocks.push(`
+        <table class="pv-ttd">
+          <tr>
+            <th>Yang Membuat/Mahasiswa</th>
+            <th>Yang Memverifikasi/Clinical Instructure(CI)</th>
+          </tr>
+          <tr>
+            <td>Nama Lengkap &amp; Tanda Tangan</td>
+            <td>Nama Lengkap &amp; Tanda Tangan</td>
+          </tr>
+        </table>
+      `);
+      i++; continue;
+    }
+
+    // Image
+    const imgMatch = trimmed.match(/^\[GAMBAR:\s*(.+?)\]$/i);
+    if (imgMatch) {
+      blocks.push(`
+        <table class="pv-image"><tr><td>
+          [ Sisipkan gambar di sini ]
+          <span class="pv-img-caption">Gambar: ${escapeHtml(imgMatch[1])}</span>
+        </td></tr></table>
+      `);
+      i++; continue;
+    }
+
+    // Table
+    if (trimmed.startsWith('|')) {
+      const tLines = [];
+      while (i < lines.length && lines[i].trim().startsWith('|')) {
+        tLines.push(lines[i]);
+        i++;
+      }
+      blocks.push(renderTable(tLines));
+      continue;
+    }
+
+    // Headings
+    if (trimmed.startsWith('#### ')) {
+      blocks.push(`<h4 class="pv-h4">${renderInline(trimmed.slice(5))}</h4>`);
+      i++; continue;
+    }
+    if (trimmed.startsWith('### ')) {
+      blocks.push(`<h3 class="pv-h3">${renderInline(trimmed.slice(4))}</h3>`);
+      i++; continue;
+    }
+    if (trimmed.startsWith('## ')) {
+      blocks.push(`<h2 class="pv-h2">${renderInline(trimmed.slice(3))}</h2>`);
+      i++; continue;
+    }
+    if (trimmed.startsWith('# ')) {
+      blocks.push(`<h1 class="pv-h1">${renderInline(trimmed.slice(2))}</h1>`);
+      i++; continue;
+    }
+
+    // Blockquote
+    if (trimmed.startsWith('> ')) {
+      blocks.push(`<div class="pv-quote">${renderInline(trimmed.slice(2))}</div>`);
+      i++; continue;
+    }
+
+    // List
+    if (/^\d+\.\s/.test(trimmed)) {
+      const indent = getIndent(raw);
+      const content = trimmed.replace(/^\d+\.\s*/, '');
+      blocks.push(`<ol class="pv-list indent-${Math.min(indent, 3)}"><li>${renderInline(content)}</li></ol>`);
+      i++; continue;
+    }
+    if (/^[-*•]\s/.test(trimmed)) {
+      const indent = getIndent(raw);
+      const content = trimmed.replace(/^[-*•]\s*/, '');
+      blocks.push(`<ul class="pv-list indent-${Math.min(indent, 3)}"><li>${renderInline(content)}</li></ul>`);
+      i++; continue;
+    }
+
+    // Paragraph
+    const indent = getIndent(raw);
+    blocks.push(`<p class="pv-p indent-${Math.min(indent, 3)}">${renderInline(trimmed)}</p>`);
+    i++;
+  }
+
+  return blocks.join('\n');
+}
+
+function renderTable(lines) {
+  const valid = lines.filter(l => l.trim().startsWith('|'));
+  if (valid.length < 2) return '';
+
+  const headers = splitRow(valid[0]);
+  if (!headers.length) return '';
+
+  // Separator check
+  let dataStart = 2;
+  const secondRow = splitRow(valid[1]);
+  const isSep = secondRow.every(c => /^:?-+:?$/.test(c));
+  let aligns = new Array(headers.length).fill('left');
+
+  if (isSep) {
+    aligns = secondRow.map(sep => {
+      if (/^:-+:$/.test(sep)) return 'center';
+      if (/^-+:$/.test(sep)) return 'right';
+      return 'left';
+    });
+  } else {
+    dataStart = 1;
+  }
+
+  const rows = valid.slice(dataStart).map(line => {
+    const cells = splitRow(line);
+    while (cells.length < headers.length) cells.push('');
+    return cells.slice(0, headers.length);
+  });
+
+  let html = '<table class="pv-table"><thead><tr>';
+  headers.forEach((h, i) => {
+    html += `<th class="align-${aligns[i] || 'left'}">${renderInline(h)}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+  rows.forEach(row => {
+    html += '<tr>';
+    row.forEach((c, i) => {
+      html += `<td class="align-${aligns[i] || 'left'}">${renderInline(c)}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  return html;
+}
+
+function splitRow(line) {
+  let s = line.trim();
+  if (s.startsWith('|')) s = s.slice(1);
+  if (s.endsWith('|')) s = s.slice(0, -1);
+  return s.split('|').map(c => c.trim());
+}
+
+function renderInline(text) {
+  if (!text) return '';
+  let html = escapeHtml(text);
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/~~(.+?)~~/g, '<s>$1</s>');
+  html = html.replace(/==(.+?)==/g, '<mark>$1</mark>');
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  html = html.replace(/__(.+?)__/g, '<u>$1</u>');
+  html = html.replace(/`(.+?)`/g, '<code>$1</code>');
+  return html;
+}
+
+function getIndent(line) {
+  let level = 0;
+  for (const ch of line) {
+    if (ch === '\t') level += 1;
+    else if (ch === ' ') level += 0.5;
+    else break;
+  }
+  return Math.floor(level);
+}
+
+function replacePlaceholders(text) {
+  const profile = Data.getProfile();
+  return text
+    .replace(/\[NAMA_MHS\]/g, profile.nama || '[NAMA_MHS]')
+    .replace(/\[NIM\]/g, profile.nim || '-')
+    .replace(/\[KELOMPOK\]/g, profile.kelompok || '-')
+    .replace(/\[TEMPAT\]/g, profile.tempatPraktik || '-')
+    .replace(/\[PERIODE\]/g, profile.periodePraktik || '-')
+    .replace(/\[NAMA_CI\]/g, profile.ci || '[NAMA_CI]')
+    .replace(/\[TANGGAL\]/g, new Date().toLocaleDateString('id-ID', {
+      day: 'numeric', month: 'long', year: 'numeric'
+    }))
+    .replace(/\[IDENTITAS_MHS\]/g, buildIdentityTable());
+}
+
+function buildIdentityTable() {
+  const p = Data.getProfile();
+  return `
+    <table class="pv-table"><tbody>
+      <tr><td style="width:35%"><strong>Nama</strong></td><td>${escapeHtml(p.nama || '-')}</td></tr>
+      <tr><td><strong>NIM</strong></td><td>${escapeHtml(p.nim || '-')}</td></tr>
+      <tr><td><strong>Kelompok</strong></td><td>${escapeHtml(p.kelompok || '-')}</td></tr>
+      <tr><td><strong>Tempat Praktik</strong></td><td>${escapeHtml(p.tempatPraktik || '-')}</td></tr>
+      <tr><td><strong>Periode Praktik</strong></td><td>${escapeHtml(p.periodePraktik || '-')}</td></tr>
+      <tr><td><strong>Clinical Instruktur</strong></td><td>${escapeHtml(p.ci || '-')}</td></tr>
+    </tbody></table>
+  `;
 }
 
 /* ============================================================
@@ -718,6 +1090,7 @@ function handleImportJSON() {
         'success', 5000
       );
       renderDocList();
+      renderFilesList();
       Profile.init();
       TokenManager.refreshAllUI();
     } catch (err) {
@@ -736,9 +1109,7 @@ async function handleLogout() {
   );
 
   if (confirmed) {
-    // Save profile dulu sebelum logout
     Profile.saveNow();
-
     SessionManager.stop();
     Auth.logout();
     State.session = null;
@@ -746,6 +1117,153 @@ async function handleLogout() {
     UI.goTo('login');
     UI.toast('Berhasil logout', 'success');
   }
+}
+
+/* ============================================================
+   FILES SCREEN
+   ============================================================ */
+let filesFilter = 'all';
+
+function initFilesScreen() {
+  $$('[data-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('[data-filter]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      filesFilter = btn.dataset.filter;
+      renderFilesList();
+    });
+  });
+}
+
+function renderFilesList() {
+  let docs = getAllDocs();
+
+  if (filesFilter === 'lp') docs = docs.filter(d => d._type === 'lp');
+  if (filesFilter === 'askep') docs = docs.filter(d => d._type === 'askep');
+
+  const listEl = $('#filesDocList');
+  const emptyEl = $('#filesEmpty');
+
+  if (!docs.length) {
+    if (listEl) listEl.innerHTML = '';
+    if (emptyEl) emptyEl.hidden = false;
+    return;
+  }
+
+  if (emptyEl) emptyEl.hidden = true;
+
+  listEl.innerHTML = docs.map(doc => renderDocItem(doc)).join('');
+  bindDocListEvents(listEl);
+}
+
+/* ============================================================
+   DOC ACTIONS MENU
+   ============================================================ */
+let docActionTarget = null;
+
+function showDocActionsMenu(docId, docType) {
+  docActionTarget = { id: docId, type: docType };
+  UI.openModal('modalDocActions');
+}
+
+function initDocActionsModal() {
+  $$('[data-doc-action]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const action = btn.dataset.docAction;
+      const target = docActionTarget;
+      UI.closeModal('modalDocActions');
+
+      if (!target) return;
+
+      switch (action) {
+        case 'open':
+          openDocument(target.id, target.type);
+          break;
+        case 'rename':
+          showRenameModal(target.id, target.type);
+          break;
+        case 'duplicate':
+          duplicateDoc(target.id, target.type);
+          break;
+        case 'export':
+          UI.toast('Export DOCX akan tersedia di Sprint 2D', 'info');
+          break;
+        case 'delete':
+          const confirmed = await UI.confirm(
+            'Hapus Dokumen?',
+            'Dokumen akan dihapus permanen.',
+            { icon: '🗑️', okText: 'Hapus' }
+          );
+          if (confirmed) {
+            AI.deleteDocument(target.id, target.type);
+            UI.toast('Dokumen dihapus', 'success');
+            renderDocList();
+            renderFilesList();
+            Profile.renderStats();
+          }
+          break;
+      }
+    });
+  });
+}
+
+function showRenameModal(docId, docType) {
+  const doc = AI.getDocument(docId, docType);
+  if (!doc) return;
+
+  const input = $('#renameInput');
+  if (input) input.value = doc.judul || '';
+  UI.openModal('modalRename');
+
+  setTimeout(() => {
+    input?.focus();
+    input?.select();
+  }, 100);
+}
+
+function initRenameModal() {
+  $('#renameSave')?.addEventListener('click', () => {
+    if (!docActionTarget) return;
+    const input = $('#renameInput');
+    const newTitle = input?.value.trim();
+    if (!newTitle) {
+      UI.toast('Judul tidak boleh kosong', 'warning');
+      return;
+    }
+
+    AI.updateDocument(docActionTarget.id, docActionTarget.type, { judul: newTitle });
+    UI.closeModal('modalRename');
+    UI.toast('Judul diubah', 'success');
+    renderDocList();
+    renderFilesList();
+  });
+}
+
+function duplicateDoc(docId, docType) {
+  const doc = AI.getDocument(docId, docType);
+  if (!doc) return;
+
+  const newDoc = {
+    ...doc,
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+    judul: (doc.judul || 'Dokumen') + ' (copy)',
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+
+  if (docType === 'lp') {
+    const list = Data.getLP();
+    list.unshift(newDoc);
+    Data.saveLP(list);
+  } else {
+    const list = Data.getAskep();
+    list.unshift(newDoc);
+    Data.saveAskep(list);
+  }
+
+  UI.toast('Dokumen diduplikat', 'success');
+  renderDocList();
+  renderFilesList();
 }
 
 /* ============================================================
@@ -758,7 +1276,7 @@ function initBottomNav() {
       switch (nav) {
         case 'home': UI.goTo('home'); break;
         case 'generate': goToGenerate('askep'); break;
-        case 'files': UI.toast('Fitur Files akan tersedia di Sprint 2D', 'info'); break;
+        case 'files': UI.goTo('files'); break;
         case 'profile': UI.goTo('profile'); break;
       }
     });
@@ -789,10 +1307,13 @@ function initModals() {
   if (waBtn) {
     waBtn.addEventListener('click', () => {
       const session = Data.getSession();
-      const passwordInfo = session ? ` (password: ${session.password})` : '';
-      ContactAdmin.openWA(`Halo Admin Tian, saya ingin bertanya tentang Zhenin${passwordInfo}.`);
+      const pw = session ? ` (password: ${session.password})` : '';
+      ContactAdmin.openWA(`Halo Admin Tian, saya ingin bertanya tentang Zhenin${pw}.`);
     });
   }
+
+  initDocActionsModal();
+  initRenameModal();
 }
 
 function showContactModal(reason = '') {
@@ -831,7 +1352,26 @@ function showTopicSuggestions() {
 }
 
 /* ============================================================
-   KEYBOARD SHORTCUTS
+   ONBOARDING (Placeholder - Response 3)
+   ============================================================ */
+const Onboarding = {
+  show() {
+    console.log('[Onboarding] Full version akan diimplementasikan di Response 3');
+  }
+};
+
+/* ============================================================
+   PROMO (Placeholder - Response 3)
+   ============================================================ */
+const Promo = {
+  async load() {
+    const banner = $('#promoBanner');
+    if (banner) banner.hidden = true;
+  }
+};
+
+/* ============================================================
+   KEYBOARD
    ============================================================ */
 function initShortcuts() {
   document.addEventListener('keydown', (e) => {
@@ -859,9 +1399,7 @@ function startAutoBackup() {
   if (autoBackupTimer) clearInterval(autoBackupTimer);
   autoBackupTimer = setInterval(() => {
     if (Auth.isLoggedIn()) {
-      // Save profile dulu
       Profile.saveNow();
-      // Backup
       Backup.autoBackup();
     }
   }, CONFIG.TIMING.AUTOBACKUP_MS);
@@ -883,7 +1421,7 @@ async function init() {
 
   window.addEventListener('hashchange', () => {
     const hash = window.location.hash.slice(1);
-    if (hash && ['home', 'ai', 'profile', 'result'].includes(hash)) {
+    if (hash && ['home', 'ai', 'profile', 'files', 'result'].includes(hash)) {
       if (hash !== State.currentScreen) UI.goTo(hash);
     }
   });
@@ -893,7 +1431,6 @@ async function init() {
 
 function setupPrismLanguage() {
   if (!window.Prism) return;
-
   Prism.languages.keperawatan = {
     'comment': { pattern: /<!--[\s\S]*?-->/, greedy: true },
     'heading': { pattern: /^#{1,4} .+$/m, inside: { 'punctuation': /^#{1,4}/ } },
@@ -912,9 +1449,6 @@ function setupPrismLanguage() {
   };
 }
 
-/* ============================================================
-   START
-   ============================================================ */
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {
