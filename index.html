@@ -9,27 +9,21 @@
 <meta name="description" content="Zhenin - Generator dokumen keperawatan dengan AI">
 <title>Zhenin · Keperawatan Suite</title>
 
-<!-- Google Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-<!-- Libs -->
 <script src="/lib/index.umd.js" defer></script>
 <script src="/lib/FileSaver.min.js" defer></script>
 <link rel="stylesheet" href="/lib/prism.css">
 <script src="/lib/prism.min.js" defer></script>
 
-<!-- Styles -->
 <link rel="stylesheet" href="/css/main.css">
 <link rel="stylesheet" href="/css/layout.css">
 <link rel="stylesheet" href="/css/components.css">
 </head>
 <body data-page="splash">
 
-<!-- ============================================================
-     GLOBAL LOADING OVERLAY
-     ============================================================ -->
 <div class="loading-overlay" id="loadingOverlay" aria-hidden="true">
   <div class="loading-box">
     <div class="loading-orb">
@@ -39,17 +33,11 @@
   </div>
 </div>
 
-<!-- ============================================================
-     TOAST CONTAINER
-     ============================================================ -->
 <div class="toast-container" id="toastContainer"></div>
 
-<!-- ============================================================
-     APP ROOT
-     ============================================================ -->
 <div class="app" id="app">
 
-  <!-- ===== SCREEN: SPLASH ===== -->
+  <!-- SCREEN: SPLASH -->
   <section class="screen screen-splash active" data-screen="splash">
     <div class="splash-logo">
       <svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
@@ -69,7 +57,7 @@
     <div class="splash-version" id="splashVersion">v2.0.0</div>
   </section>
 
-  <!-- ===== SCREEN: LOGIN ===== -->
+  <!-- SCREEN: LOGIN -->
   <section class="screen screen-login" data-screen="login">
     <div class="login-container">
       <div class="login-header">
@@ -98,8 +86,10 @@
               spellcheck="false"
               maxlength="20"
               required>
-            <button type="button" class="input-icon-btn" id="togglePassword" title="Tampilkan/sembunyikan">
-              <span id="togglePasswordIcon">👁</span>
+            <button type="button" class="input-icon-btn" id="clearPassword" title="Hapus" aria-label="Hapus">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
             </button>
           </div>
           <div class="form-hint" id="loginHint">
@@ -128,7 +118,7 @@
     </div>
   </section>
 
-  <!-- ===== SCREEN: HOME ===== -->
+  <!-- SCREEN: HOME -->
   <section class="screen screen-home" data-screen="home">
     <div class="app-header">
       <div class="app-header-left">
@@ -155,7 +145,6 @@
     </div>
 
     <div class="screen-scroll" id="homeScroll">
-      <!-- Promo Banner (dismissible) -->
       <div class="promo-banner" id="promoBanner" hidden>
         <div class="promo-content">
           <span class="promo-icon">🎉</span>
@@ -171,7 +160,6 @@
         </div>
       </div>
 
-      <!-- Token Card -->
       <div class="token-card">
         <div class="token-card-bg"></div>
         <div class="token-card-inner">
@@ -190,7 +178,6 @@
         </div>
       </div>
 
-      <!-- Token Warning (kalau < 2) -->
       <div class="alert alert-warning" id="tokenWarning" hidden>
         <div class="alert-icon">⚠️</div>
         <div class="alert-content">
@@ -200,7 +187,6 @@
         <button class="btn btn-sm btn-warning" id="btnWarningTopup">Top-up</button>
       </div>
 
-      <!-- Quick Actions -->
       <div class="section-header">
         <h2 class="section-title">Buat Dokumen</h2>
       </div>
@@ -221,16 +207,12 @@
         </button>
       </div>
 
-      <!-- Recent Documents -->
       <div class="section-header">
         <h2 class="section-title">Dokumen Terbaru</h2>
         <button class="link-btn" id="btnSeeAll">Lihat Semua →</button>
       </div>
-      <div class="doc-list" id="docList">
-        <!-- Populated by JS -->
-      </div>
+      <div class="doc-list" id="docList"></div>
 
-      <!-- Empty State -->
       <div class="empty-state" id="emptyDocs" hidden>
         <div class="empty-icon">📭</div>
         <div class="empty-title">Belum ada dokumen</div>
@@ -241,7 +223,6 @@
       <div class="screen-bottom-spacer"></div>
     </div>
 
-    <!-- Bottom Nav -->
     <nav class="bottom-nav" id="bottomNav">
       <button class="nav-item active" data-nav="home">
         <span class="nav-icon">🏠</span>
@@ -262,7 +243,7 @@
     </nav>
   </section>
 
-  <!-- ===== SCREEN: AI GENERATOR ===== -->
+  <!-- SCREEN: AI GENERATOR -->
   <section class="screen screen-ai" data-screen="ai">
     <div class="app-header">
       <button class="icon-btn" data-back="home">
@@ -284,7 +265,6 @@
 
     <div class="screen-scroll">
       <form class="ai-form" id="aiForm" autocomplete="off">
-        <!-- Type Selection -->
         <div class="form-section">
           <label class="form-label required">Jenis Dokumen</label>
           <div class="type-selector">
@@ -302,7 +282,6 @@
           <input type="hidden" id="aiType" value="askep">
         </div>
 
-        <!-- Topic -->
         <div class="form-section">
           <label class="form-label required" for="aiTopic">Topik / Judul</label>
           <input
@@ -317,7 +296,6 @@
           </div>
         </div>
 
-        <!-- Patient Data (Collapsible) -->
         <div class="form-section">
           <button type="button" class="collapsible-toggle" id="patientToggle">
             <span class="collapsible-icon">👤</span>
@@ -367,7 +345,6 @@
           </div>
         </div>
 
-        <!-- Prompt Mode -->
         <div class="form-section">
           <label class="form-label">Mode Prompt</label>
           <div class="prompt-mode">
@@ -385,7 +362,6 @@
           <input type="hidden" id="aiMode" value="template">
         </div>
 
-        <!-- Custom Prompt (hidden default) -->
         <div class="form-section" id="customPromptSection" hidden>
           <label class="form-label required" for="aiCustomPrompt">Prompt Anda</label>
           <textarea
@@ -399,13 +375,11 @@
           </div>
         </div>
 
-        <!-- Cost Info -->
         <div class="cost-info">
           <span class="cost-icon">💎</span>
           <span>Membutuhkan <strong>1 token</strong> · Tersisa <strong id="costRemaining">0</strong> token</span>
         </div>
 
-        <!-- Submit -->
         <div class="form-actions">
           <button type="submit" class="btn btn-primary btn-block btn-lg" id="btnGenerate">
             <span class="btn-icon">✨</span>
@@ -419,7 +393,7 @@
     </div>
   </section>
 
-  <!-- ===== SCREEN: LOADING ===== -->
+  <!-- SCREEN: LOADING -->
   <section class="screen screen-loading" data-screen="loading">
     <div class="loading-fullscreen">
       <div class="loading-orb-large">
@@ -441,7 +415,7 @@
     </div>
   </section>
 
-  <!-- ===== SCREEN: RESULT ===== -->
+  <!-- SCREEN: RESULT -->
   <section class="screen screen-result" data-screen="result">
     <div class="app-header">
       <button class="icon-btn" data-back="home">
@@ -462,9 +436,7 @@
     </div>
 
     <div class="result-body" id="resultBody">
-      <div class="paper" id="resultPaper">
-        <!-- Rendered content -->
-      </div>
+      <div class="paper" id="resultPaper"></div>
     </div>
 
     <div class="result-actions">
@@ -486,7 +458,7 @@
     </div>
   </section>
 
-  <!-- ===== SCREEN: PROFILE ===== -->
+  <!-- SCREEN: PROFILE -->
   <section class="screen screen-profile" data-screen="profile">
     <div class="app-header">
       <button class="icon-btn" data-back="home">
@@ -601,16 +573,14 @@
     </nav>
   </section>
 
-  <!-- ===== SCREEN: ADMIN (diload dinamis) ===== -->
+  <!-- SCREEN: ADMIN (dynamic) -->
   <section class="screen screen-admin" data-screen="admin" hidden>
     <div id="adminRoot"></div>
   </section>
 
 </div>
 
-<!-- ============================================================
-     MODAL: CONTACT ADMIN
-     ============================================================ -->
+<!-- MODAL: CONTACT ADMIN -->
 <div class="modal-overlay" id="modalContact" hidden>
   <div class="modal">
     <div class="modal-header">
@@ -649,9 +619,7 @@
   </div>
 </div>
 
-<!-- ============================================================
-     MODAL: HELP
-     ============================================================ -->
+<!-- MODAL: HELP -->
 <div class="modal-overlay" id="modalHelp" hidden>
   <div class="modal modal-lg">
     <div class="modal-header">
@@ -712,9 +680,7 @@
   </div>
 </div>
 
-<!-- ============================================================
-     MODAL: TOPIC SUGGESTIONS
-     ============================================================ -->
+<!-- MODAL: TOPIC SUGGESTIONS -->
 <div class="modal-overlay" id="modalTopics" hidden>
   <div class="modal">
     <div class="modal-header">
@@ -731,9 +697,7 @@
   </div>
 </div>
 
-<!-- ============================================================
-     MODAL: CONFIRM
-     ============================================================ -->
+<!-- MODAL: CONFIRM -->
 <div class="modal-overlay" id="modalConfirm" hidden>
   <div class="modal modal-sm">
     <div class="modal-body text-center">
@@ -748,11 +712,7 @@
   </div>
 </div>
 
-<!-- ============================================================
-     SCRIPT BOOTSTRAP
-     ============================================================ -->
 <script>
-  // Detect admin mode from URL
   (function () {
     const params = new URLSearchParams(window.location.search);
     const isAdmin = params.get('admin') === '1';
@@ -760,14 +720,12 @@
     if (isAdmin) {
       document.body.setAttribute('data-mode', 'admin');
       document.body.setAttribute('data-page', 'admin');
-      // Show admin screen
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       const adminScreen = document.querySelector('.screen-admin');
       if (adminScreen) {
         adminScreen.hidden = false;
         adminScreen.classList.add('active');
       }
-      // Load admin bundle dynamically
       const script = document.createElement('script');
       script.type = 'module';
       script.src = '/js/admin.js';
@@ -777,7 +735,6 @@
       };
       document.head.appendChild(script);
     } else {
-      // Load user app
       const script = document.createElement('script');
       script.type = 'module';
       script.src = '/js/app.js';

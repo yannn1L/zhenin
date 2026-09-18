@@ -1,6 +1,6 @@
 /* ============================================================
-   ZHENIN - Storage Module
-   LocalStorage wrapper + Backup + Monitor
+   ZHENIN - Storage Module (UPDATED Sprint 2B)
+   LocalStorage wrapper + Backup + Monitor + Admin Session
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -16,6 +16,7 @@ export const Storage = {
     try {
       const json = JSON.stringify(data);
       localStorage.setItem(key, json);
+      StorageMonitor.invalidateCache();
       return { success: true, size: json.length };
     } catch (e) {
       if (e.name === 'QuotaExceededError') {
@@ -54,6 +55,7 @@ export const Storage = {
   remove(key) {
     try {
       localStorage.removeItem(key);
+      StorageMonitor.invalidateCache();
       return true;
     } catch (e) {
       return false;
@@ -76,19 +78,20 @@ export const Storage = {
   },
 
   /**
-   * Get all keys dengan prefix
+   * Get all keys dengan prefix (FIX: guard null key)
    */
   keys(prefix = '') {
     const result = [];
-    for (let i = 0; i < localStorage.length; i++) {
+    const len = localStorage.length;
+    for (let i = 0; i < len; i++) {
       const k = localStorage.key(i);
-      if (k.startsWith(prefix)) result.push(k);
+      if (k && k.startsWith(prefix)) result.push(k);
     }
     return result;
   },
 
   /**
-   * Clear all dengan prefix (untuk reset)
+   * Clear all dengan prefix
    */
   clearPrefix(prefix) {
     this.keys(prefix).forEach(k => this.remove(k));
@@ -96,7 +99,7 @@ export const Storage = {
 };
 
 /* ============================================================
-   DATA ACCESS (LP, Askep, Profile, dll)
+   DATA ACCESS
    ============================================================ */
 export const Data = {
   // ===== LP =====
@@ -104,7 +107,6 @@ export const Data = {
     const arr = Storage.load(CONFIG.STORAGE.LP, []);
     return Array.isArray(arr) ? arr.filter(isValidDoc) : [];
   },
-
   saveLP(list) {
     return Storage.save(CONFIG.STORAGE.LP, list);
   },
@@ -114,7 +116,6 @@ export const Data = {
     const arr = Storage.load(CONFIG.STORAGE.ASKEP, []);
     return Array.isArray(arr) ? arr.filter(isValidDoc) : [];
   },
-
   saveAskep(list) {
     return Storage.save(CONFIG.STORAGE.ASKEP, list);
   },
@@ -130,7 +131,6 @@ export const Data = {
       ci: ''
     });
   },
-
   saveProfile(profile) {
     return Storage.save(CONFIG.STORAGE.PROFILE, profile);
   },
@@ -142,7 +142,6 @@ export const Data = {
       splitRatio: 0.5
     });
   },
-
   saveLayout(layout) {
     return Storage.save(CONFIG.STORAGE.LAYOUT, layout);
   },
@@ -151,23 +150,20 @@ export const Data = {
   getSession() {
     const s = Storage.load(CONFIG.STORAGE.SESSION, null);
     if (!s) return null;
-    // Cek expiry
     if (s.expiresAt && Date.now() > s.expiresAt) {
       Storage.remove(CONFIG.STORAGE.SESSION);
       return null;
     }
     return s;
   },
-
   saveSession(session) {
     return Storage.save(CONFIG.STORAGE.SESSION, session);
   },
-
   clearSession() {
     return Storage.remove(CONFIG.STORAGE.SESSION);
   },
 
-  // ===== Admin Session =====
+  // ===== Admin Session (NEW) =====
   getAdminSession() {
     const s = Storage.load(CONFIG.STORAGE.ADMIN_SESSION, null);
     if (!s) return null;
@@ -177,11 +173,9 @@ export const Data = {
     }
     return s;
   },
-
   saveAdminSession(session) {
     return Storage.save(CONFIG.STORAGE.ADMIN_SESSION, session);
   },
-
   clearAdminSession() {
     return Storage.remove(CONFIG.STORAGE.ADMIN_SESSION);
   },
@@ -190,47 +184,65 @@ export const Data = {
   getDeviceHash() {
     return Storage.load(CONFIG.STORAGE.DEVICE, null);
   },
-
   saveDeviceHash(hash) {
     return Storage.save(CONFIG.STORAGE.DEVICE, hash);
   }
 };
 
 /* ============================================================
-   STORAGE MONITOR
+   STORAGE MONITOR (OPTIMIZED dengan cache 2 detik)
    ============================================================ */
 export const StorageMonitor = {
-  /**
-   * Get statistik storage
-   */
+  _cache: null,
+  _cacheTime: 0,
+  _cacheTTL: 2000,
+
   getStats() {
+    const now = Date.now();
+    if (this._cache && (now - this._cacheTime) < this._cacheTTL) {
+      return this._cache;
+    }
+
+    const getSize = (key) => {
+      const raw = localStorage.getItem(key);
+      return raw ? new Blob([raw]).size : 0;
+    };
+
     const stats = {
-      lp: Storage.sizeOf(CONFIG.STORAGE.LP),
-      askep: Storage.sizeOf(CONFIG.STORAGE.ASKEP),
-      profile: Storage.sizeOf(CONFIG.STORAGE.PROFILE),
-      backup: Storage.sizeOf(CONFIG.STORAGE.BACKUP),
-      layout: Storage.sizeOf(CONFIG.STORAGE.LAYOUT),
-      session: Storage.sizeOf(CONFIG.STORAGE.SESSION),
-      device: Storage.sizeOf(CONFIG.STORAGE.DEVICE),
-      promoDismissed: Storage.sizeOf(CONFIG.STORAGE.PROMO_DISMISSED),
-      onboarded: Storage.sizeOf(CONFIG.STORAGE.ONBOARDED),
+      lp: getSize(CONFIG.STORAGE.LP),
+      askep: getSize(CONFIG.STORAGE.ASKEP),
+      profile: getSize(CONFIG.STORAGE.PROFILE),
+      backup: getSize(CONFIG.STORAGE.BACKUP),
+      layout: getSize(CONFIG.STORAGE.LAYOUT),
+      session: getSize(CONFIG.STORAGE.SESSION),
+      device: getSize(CONFIG.STORAGE.DEVICE),
+      promoDismissed: getSize(CONFIG.STORAGE.PROMO_DISMISSED),
+      onboarded: getSize(CONFIG.STORAGE.ONBOARDED),
+      adminSession: getSize(CONFIG.STORAGE.ADMIN_SESSION),
       total: 0
     };
-    stats.total = Object.values(stats).reduce((a, b) => a + b, 0);
+
+    let total = 0;
+    for (const k in stats) {
+      if (k !== 'total') total += stats[k];
+    }
+    stats.total = total;
+
+    this._cache = stats;
+    this._cacheTime = now;
     return stats;
   },
 
-  /**
-   * Get percentage usage
-   */
+  invalidateCache() {
+    this._cache = null;
+    this._cacheTime = 0;
+  },
+
   getUsagePct() {
     const limitBytes = CONFIG.STORAGE_MONITOR.LIMIT_MB * 1024 * 1024;
     return Math.min(100, (this.getStats().total / limitBytes) * 100);
   },
 
-  /**
-   * Get level: normal, warning, critical
-   */
   getLevel() {
     const pct = this.getUsagePct();
     if (pct >= CONFIG.STORAGE_MONITOR.CRIT_PCT) return 'critical';
@@ -238,9 +250,6 @@ export const StorageMonitor = {
     return 'normal';
   },
 
-  /**
-   * Format bytes ke string
-   */
   format(bytes) {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -252,9 +261,6 @@ export const StorageMonitor = {
    BACKUP MANAGEMENT
    ============================================================ */
 export const Backup = {
-  /**
-   * Buat snapshot
-   */
   createSnapshot(label = 'Manual backup') {
     const lp = Data.getLP();
     const askep = Data.getAskep();
@@ -281,28 +287,18 @@ export const Backup = {
     };
   },
 
-  /**
-   * Get all snapshots
-   */
   getAll() {
     const arr = Storage.load(CONFIG.STORAGE.BACKUP, []);
     return Array.isArray(arr) ? arr : [];
   },
 
-  /**
-   * Simpan snapshot (dengan rotating)
-   */
   save(snapshot) {
     const arr = this.getAll();
     arr.unshift(snapshot);
-    // Keep max snapshots
     const trimmed = arr.slice(0, CONFIG.BACKUP.MAX_SNAPSHOTS);
     return Storage.save(CONFIG.STORAGE.BACKUP, trimmed);
   },
 
-  /**
-   * Perform auto backup
-   */
   autoBackup() {
     try {
       const snapshot = this.createSnapshot('Auto backup');
@@ -315,9 +311,6 @@ export const Backup = {
     }
   },
 
-  /**
-   * Restore dari snapshot
-   */
   restore(snapshotId) {
     const snapshots = this.getAll();
     const snap = snapshots.find(s => s.id === snapshotId);
@@ -330,24 +323,17 @@ export const Backup = {
       if (snap.data.askep) Data.saveAskep(snap.data.askep);
       if (snap.data.profile) Data.saveProfile(snap.data.profile);
       if (snap.data.layout) Data.saveLayout(snap.data.layout);
-
       return { success: true, snapshot: snap };
     } catch (e) {
       return { success: false, error: e.message };
     }
   },
 
-  /**
-   * Delete snapshot
-   */
   delete(snapshotId) {
     const arr = this.getAll().filter(s => s.id !== snapshotId);
     return Storage.save(CONFIG.STORAGE.BACKUP, arr);
   },
 
-  /**
-   * Get latest snapshot
-   */
   getLatest() {
     const arr = this.getAll();
     return arr.length > 0 ? arr[0] : null;
@@ -358,9 +344,6 @@ export const Backup = {
    EXPORT / IMPORT JSON
    ============================================================ */
 export const ExportImport = {
-  /**
-   * Export semua data ke file JSON
-   */
   async exportJSON() {
     const data = {
       app: CONFIG.APP_NAME,
@@ -381,7 +364,6 @@ export const ExportImport = {
       window.saveAs(blob, filename);
       return { success: true, filename };
     } else {
-      // Fallback: download link
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -394,9 +376,6 @@ export const ExportImport = {
     }
   },
 
-  /**
-   * Import dari file JSON
-   */
   async importJSON(file, mode = 'merge') {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -404,9 +383,8 @@ export const ExportImport = {
       reader.onload = (e) => {
         try {
           const data = JSON.parse(e.target.result);
-
           if (!data || typeof data !== 'object') {
-            return reject(new Error('File tidak valid'));
+            throw new Error('File tidak valid');
           }
 
           const lpIn = Array.isArray(data.lp) ? data.lp : [];
@@ -418,7 +396,6 @@ export const ExportImport = {
             Data.saveAskep(askepIn);
             Data.saveProfile({ ...Data.getProfile(), ...profileIn });
           } else {
-            // Merge - skip duplicates by id
             const existingLP = Data.getLP();
             const existingAskep = Data.getAskep();
             const lpIds = new Set(existingLP.map(x => x.id));
@@ -430,7 +407,6 @@ export const ExportImport = {
             Data.saveLP(mergedLP);
             Data.saveAskep(mergedAskep);
 
-            // Profile: prioritas file baru kalau field kosong
             const currentProfile = Data.getProfile();
             const mergedProfile = { ...profileIn, ...currentProfile };
             Data.saveProfile(mergedProfile);
@@ -453,9 +429,6 @@ export const ExportImport = {
     });
   },
 
-  /**
-   * Reset semua data
-   */
   async resetAll() {
     Storage.remove(CONFIG.STORAGE.LP);
     Storage.remove(CONFIG.STORAGE.ASKEP);
@@ -480,9 +453,6 @@ function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
-/* ============================================================
-   EXPORT DEFAULT
-   ============================================================ */
 export default {
   Storage,
   Data,
