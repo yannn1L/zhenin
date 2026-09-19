@@ -6,12 +6,12 @@
 export const CONFIG = {
   // ===== APP =====
   APP_NAME: 'Zhenin',
-  APP_FULL_NAME: 'Zhenin Keperawatan Suite',
-  APP_VERSION: '2.4.0',
+  APP_FULL_NAME: 'Zhenin Nurse Suite',
+  APP_VERSION: '2.6.1',
   APP_BUILD: '2025-09-19',
 
   // ===== BACKEND =====
-  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbytv6LbvjALAXKYAWWqKj1llDbcoC2ikf_guYx2juYOC2zPuVW_MuGzPK_cKIR5gfsy/exec',
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzh7-vg6V2tXNxBn5pyFugi5jxYr3oKi4Naf4pdStuDvD0wjoGcq5awW_LCgXLbvxo9/exec',
 
   // ===== CONTACT =====
   CONTACT: {
@@ -20,17 +20,17 @@ export const CONFIG = {
     waDisplay: '0896-0397-0045',
     hours: 'Senin-Jumat, 10:00-14:00 & 16:00-21:00 WITA',
     hoursShort: 'Sen-Jum 10-14 & 16-21',
-    note: 'Admin masih mahasiswa, jadwal bisa tidak menentu 🤣'
+    note: 'Admin masih mahasiswa, jadwal bisa tidak menentu'
   },
 
   // ===== PROFILE FIELDS (untuk Askep) =====
   PROFILE_FIELDS: [
-    { key: 'nama', label: 'Nama Mahasiswa', placeholder: 'Christian Claudio Sumual', required: true, maxLength: 80 },
+    { key: 'nama', label: 'Nama Mahasiswa', placeholder: 'Sumual', required: true, maxLength: 80 },
     { key: 'nim', label: 'NIM', placeholder: '-', required: false, maxLength: 30 },
     { key: 'kelompok', label: 'Kelompok', placeholder: '6', required: false, maxLength: 20 },
     { key: 'tempatPraktik', label: 'Tempat Praktik', placeholder: 'C5 - Ruang Infeksius', required: false, maxLength: 100 },
     { key: 'periodePraktik', label: 'Periode Praktik', placeholder: '5-7 September 2025', required: false, maxLength: 80 },
-    { key: 'ci', label: 'Clinical Instruktur (CI)', placeholder: 'Ns. Nontje Sengkey, S.Kep', required: false, maxLength: 100 }
+    { key: 'ci', label: 'Clinical Instruktur (CI)', placeholder: 'Ns., S.Kep', required: false, maxLength: 100 }
   ],
 
   // ===== PLACEHOLDER MAPPING (untuk auto-fill markdown) =====
