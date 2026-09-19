@@ -1848,3 +1848,58 @@ select.form-input {
 .onboarding-actions .btn {
   flex: 1;
 }
+
+/* ============================================================
+   SESSION EXPIRED MODAL (v2.3.0)
+   ============================================================ */
+#modalSessionExpired {
+  z-index: 9999;
+}
+#modalSessionExpired .modal {
+  max-width: 360px;
+}
+#modalSessionExpired .confirm-icon {
+  font-size: 3.5rem;
+  margin-bottom: 16px;
+}
+#modalSessionExpired .confirm-title {
+  font-family: 'Cinzel', serif;
+  color: var(--z-gold);
+  font-size: 1.25rem;
+  letter-spacing: 0.5px;
+}
+#modalSessionExpired .confirm-desc {
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+/* Promo color variants */
+.promo-banner[data-color="gold"] {
+  background: linear-gradient(135deg, rgba(201, 169, 97, 0.2), rgba(166, 136, 71, 0.15));
+  border-color: rgba(201, 169, 97, 0.4);
+}
+.promo-banner[data-color="crimson"] {
+  background: linear-gradient(135deg, rgba(139, 0, 0, 0.2), rgba(107, 63, 160, 0.15));
+  border-color: rgba(185, 28, 28, 0.4);
+}
+.promo-banner[data-color="purple"] {
+  background: linear-gradient(135deg, rgba(107, 63, 160, 0.2), rgba(74, 44, 90, 0.15));
+  border-color: rgba(107, 63, 160, 0.4);
+}
+
+/* Storage widget warning */
+.storage-widget-warning {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: var(--z-r-sm);
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  background: rgba(251, 191, 36, 0.1);
+  color: var(--z-warning);
+  border-left: 3px solid var(--z-warning);
+}
+.storage-widget-warning.critical {
+  background: rgba(248, 113, 113, 0.1);
+  color: var(--z-error);
+  border-left-color: var(--z-error);
+}

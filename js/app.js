@@ -1,6 +1,6 @@
 /* ============================================================
-   ZHENIN - App.js (v2.3.0)
-   Sprint 2C+ : AI Generation Flow Integration
+   ZHENIN - App.js (v2.3.0 FINAL)
+   Sprint 2C+ : Complete Integration
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -9,6 +9,10 @@ import { Auth, ContactAdmin, DeviceFingerprint } from './auth.js';
 import Profile from './profile.js';
 import TokenManager from './token-manager.js';
 import AI from './ai.js';
+import SessionGuard from './session-guard.js';
+import Onboarding from './onboarding.js';
+import Promo from './promo.js';
+import StorageWidget from './storage-monitor.js';
 
 /* ============================================================
    STATE
@@ -122,7 +126,6 @@ const UI = {
     State.currentScreen = screenId;
     document.body.setAttribute('data-page', screenId);
 
-    // Bottom nav
     $$('.bottom-nav .nav-item').forEach(item => {
       const nav = item.dataset.nav;
       const screenMap = { home: 'home', generate: 'ai', files: 'files', profile: 'profile' };
@@ -132,8 +135,10 @@ const UI = {
     const scroll = $(`.screen[data-screen="${screenId}"] .screen-scroll`);
     if (scroll) scroll.scrollTop = 0;
 
-    // Refresh data per screen
-    if (screenId === 'profile') Profile.init();
+    if (screenId === 'profile') {
+      Profile.init();
+      StorageWidget.refresh();
+    }
     if (screenId === 'files') renderFilesList();
     if (screenId === 'home') renderDocList();
 
@@ -203,7 +208,6 @@ const UI = {
   }
 };
 
-// Expose UI ke window untuk dipakai module lain
 window.UI = UI;
 
 /* ============================================================
@@ -281,19 +285,8 @@ const SessionManager = {
     }
   },
 
-  handleVisibilityChange() {
-    if (document.visibilityState === 'visible' && Auth.isLoggedIn()) {
-      const session = Data.getSession();
-      if (session && (Date.now() - (session.lastActive || 0)) > 5 * 60 * 1000) {
-        this.refresh(true);
-      }
-    }
-  },
-
   init() {
     this.start();
-    document.addEventListener('visibilitychange', () => this.handleVisibilityChange());
-    window.addEventListener('focus', () => this.handleVisibilityChange());
   }
 };
 
@@ -436,8 +429,79 @@ async function initUserApp() {
   SessionManager.init();
   BackButton.init();
 
+  // ⚠️ SESSION GUARD: Auto-logout handler
+  SessionGuard.init(({ title, message, icon }) => {
+    showSessionExpiredDialog(title, message, icon);
+  });
+
+  // Load promo
   Promo.load().catch(() => {});
+
+  // Initial silent refresh
   setTimeout(() => SessionManager.refresh(true), 2000);
+}
+
+/* ============================================================
+   SESSION EXPIRED DIALOG (Force Logout)
+   ============================================================ */
+function showSessionExpiredDialog(title, message, icon = '⚠️') {
+  // Prevent multiple dialogs
+  if (window._sessionExpiredShown) return;
+  window._sessionExpiredShown = true;
+
+  // Save profile dulu sebelum logout (biar data tidak hilang)
+  try { Profile.saveNow(); } catch (e) {}
+
+  // Show modal yang tidak bisa dismiss
+  const modal = document.getElementById('modalSessionExpired');
+  if (modal) {
+    const titleEl = document.getElementById('sessionExpiredTitle');
+    const descEl = document.getElementById('sessionExpiredDesc');
+    const iconEl = document.getElementById('sessionExpiredIcon');
+
+    if (titleEl) titleEl.textContent = title;
+    if (descEl) descEl.textContent = message;
+    if (iconEl) iconEl.textContent = icon;
+
+    modal.hidden = false;
+    document.body.style.overflow = 'hidden';
+
+    // Bind OK button
+    const okBtn = document.getElementById('sessionExpiredOk');
+    if (okBtn && !okBtn.dataset.bound) {
+      okBtn.dataset.bound = '1';
+      okBtn.addEventListener('click', () => {
+        performForceLogout();
+      });
+    }
+  } else {
+    // Fallback: langsung logout
+    performForceLogout();
+  }
+}
+
+function performForceLogout() {
+  // Stop semua timer
+  SessionManager.stop();
+  SessionGuard.destroy();
+  Onboarding.hide(false); // Tutup onboarding kalau terbuka
+
+  // Clear session
+  Auth.logout();
+  State.session = null;
+  TokenManager.reset();
+
+  // Reset flag
+  window._sessionExpiredShown = false;
+
+  // Tutup semua modal
+  UI.closeAllModals();
+
+  // Go to login
+  UI.goTo('login');
+
+  // Show toast
+  UI.toast('Anda telah logout. Silakan login kembali.', 'info', 4000);
 }
 
 /* ============================================================
@@ -457,19 +521,16 @@ function initHome() {
     this.style.transform = 'rotate(360deg)';
     setTimeout(() => this.style.transform = '', 500);
     await SessionManager.refresh(false);
+    // Also check session guard
+    await SessionGuard.checkNow();
   });
 
   $('#btnProfile')?.addEventListener('click', () => UI.goTo('profile'));
   $('#btnTopup')?.addEventListener('click', () => showContactModal('topup'));
   $('#btnWarningTopup')?.addEventListener('click', () => showContactModal('topup'));
-
   $('#btnSeeAll')?.addEventListener('click', () => UI.goTo('files'));
 
-  $('#promoClose')?.addEventListener('click', () => {
-    Data.setPromoDismissed();
-    const banner = $('#promoBanner');
-    if (banner) banner.hidden = true;
-  });
+  $('#promoClose')?.addEventListener('click', () => Promo.dismiss());
 }
 
 function renderDocList() {
@@ -565,7 +626,7 @@ function openDocument(docId, docType) {
 }
 
 /* ============================================================
-   AI SCREEN - Submits AI Generation
+   AI SCREEN
    ============================================================ */
 function initAIScreen() {
   const form = $('#aiForm');
@@ -609,9 +670,6 @@ function initAIScreen() {
   $('#btnAiHelp')?.addEventListener('click', () => UI.openModal('modalHelp'));
 }
 
-/**
- * Handle AI Form Submit
- */
 async function handleAISubmit(e) {
   e.preventDefault();
 
@@ -619,53 +677,41 @@ async function handleAISubmit(e) {
   UI.setBtnLoading(btn, true);
 
   try {
-    // 1. Build request
+    // ⚠️ SESSION GUARD: Check dulu sebelum generate (fail-safe)
+    const guardResult = await SessionGuard.checkNow();
+    if (!guardResult.success && guardResult.reason !== 'network_error' && guardResult.reason !== 'offline') {
+      // Session invalid → will be handled by force logout
+      return;
+    }
+
     const requestBody = await AI.generate();
 
-    // 2. Go to loading screen
     UI.goTo('loading');
     AI.startLoadingScreen();
 
-    // 3. Call backend
     const result = await AI.callBackend(requestBody);
 
-    // 4. Stop loading
     AI.stopLoadingScreen();
 
-    // 5. Handle result
     if (result.success && result.result) {
-      // Save doc
       const formData = AI.collectFormData();
       const prompt = requestBody.prompt;
       const doc = AI.saveResult(result.result, formData, prompt);
 
-      // Update token
       if (typeof result.remainingToken === 'number') {
         TokenManager.updateFromResponse(result.remainingToken);
       }
 
-      // Set current doc
       State.currentDoc = { ...doc, _type: formData.type };
       AI.setCurrentDocId(doc.id);
 
-      // Render result
       renderResultScreen();
-
-      // Show toast sukses
       UI.toast('✅ Dokumen berhasil dibuat!', 'success');
-
-      // Go to result
       UI.goTo('result');
-
     } else {
-      // Error dari backend
       const errorMsg = result.error || 'AI gagal';
       const mapped = AI.mapError({ message: errorMsg });
-
-      // Refresh token (mungkin di-refund)
       await SessionManager.refresh(true);
-
-      // Back to form
       UI.goTo('ai');
       UI.toast(mapped.text, mapped.type, 5000);
     }
@@ -676,12 +722,10 @@ async function handleAISubmit(e) {
 
     const mapped = AI.mapError(err);
 
-    // Kalau belum di loading, balik ke form
     if (State.currentScreen === 'loading') {
       UI.goTo('ai');
     }
 
-    // Handle special cases
     if (err.code === 'NO_TOKEN') {
       UI.confirm(
         'Token Habis',
@@ -726,17 +770,14 @@ function renderResultScreen() {
   const titleEl = $('#resultTitle');
   if (titleEl) titleEl.textContent = doc.judul || 'Dokumen';
 
-  // Render paper (preview)
   const paperEl = $('#resultPaper');
   if (paperEl) {
     paperEl.innerHTML = renderMarkdownToHtml(doc.content || '');
   }
 
-  // Set markdown editor content
   const editorEl = $('#resultEditor');
   if (editorEl) editorEl.value = doc.content || '';
 
-  // Reset to preview mode
   setResultViewMode('preview');
 }
 
@@ -750,14 +791,14 @@ function setResultViewMode(mode) {
   });
 
   if (mode === 'preview') {
-    if (paper) paper.classList.remove('hidden');
-    if (editor) editor.classList.add('hidden');
-    // Re-render markdown from editor
-    if (paper && editor) {
-      paper.innerHTML = renderMarkdownToHtml(editor.value);
+    if (paper) {
+      paper.classList.remove('hidden');
+      paper.removeAttribute('contenteditable');
+      paper.classList.remove('paper-editing');
     }
+    if (editor) editor.classList.add('hidden');
+    if (paper && editor) paper.innerHTML = renderMarkdownToHtml(editor.value);
   } else if (mode === 'edit') {
-    // Toggle contenteditable pada paper
     if (paper) {
       paper.classList.remove('hidden');
       paper.setAttribute('contenteditable', 'true');
@@ -793,7 +834,6 @@ async function handleRegenerate() {
     return;
   }
 
-  // Trigger AI submit lagi
   $('#aiForm').dispatchEvent(new Event('submit'));
 }
 
@@ -802,20 +842,16 @@ async function handleExportDocx() {
     UI.toast('Dokumen tidak ditemukan', 'error');
     return;
   }
-
-  // Placeholder - akan diimplementasikan di Sprint 2D
   UI.toast('Export DOCX akan tersedia di Sprint 2D', 'info');
 }
 
 /* ============================================================
-   MARKDOWN RENDERER (Basic - akan diupgrade di Sprint 2D)
+   MARKDOWN RENDERER (Basic)
    ============================================================ */
 function renderMarkdownToHtml(markdown) {
   if (!markdown) return '<p style="color:#94a3b8;text-align:center;padding:40px;">Dokumen kosong</p>';
 
-  // Replace placeholders dulu
   let text = replacePlaceholders(markdown);
-
   const lines = text.split('\n');
   const blocks = [];
   let i = 0;
@@ -825,19 +861,16 @@ function renderMarkdownToHtml(markdown) {
     const trimmed = raw.trim();
     if (!trimmed) { i++; continue; }
 
-    // Page break
     if (trimmed === '\\page' || trimmed === '[PAGE_BREAK]') {
       blocks.push('<div class="pv-pagebreak"></div>');
       i++; continue;
     }
 
-    // HR
     if (/^-{3,}$/.test(trimmed)) {
       blocks.push('<hr class="pv-hr">');
       i++; continue;
     }
 
-    // Signature
     if (trimmed === '[TABEL_TTD]') {
       blocks.push(`
         <table class="pv-ttd">
@@ -854,7 +887,6 @@ function renderMarkdownToHtml(markdown) {
       i++; continue;
     }
 
-    // Image
     const imgMatch = trimmed.match(/^\[GAMBAR:\s*(.+?)\]$/i);
     if (imgMatch) {
       blocks.push(`
@@ -866,7 +898,6 @@ function renderMarkdownToHtml(markdown) {
       i++; continue;
     }
 
-    // Table
     if (trimmed.startsWith('|')) {
       const tLines = [];
       while (i < lines.length && lines[i].trim().startsWith('|')) {
@@ -877,7 +908,6 @@ function renderMarkdownToHtml(markdown) {
       continue;
     }
 
-    // Headings
     if (trimmed.startsWith('#### ')) {
       blocks.push(`<h4 class="pv-h4">${renderInline(trimmed.slice(5))}</h4>`);
       i++; continue;
@@ -895,13 +925,11 @@ function renderMarkdownToHtml(markdown) {
       i++; continue;
     }
 
-    // Blockquote
     if (trimmed.startsWith('> ')) {
       blocks.push(`<div class="pv-quote">${renderInline(trimmed.slice(2))}</div>`);
       i++; continue;
     }
 
-    // List
     if (/^\d+\.\s/.test(trimmed)) {
       const indent = getIndent(raw);
       const content = trimmed.replace(/^\d+\.\s*/, '');
@@ -915,7 +943,6 @@ function renderMarkdownToHtml(markdown) {
       i++; continue;
     }
 
-    // Paragraph
     const indent = getIndent(raw);
     blocks.push(`<p class="pv-p indent-${Math.min(indent, 3)}">${renderInline(trimmed)}</p>`);
     i++;
@@ -931,7 +958,6 @@ function renderTable(lines) {
   const headers = splitRow(valid[0]);
   if (!headers.length) return '';
 
-  // Separator check
   let dataStart = 2;
   const secondRow = splitRow(valid[1]);
   const isSep = secondRow.every(c => /^:?-+:?$/.test(c));
@@ -1093,6 +1119,7 @@ function handleImportJSON() {
       renderFilesList();
       Profile.init();
       TokenManager.refreshAllUI();
+      StorageWidget.refresh();
     } catch (err) {
       UI.hideLoading();
       UI.toast('Gagal import: ' + err.message, 'error', 5000);
@@ -1111,6 +1138,7 @@ async function handleLogout() {
   if (confirmed) {
     Profile.saveNow();
     SessionManager.stop();
+    SessionGuard.destroy();
     Auth.logout();
     State.session = null;
     TokenManager.reset();
@@ -1176,18 +1204,10 @@ function initDocActionsModal() {
       if (!target) return;
 
       switch (action) {
-        case 'open':
-          openDocument(target.id, target.type);
-          break;
-        case 'rename':
-          showRenameModal(target.id, target.type);
-          break;
-        case 'duplicate':
-          duplicateDoc(target.id, target.type);
-          break;
-        case 'export':
-          UI.toast('Export DOCX akan tersedia di Sprint 2D', 'info');
-          break;
+        case 'open': openDocument(target.id, target.type); break;
+        case 'rename': showRenameModal(target.id, target.type); break;
+        case 'duplicate': duplicateDoc(target.id, target.type); break;
+        case 'export': UI.toast('Export DOCX akan tersedia di Sprint 2D', 'info'); break;
         case 'delete':
           const confirmed = await UI.confirm(
             'Hapus Dokumen?',
@@ -1200,6 +1220,7 @@ function initDocActionsModal() {
             renderDocList();
             renderFilesList();
             Profile.renderStats();
+            StorageWidget.refresh();
           }
           break;
       }
@@ -1264,6 +1285,7 @@ function duplicateDoc(docId, docType) {
   UI.toast('Dokumen diduplikat', 'success');
   renderDocList();
   renderFilesList();
+  StorageWidget.refresh();
 }
 
 /* ============================================================
@@ -1295,12 +1317,21 @@ function initModals() {
 
   $$('.modal-overlay').forEach(overlay => {
     overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) UI.closeModal(overlay.id);
+      if (e.target === overlay) {
+        // Prevent close untuk session expired
+        if (overlay.id === 'modalSessionExpired') return;
+        UI.closeModal(overlay.id);
+      }
     });
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') UI.closeAllModals();
+    if (e.key === 'Escape') {
+      // Prevent ESC untuk session expired
+      const expiredModal = document.getElementById('modalSessionExpired');
+      if (expiredModal && !expiredModal.hidden) return;
+      UI.closeAllModals();
+    }
   });
 
   const waBtn = $('#contactWaBtn');
@@ -1352,39 +1383,14 @@ function showTopicSuggestions() {
 }
 
 /* ============================================================
-   ONBOARDING (Placeholder - Response 3)
-   ============================================================ */
-const Onboarding = {
-  show() {
-    console.log('[Onboarding] Full version akan diimplementasikan di Response 3');
-  }
-};
-
-/* ============================================================
-   PROMO (Placeholder - Response 3)
-   ============================================================ */
-const Promo = {
-  async load() {
-    const banner = $('#promoBanner');
-    if (banner) banner.hidden = true;
-  }
-};
-
-/* ============================================================
    KEYBOARD
    ============================================================ */
 function initShortcuts() {
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey) {
       switch (e.key.toLowerCase()) {
-        case 'p':
-          e.preventDefault();
-          UI.goTo('profile');
-          break;
-        case 'h':
-          e.preventDefault();
-          UI.openModal('modalHelp');
-          break;
+        case 'p': e.preventDefault(); UI.goTo('profile'); break;
+        case 'h': e.preventDefault(); UI.openModal('modalHelp'); break;
       }
     }
   });
