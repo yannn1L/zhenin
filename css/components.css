@@ -2008,3 +2008,66 @@ select.form-input {
   overflow-x: auto;
 }
 .result-toolbar::-webkit-scrollbar { height: 0; }
+
+/* ============================================================
+   PATIENT TOGGLE FIX (v2.6.2)
+   ============================================================ */
+.collapsible-body {
+  /* Default state: hidden */
+  display: none;
+}
+
+.collapsible-body[style*="display: block"],
+.collapsible-body.open {
+  display: block !important;
+}
+
+.collapsible-toggle.open .collapsible-chevron {
+  transform: rotate(180deg);
+}
+
+/* ============================================================
+   ALERT ERROR (v2.6.2)
+   ============================================================ */
+.alert-error {
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: var(--z-error);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--z-r-sm);
+  font-size: 0.8125rem;
+}
+
+.alert-error .alert-icon {
+  flex-shrink: 0;
+}
+
+.alert-error .alert-content {
+  flex: 1;
+}
+
+/* ============================================================
+   USERNAME FORM (v2.6.2)
+   ============================================================ */
+#profileUsernameInput {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+#modalUsernameRequired .modal {
+  max-width: 420px;
+}
+
+#modalUsernameRequired .modal-header {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+#modalUsernameRequired .modal-title {
+  text-align: center;
+  font-size: 1.25rem;
+  color: var(--z-gold);
+}

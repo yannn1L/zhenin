@@ -56,7 +56,7 @@
     <h1 class="splash-title">ZHENIN</h1>
     <p class="splash-subtitle">Keperawatan Suite</p>
     <div class="splash-loader"><div class="splash-loader-fill"></div></div>
-    <div class="splash-version" id="splashVersion">v2.6.1</div>
+    <div class="splash-version" id="splashVersion">v2.6.2</div>
   </section>
 
   <!-- ============================================================
@@ -105,7 +105,7 @@
       </form>
 
       <div class="login-footer">
-        <div class="login-version" id="loginVersion">v2.6.1</div>
+        <div class="login-version" id="loginVersion">v2.6.2</div>
         <div class="login-legal">
           Dengan masuk, Anda menyetujui Syarat & Ketentuan Zhenin
         </div>
@@ -268,6 +268,7 @@
 
     <div class="screen-scroll">
       <form class="ai-form" id="aiForm" autocomplete="off">
+        <!-- Type Selection -->
         <div class="form-section">
           <label class="form-label required">Jenis Dokumen</label>
           <div class="type-selector">
@@ -285,6 +286,7 @@
           <input type="hidden" id="aiType" value="askep">
         </div>
 
+        <!-- Topic -->
         <div class="form-section">
           <label class="form-label required" for="aiTopic">Topik / Judul</label>
           <input type="text" id="aiTopic" class="form-input"
@@ -295,6 +297,7 @@
           </div>
         </div>
 
+        <!-- Patient Data (Toggle) -->
         <div class="form-section">
           <button type="button" class="collapsible-toggle" id="patientToggle">
             <span class="collapsible-icon">👤</span>
@@ -344,6 +347,7 @@
           </div>
         </div>
 
+        <!-- Prompt Mode -->
         <div class="form-section">
           <label class="form-label">Mode Prompt</label>
           <div class="prompt-mode">
@@ -361,6 +365,7 @@
           <input type="hidden" id="aiMode" value="template">
         </div>
 
+        <!-- Custom Prompt -->
         <div class="form-section" id="customPromptSection" hidden>
           <label class="form-label required" for="aiCustomPrompt">Prompt Anda</label>
           <textarea id="aiCustomPrompt" class="form-input" rows="6"
@@ -371,11 +376,13 @@
           </div>
         </div>
 
+        <!-- Cost Info -->
         <div class="cost-info">
           <span class="cost-icon">💎</span>
           <span>Membutuhkan <strong>1 token</strong> · Tersisa <strong id="costRemaining">0</strong> token</span>
         </div>
 
+        <!-- Submit -->
         <div class="form-actions">
           <button type="submit" class="btn btn-primary btn-block btn-lg" id="btnGenerate">
             <span class="btn-icon">✨</span>
@@ -504,6 +511,25 @@
         </div>
       </div>
 
+      <!-- Username Section -->
+      <div class="menu-group">
+        <div class="menu-group-title">👤 Username</div>
+        <div class="menu-group-info">
+          Nama tampilan Anda di Zhenin. Bisa diganti kapan saja.
+        </div>
+        <div class="profile-fields">
+          <div class="form-field">
+            <label class="form-label" for="profileUsernameInput">Username</label>
+            <input type="text" id="profileUsernameInput" class="form-input" placeholder="Contoh: Christian" maxlength="40">
+            <div class="form-hint">Minimal 2 karakter. Huruf, angka, spasi, titik, _ , -</div>
+          </div>
+          <button class="btn btn-primary btn-block" id="btnSaveUsername" style="margin-top: 8px;">
+            💾 Simpan Username
+          </button>
+        </div>
+      </div>
+
+      <!-- Identitas Mahasiswa -->
       <div class="menu-group">
         <div class="menu-group-title">Identitas Mahasiswa</div>
         <div class="menu-group-info">
@@ -512,6 +538,7 @@
         <div class="profile-fields" id="profileFieldsContainer"></div>
       </div>
 
+      <!-- Data Saya -->
       <div class="menu-group">
         <div class="menu-group-title">Data Saya</div>
         <div class="storage-widget" id="storageWidget"></div>
@@ -533,6 +560,7 @@
         </button>
       </div>
 
+      <!-- Bantuan -->
       <div class="menu-group">
         <div class="menu-group-title">Bantuan</div>
         <button class="menu-item" data-menu="help">
@@ -561,6 +589,7 @@
         </button>
       </div>
 
+      <!-- Logout -->
       <div class="menu-group">
         <button class="menu-item menu-item-danger" data-menu="logout">
           <div class="menu-item-icon">🚪</div>
@@ -574,7 +603,7 @@
 
       <div class="app-info">
         <div>Zhenin Keperawatan Suite</div>
-        <div id="appVersionInfo">v2.6.1</div>
+        <div id="appVersionInfo">v2.6.2</div>
       </div>
 
       <div class="screen-bottom-spacer"></div>
@@ -653,7 +682,7 @@
   </section>
 
   <!-- ============================================================
-       SCREEN: ADMIN (diload dinamis)
+       SCREEN: ADMIN (dynamic)
        ============================================================ -->
   <section class="screen screen-admin" data-screen="admin" hidden>
     <div id="adminRoot"></div>
@@ -675,6 +704,39 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-primary btn-block" id="sessionExpiredOk">Login Kembali</button>
+    </div>
+  </div>
+</div>
+
+<!-- Username Required (First Login) -->
+<div class="modal-overlay" id="modalUsernameRequired" hidden>
+  <div class="modal modal-sm">
+    <div class="modal-header" style="justify-content: center;">
+      <h3 class="modal-title" style="text-align: center; width: 100%;">👋 Selamat Datang!</h3>
+    </div>
+    <div class="modal-body">
+      <p class="modal-desc text-center" style="margin-bottom: 16px;">
+        Sebelum mulai, silakan isi <strong>username</strong> Anda. Username ini akan digunakan sebagai nama tampilan Anda di Zhenin.
+      </p>
+
+      <div class="form-field">
+        <label class="form-label required" for="usernameRequiredInput">Username</label>
+        <input type="text" id="usernameRequiredInput" class="form-input"
+          placeholder="Contoh: Christian" maxlength="40"
+          autocomplete="off" required>
+        <div class="form-hint">Minimal 2 karakter. Huruf, angka, spasi, titik, _ , -</div>
+      </div>
+
+      <div class="alert-error" id="usernameRequiredError" hidden style="margin-top: 8px;">
+        <span class="alert-icon">⚠️</span>
+        <span class="alert-content" id="usernameRequiredErrorText"></span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary btn-block" id="usernameRequiredSave">
+        <span class="btn-text">Simpan & Lanjutkan</span>
+        <span class="btn-spinner" hidden></span>
+      </button>
     </div>
   </div>
 </div>
@@ -746,7 +808,7 @@
       <div class="help-section">
         <h4>2. Lengkapi Profil Anda</h4>
         <p style="font-size:13px;color:var(--z-text-muted);line-height:1.6;">
-          Buka <strong>Profile</strong> → isi <strong>Identitas Mahasiswa</strong>. Data ini otomatis muncul di bagian IDENTITAS MAHASISWA pada Askep/LP.
+          Buka <strong>Profile</strong> → isi <strong>Username</strong> dan <strong>Identitas Mahasiswa</strong>. Data ini otomatis muncul di bagian IDENTITAS MAHASISWA pada Askep/LP.
         </p>
       </div>
 
@@ -917,7 +979,6 @@
 (function() {
   'use strict';
 
-  // Detect admin mode dari URL
   var params = new URLSearchParams(window.location.search);
   var isAdmin = params.get('admin') === '1';
 
@@ -925,7 +986,6 @@
     document.body.setAttribute('data-mode', 'admin');
     document.body.setAttribute('data-page', 'admin');
 
-    // Hide semua screen, show admin screen
     var screens = document.querySelectorAll('.screen');
     for (var i = 0; i < screens.length; i++) {
       screens[i].classList.remove('active');
@@ -936,7 +996,6 @@
       adminScreen.classList.add('active');
     }
 
-    // Load admin.js
     var script = document.createElement('script');
     script.type = 'module';
     script.src = '/js/admin.js';
@@ -948,7 +1007,6 @@
     };
     document.head.appendChild(script);
   } else {
-    // Load user app
     var script2 = document.createElement('script');
     script2.type = 'module';
     script2.src = '/js/app.js';

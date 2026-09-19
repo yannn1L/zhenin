@@ -1,11 +1,14 @@
 /* ============================================================
-   ZHENIN - Admin Panel (v2.6.1)
-   Full admin features: dashboard, generate, topup, users, settings
+   ZHENIN - Admin Panel (v2.6.2 FINAL)
+   Full double-check + username display + scroll fix
    ============================================================ */
 
 import { CONFIG } from './config.js';
 import { Data, Storage } from './storage.js';
 
+/* ============================================================
+   STATE
+   ============================================================ */
 const State = {
   session: null,
   currentTab: 'dashboard',
@@ -18,16 +21,24 @@ const State = {
   searchTimer: null,
   currentPage: 1,
   currentFilter: 'all',
+  topupUser: null,
+  lastGeneratedCodes: null,
   _loading: false
 };
 
+/* ============================================================
+   HELPERS
+   ============================================================ */
 const $ = (sel, ctx = document) => ctx.querySelector(sel);
 const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
 
 function escapeHtml(str) {
   return String(str == null ? '' : str)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function toast(msg, type = 'info', duration = 3200) {
@@ -38,7 +49,10 @@ function toast(msg, type = 'info', duration = 3200) {
   t.className = `toast toast-${type}`;
   t.innerHTML = `<span class="toast-icon">${icons[type] || 'ℹ'}</span><span class="toast-message">${escapeHtml(msg)}</span>`;
   container.appendChild(t);
-  setTimeout(() => { t.classList.add('removing'); setTimeout(() => t.remove(), 300); }, duration);
+  setTimeout(() => {
+    t.classList.add('removing');
+    setTimeout(() => t.remove(), 300);
+  }, duration);
 }
 
 function showLoading(text = 'Memproses...') {
@@ -70,6 +84,14 @@ async function callApi(action, params = {}) {
 
   if (!response.ok) throw new Error('HTTP ' + response.status);
   return await response.json();
+}
+
+function formatDate(ts) {
+  if (!ts) return '-';
+  return new Date(ts).toLocaleString('id-ID', {
+    day: 'numeric', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
 }
 
 /* ============================================================
@@ -112,7 +134,7 @@ const AdminAuth = {
 };
 
 /* ============================================================
-   RENDER: LOGIN SCREEN
+   LOGIN SCREEN
    ============================================================ */
 function renderAdminLogin() {
   const root = document.getElementById('adminRoot');
@@ -193,7 +215,7 @@ function renderAdminLogin() {
 }
 
 /* ============================================================
-   RENDER: DASHBOARD (Main Admin)
+   DASHBOARD
    ============================================================ */
 function renderAdminDashboard() {
   const root = document.getElementById('adminRoot');
@@ -243,7 +265,6 @@ function renderAdminDashboard() {
     </div>
   `;
 
-  // Header actions
   $('#adminRefreshBtn').addEventListener('click', () => {
     toast('Refresh data...', 'info');
     renderTab(State.currentTab);
@@ -256,7 +277,6 @@ function renderAdminDashboard() {
     renderAdminLogin();
   });
 
-  // Nav tabs
   $$('.admin-nav-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       $$('.admin-nav-btn').forEach(b => b.classList.remove('active'));
@@ -266,7 +286,6 @@ function renderAdminDashboard() {
     });
   });
 
-  // Load initial
   renderTab('dashboard');
 }
 
@@ -387,17 +406,11 @@ async function renderDashboardTab(main) {
       btn.addEventListener('click', () => {
         const action = btn.dataset.action;
         if (action === 'goto-generate') {
-          State.currentTab = 'generate';
-          $$('.admin-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'generate'));
-          renderTab('generate');
+          switchTab('generate');
         } else if (action === 'goto-topup') {
-          State.currentTab = 'topup';
-          $$('.admin-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'topup'));
-          renderTab('topup');
+          switchTab('topup');
         } else if (action === 'goto-users') {
-          State.currentTab = 'users';
-          $$('.admin-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'users'));
-          renderTab('users');
+          switchTab('users');
         } else if (action === 'refresh-stats') {
           renderTab('dashboard');
         }
@@ -409,8 +422,16 @@ async function renderDashboardTab(main) {
   }
 }
 
+function switchTab(tabName) {
+  State.currentTab = tabName;
+  $$('.admin-nav-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tabName);
+  });
+  renderTab(tabName);
+}
+
 /* ============================================================
-   TAB: GENERATE PASSWORD
+   TAB: GENERATE
    ============================================================ */
 function renderGenerateTab(main) {
   main.innerHTML = `
@@ -528,13 +549,13 @@ function renderTopupTab(main) {
   main.innerHTML = `
     <div class="admin-section">
       <h2 class="admin-section-title">💎 Top-up Token</h2>
-      <p class="admin-section-desc">Cari user by password, lalu tambahkan token.</p>
+      <p class="admin-section-desc">Cari user by password atau username, lalu tambahkan token.</p>
 
       <div class="admin-form-grid">
         <div class="form-field" style="grid-column: 1 / -1;">
-          <label class="form-label">Password User</label>
-          <input type="text" id="topupPassword" class="form-input" placeholder="USER-XXXX-XXXX" style="text-transform:uppercase;font-family:monospace;">
-          <div class="form-hint">Format: USER-XXXX-XXXX</div>
+          <label class="form-label">Password / Username User</label>
+          <input type="text" id="topupPassword" class="form-input" placeholder="USER-XXXX-XXXX atau username" style="text-transform:uppercase;font-family:monospace;">
+          <div class="form-hint">Format: USER-XXXX-XXXX atau nama username</div>
         </div>
       </div>
 
@@ -556,12 +577,12 @@ function renderTopupTab(main) {
 
   const pwInput = $('#topupPassword');
   pwInput.addEventListener('input', () => {
-    pwInput.value = pwInput.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+    pwInput.value = pwInput.value.toUpperCase();
   });
 
   $('#topupSearchBtn').addEventListener('click', async () => {
     const pw = pwInput.value.trim();
-    if (!pw) { toast('Masukkan password', 'warning'); return; }
+    if (!pw) { toast('Masukkan password / username', 'warning'); return; }
 
     showLoading('Mencari user...');
     try {
@@ -580,6 +601,7 @@ function renderTopupTab(main) {
 
       $('#topupUserInfo').innerHTML = `
         <div class="admin-user-card">
+          ${user.username ? `<div class="admin-user-row"><span>Username:</span><strong style="color:var(--z-lavender);">👤 ${escapeHtml(user.username)}</strong></div>` : ''}
           <div class="admin-user-row">
             <span>Password:</span>
             <code>${escapeHtml(user.code)}</code>
@@ -625,7 +647,6 @@ function renderTopupTab(main) {
 
       if (result.success) {
         toast(`✅ Berhasil. Token baru: ${result.newToken}`, 'success', 4000);
-        // Update UI
         State.topupUser.token = result.newToken;
         const tokenEl = $('#topupUserInfo strong');
         if (tokenEl) tokenEl.textContent = result.newToken;
@@ -648,7 +669,7 @@ function renderUsersTab(main) {
       <h2 class="admin-section-title">👥 Kelola User</h2>
 
       <div class="admin-users-toolbar">
-        <input type="text" id="usersSearch" class="form-input admin-search-input" placeholder="🔍 Cari password...">
+        <input type="text" id="usersSearch" class="form-input admin-search-input" placeholder="🔍 Cari password / username...">
         <div class="admin-filter-group">
           <button class="admin-filter-btn active" data-filter="all">Semua</button>
           <button class="admin-filter-btn" data-filter="used">Used</button>
@@ -724,7 +745,12 @@ async function loadUsers(page = 1) {
     listEl.innerHTML = users.map(u => `
       <div class="admin-user-item" data-user-code="${escapeHtml(u.code)}">
         <div class="admin-user-item-main">
-          <div class="admin-user-item-code">${escapeHtml(u.code)}</div>
+          <div class="admin-user-item-header">
+            ${u.username
+              ? `<div class="admin-user-item-username">👤 ${escapeHtml(u.username)}</div>`
+              : '<div class="admin-user-item-username empty">👤 (belum diisi)</div>'}
+            <div class="admin-user-item-code">${escapeHtml(u.code)}</div>
+          </div>
           <div class="admin-user-item-meta">
             <span class="admin-badge admin-badge-${u.status.toLowerCase()}">${u.status}</span>
             <span>💎 ${u.token}</span>
@@ -736,7 +762,6 @@ async function loadUsers(page = 1) {
       </div>
     `).join('');
 
-    // Bind actions
     listEl.querySelectorAll('[data-user-menu]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -744,7 +769,6 @@ async function loadUsers(page = 1) {
       });
     });
 
-    // Pagination
     if (pagination && pagination.totalPages > 1) {
       const pagEl = $('#usersPagination');
       if (pagEl) {
@@ -787,11 +811,14 @@ function showUserActions(code) {
         </div>
         <div class="admin-modal-body">
           <div class="admin-user-detail">
+            ${user.username
+              ? `<div class="admin-user-row"><span>Username:</span><strong style="color:var(--z-lavender);">👤 ${escapeHtml(user.username)}</strong></div>`
+              : '<div class="admin-user-row"><span>Username:</span><span style="color:var(--z-text-dim);">(belum diisi)</span></div>'}
             <div class="admin-user-row"><span>Status:</span><span class="admin-badge admin-badge-${user.status.toLowerCase()}">${user.status}</span></div>
             <div class="admin-user-row"><span>Token:</span><strong style="color:var(--z-gold);">${user.token}</strong></div>
             <div class="admin-user-row"><span>Device:</span><span>${user.deviceCount} / ${user.maxDevice}</span></div>
-            <div class="admin-user-row"><span>Used at:</span><span>${user.usedAt ? new Date(user.usedAt).toLocaleString('id-ID') : '-'}</span></div>
-            <div class="admin-user-row"><span>Last active:</span><span>${user.lastActive ? new Date(user.lastActive).toLocaleString('id-ID') : '-'}</span></div>
+            <div class="admin-user-row"><span>Used at:</span><span>${formatDate(user.usedAt)}</span></div>
+            <div class="admin-user-row"><span>Last active:</span><span>${formatDate(user.lastActive)}</span></div>
           </div>
 
           <div class="admin-action-buttons">
@@ -974,7 +1001,7 @@ async function renderTemplatesTab(main) {
 }
 
 /* ============================================================
-   TAB: SETTINGS (Contact, Pricing, Promo)
+   TAB: SETTINGS
    ============================================================ */
 async function renderSettingsTab(main) {
   main.innerHTML = '<div class="admin-loading-placeholder">Memuat settings...</div>';
@@ -1056,7 +1083,6 @@ async function renderSettingsTab(main) {
       </div>
     `;
 
-    // Render pricing list
     renderPricingList(pricing);
 
     $('#addPricingBtn').addEventListener('click', () => {
@@ -1167,19 +1193,16 @@ async function saveAllSettings() {
 
   showLoading('Menyimpan settings...');
   try {
-    // Save contact
-    const contactRes = await callApi('adminSaveConfig', {
+    await callApi('adminSaveConfig', {
       adminToken: session.password,
       config: contact
     });
 
-    // Save promo
-    const promoRes = await callApi('adminSavePromo', {
+    await callApi('adminSavePromo', {
       adminToken: session.password,
       promo
     });
 
-    // Save pricing juga
     await savePricing();
 
     hideLoading();
@@ -1192,7 +1215,7 @@ async function saveAllSettings() {
 }
 
 /* ============================================================
-   INIT ADMIN
+   INIT
    ============================================================ */
 function initAdmin() {
   if (AdminAuth.isLoggedIn()) {

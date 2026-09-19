@@ -472,3 +472,65 @@
   .admin-nav { padding: 6px 14px; }
   .admin-nav-btn { padding: 8px 12px; font-size: 0.6875rem; }
 }
+
+/* ============================================================
+   ADMIN USER ITEM USERNAME (v2.6.2)
+   ============================================================ */
+.admin-user-item-header {
+  margin-bottom: 6px;
+}
+
+.admin-user-item-username {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--z-lavender);
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-user-item-username.empty {
+  color: var(--z-text-dim);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 0.75rem;
+}
+
+.admin-user-item-code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--z-text-muted);
+  letter-spacing: 0.5px;
+}
+
+/* ============================================================
+   FIX: ADMIN MAIN SCROLL (v2.6.2)
+   ============================================================ */
+.admin-app {
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+.admin-main {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  /* ⚠️ Force scroll */
+  height: calc(100vh - 130px);
+  min-height: 0;
+}
+
+.admin-nav {
+  flex-shrink: 0;
+}
+
+.admin-header {
+  flex-shrink: 0;
+}

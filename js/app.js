@@ -1,12 +1,6 @@
 /* ============================================================
-   ZHENIN - App.js (v2.6.0 FINAL)
-   Sprint 2F: Full Bug Fix + Prevention
-   
-   FIX:
-   - Generate kosong guard (validate before save)
-   - Export salah dokumen guard (docId verification)
-   - Auto-save race condition (cleanup editor on switch)
-   - State sync dengan Editor
+   ZHENIN - App.js (v2.6.2 FINAL)
+   Full double-check + username integration
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -23,6 +17,7 @@ import Editor from './editor.js';
 import Parser from './parser.js';
 import Renderer from './renderer.js';
 import Exporter from './exporter.js';
+import Username from './username.js';
 
 /* ============================================================
    STATE
@@ -84,7 +79,7 @@ function sleep(ms) {
 }
 
 /* ============================================================
-   UI COMPONENTS
+   UI
    ============================================================ */
 const UI = {
   toast(message, type = 'info', duration = CONFIG.TIMING.TOAST_DURATION_MS) {
@@ -130,13 +125,9 @@ const UI = {
     const currentScreen = State.currentScreen;
     if (currentScreen === screenId) return;
 
-    // ⚠️ FIX: Save editor content sebelum pindah dari result
+    // Save editor content sebelum pindah dari result
     if (currentScreen === 'result' && screenId !== 'result') {
-      try {
-        if (window.Editor) Editor.saveNow();
-      } catch (e) {
-        console.warn('[goTo] Editor save error:', e.message);
-      }
+      try { if (window.Editor) Editor.saveNow(); } catch (e) {}
     }
 
     screens.forEach(s => {
@@ -185,7 +176,12 @@ const UI = {
   },
 
   closeAllModals() {
-    $$('.modal-overlay').forEach(m => { m.hidden = true; });
+    $$('.modal-overlay').forEach(m => {
+      // Skip session expired + username required
+      if (m.id === 'modalSessionExpired' && !m.hidden) return;
+      if (m.id === 'modalUsernameRequired' && !m.hidden) return;
+      m.hidden = true;
+    });
     document.body.style.overflow = '';
   },
 
@@ -356,7 +352,17 @@ async function initSplash() {
   const isLoggedIn = await Auth.verify();
   if (isLoggedIn) {
     State.session = Data.getSession();
+
+    // Load username cache dulu
+    const cachedUsername = Username.getLocalCache();
+    if (cachedUsername) Username.updateUI(cachedUsername);
+
     await initUserApp();
+
+    // Enforce username jika belum ada
+    const usernameCheck = await Username.enforce();
+    if (usernameCheck.username) Username.updateUI(usernameCheck.username);
+
     UI.goTo('home');
   } else {
     UI.goTo('login');
@@ -403,10 +409,23 @@ function initLogin() {
         State.session = result.session;
         StorageMonitor.invalidateCache();
         TokenManager.reset();
+
+        // Save username dari backend ke cache
+        if (result.username) {
+          Username.saveLocalCache(result.username);
+        }
+
         UI.toast('Login berhasil!', 'success');
 
         await initUserApp();
         await sleep(300);
+
+        // Enforce username (first login)
+        const usernameCheck = await Username.enforce();
+        if (usernameCheck.username) {
+          Username.updateUI(usernameCheck.username);
+        }
+
         UI.goTo('home');
 
         if (!Data.isOnboarded()) {
@@ -434,6 +453,8 @@ function initLogin() {
    ============================================================ */
 async function initUserApp() {
   window.Profile = Profile;
+  window.Username = Username;
+
   Profile.init();
   TokenManager.refreshAllUI();
   initHome();
@@ -453,12 +474,20 @@ async function initUserApp() {
     showSessionExpiredDialog(title, message, icon);
   });
 
+  // Load username async
+  Username.checkHasUsername().then(({ username }) => {
+    if (username) {
+      Username.saveLocalCache(username);
+      Username.updateUI(username);
+    }
+  }).catch(() => {});
+
   Promo.load().catch(() => {});
   setTimeout(() => SessionManager.refresh(true), 2000);
 }
 
 /* ============================================================
-   SESSION EXPIRED DIALOG
+   SESSION EXPIRED
    ============================================================ */
 function showSessionExpiredDialog(title, message, icon = '⚠️') {
   if (window._sessionExpiredShown) return;
@@ -523,6 +552,12 @@ function initHome() {
     setTimeout(() => this.style.transform = '', 500);
     await SessionManager.refresh(false);
     await SessionGuard.checkNow();
+    await Username.checkHasUsername().then(({ username }) => {
+      if (username) {
+        Username.saveLocalCache(username);
+        Username.updateUI(username);
+      }
+    }).catch(() => {});
   });
 
   $('#btnProfile')?.addEventListener('click', () => UI.goTo('profile'));
@@ -612,16 +647,10 @@ function goToGenerate(type = 'askep') {
   }, 100);
 }
 
-/**
- * ⚠️ FIXED: openDocument dengan Editor cleanup
- */
 function openDocument(docId, docType) {
   try {
-    // Cleanup editor lama dulu jika ganti dokumen
     if (Editor.getCurrentDocId() && Editor.getCurrentDocId() !== docId) {
-      try { Editor.cleanup(); } catch (e) {
-        console.warn('[openDocument] Editor cleanup error:', e.message);
-      }
+      try { Editor.cleanup(); } catch (e) {}
     }
 
     const doc = Editor.load(docId, docType);
@@ -643,50 +672,21 @@ function openDocument(docId, docType) {
    AI SCREEN
    ============================================================ */
 function initAIScreen() {
-  const form = $('#aiForm');
-  if (form) {
-    form.addEventListener('submit', handleAISubmit);
-  }
+  // AI module handles semua (event delegation)
+  AI.initAIScreen();
 
-  $$('.type-option').forEach(btn => {
-    btn.addEventListener('click', () => {
-      $$('.type-option').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const hidden = $('#aiType');
-      if (hidden) hidden.value = btn.dataset.type;
-    });
+  // Additional binding
+  $('#btnTopicSuggest')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    showTopicSuggestions();
   });
 
-  $$('.prompt-option').forEach(btn => {
-    btn.addEventListener('click', () => {
-      $$('.prompt-option').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const mode = btn.dataset.mode;
-      const hidden = $('#aiMode');
-      if (hidden) hidden.value = mode;
-
-      const customSection = $('#customPromptSection');
-      if (customSection) customSection.hidden = mode !== 'custom';
-    });
+  $('#btnAiHelp')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    UI.openModal('modalHelp');
   });
-
-  const patientToggle = $('#patientToggle');
-  const patientBody = $('#patientBody');
-  if (patientToggle && patientBody) {
-    patientToggle.addEventListener('click', () => {
-      const open = !patientBody.hidden;
-      patientBody.hidden = open;
-      patientToggle.classList.toggle('open', !open);
-    });
-  }
-
-  $('#btnTopicSuggest')?.addEventListener('click', showTopicSuggestions);
-  $('#btnAiHelp')?.addEventListener('click', () => UI.openModal('modalHelp'));
 }
 
-/**
- * ⚠️ FIXED: handleAISubmit dengan validate result sebelum save
- */
 async function handleAISubmit(e) {
   e.preventDefault();
 
@@ -694,25 +694,20 @@ async function handleAISubmit(e) {
   UI.setBtnLoading(btn, true);
 
   try {
-    // Session guard check
     const guardResult = await SessionGuard.checkNow();
     if (!guardResult.success && !['network_error', 'offline'].includes(guardResult.reason)) {
       return;
     }
 
-    // Generate request
     const requestBody = await AI.generate();
 
-    // Go to loading screen
     UI.goTo('loading');
     AI.startLoadingScreen();
 
-    // Call backend
     const result = await AI.callBackend(requestBody);
 
     AI.stopLoadingScreen();
 
-    // ⚠️ FIX: Verify result.success
     if (!result.success) {
       const errorMsg = result.error || 'AI gagal';
       const mapped = AI.mapError({ message: errorMsg });
@@ -722,7 +717,6 @@ async function handleAISubmit(e) {
       return;
     }
 
-    // ⚠️ FIX: Validate content tidak kosong
     const validation = AI.validateResult(result);
     if (!validation.valid) {
       await SessionManager.refresh(true);
@@ -731,7 +725,6 @@ async function handleAISubmit(e) {
       return;
     }
 
-    // Save doc
     const formData = AI.collectFormData();
     const prompt = requestBody.prompt;
 
@@ -746,16 +739,13 @@ async function handleAISubmit(e) {
       return;
     }
 
-    // Update token count
     if (typeof result.remainingToken === 'number') {
       TokenManager.updateFromResponse(result.remainingToken);
     }
 
-    // Set state
     State.currentDoc = { ...doc, _type: formData.type };
     AI.setCurrentDocId(doc.id);
 
-    // Load ke editor
     try {
       Editor.load(doc.id, formData.type);
       Editor.render();
@@ -795,6 +785,8 @@ async function handleAISubmit(e) {
     UI.setBtnLoading(btn, false);
   }
 }
+
+window.handleAISubmit = handleAISubmit;
 
 /* ============================================================
    RESULT SCREEN
@@ -854,23 +846,18 @@ async function handleRegenerate() {
   $('#aiForm').dispatchEvent(new Event('submit'));
 }
 
-/**
- * ⚠️ FIXED: handleExportDocx dengan docId verification
- */
 async function handleExportDocx() {
   if (!State.currentDoc) {
     UI.toast('Dokumen tidak ditemukan', 'error');
     return;
   }
 
-  // ⚠️ FIX: Verify editor docId match dengan State
   const editorDocId = Editor.getCurrentDocId();
   if (!editorDocId || editorDocId !== State.currentDoc.id) {
     UI.toast('Dokumen berubah, mohon buka ulang', 'warning');
     return;
   }
 
-  // Save content dulu
   Editor.saveNow();
 
   UI.showLoading('Menyiapkan DOCX...');
@@ -910,6 +897,56 @@ function initProfile() {
   $$('[data-back]').forEach(btn => {
     btn.addEventListener('click', () => UI.goTo(btn.dataset.back));
   });
+
+  // Username field
+  const usernameInput = $('#profileUsernameInput');
+  const saveUsernameBtn = $('#btnSaveUsername');
+
+  if (usernameInput) {
+    const cached = Username.getLocalCache();
+    usernameInput.value = cached || '';
+
+    // Load dari backend
+    Username.checkHasUsername().then(({ username }) => {
+      if (username && !usernameInput.value) {
+        usernameInput.value = username;
+        Username.saveLocalCache(username);
+      }
+    }).catch(() => {});
+  }
+
+  if (saveUsernameBtn) {
+    saveUsernameBtn.addEventListener('click', async () => {
+      const newUsername = usernameInput?.value.trim();
+
+      if (!newUsername) {
+        UI.toast('Username tidak boleh kosong', 'warning');
+        return;
+      }
+
+      if (newUsername.length < 2) {
+        UI.toast('Username minimal 2 karakter', 'warning');
+        return;
+      }
+
+      if (newUsername === Username.getLocalCache()) {
+        UI.toast('Username tidak berubah', 'info');
+        return;
+      }
+
+      UI.setBtnLoading(saveUsernameBtn, true);
+
+      try {
+        await Username.set(newUsername);
+        Username.updateUI(newUsername);
+        UI.toast('✅ Username berhasil disimpan', 'success');
+      } catch (err) {
+        UI.toast('❌ Gagal: ' + err.message, 'error', 5000);
+      } finally {
+        UI.setBtnLoading(saveUsernameBtn, false);
+      }
+    });
+  }
 }
 
 async function handleExportJSON() {
@@ -1020,7 +1057,7 @@ function renderFilesList() {
 }
 
 /* ============================================================
-   DOC ACTIONS MENU
+   DOC ACTIONS
    ============================================================ */
 let docActionTarget = null;
 
@@ -1174,6 +1211,8 @@ function initBottomNav() {
 function initModals() {
   $$('[data-close]').forEach(btn => {
     btn.addEventListener('click', () => {
+      // Skip close kalau username required
+      if (btn.dataset.close === 'modalUsernameRequired') return;
       UI.closeModal(btn.dataset.close);
     });
   });
@@ -1182,6 +1221,7 @@ function initModals() {
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
         if (overlay.id === 'modalSessionExpired') return;
+        if (overlay.id === 'modalUsernameRequired') return;
         UI.closeModal(overlay.id);
       }
     });
@@ -1191,6 +1231,10 @@ function initModals() {
     if (e.key === 'Escape') {
       const expiredModal = document.getElementById('modalSessionExpired');
       if (expiredModal && !expiredModal.hidden) return;
+
+      const usernameModal = document.getElementById('modalUsernameRequired');
+      if (usernameModal && !usernameModal.hidden) return;
+
       UI.closeAllModals();
     }
   });
