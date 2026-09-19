@@ -1,6 +1,10 @@
 /* ============================================================
-   ZHENIN - Screens (v2.7.0)
+   ZHENIN - Screens (v2.7.4)
    Screen-specific styling: AI, Loading, Result, Files
+   
+   CHANGELOG v2.7.4:
+   - FIX: Loading screen centered dengan grid (bukan flex)
+   - Semua margin dihapus, pakai gap di parent
    ============================================================ */
 
 /* ============================================================
@@ -17,27 +21,24 @@
 /* ============================================================
    2. LOADING SCREEN
    ============================================================ */
-.screen-loading {
-  align-items: center;
-  justify-content: center;
-  background: radial-gradient(circle at center, rgba(107, 63, 160, 0.15) 0%, var(--z-deep) 70%);
-  padding: var(--z-space-8);
-  text-align: center;
-}
-
 .loading-fullscreen {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: var(--z-space-4);
   max-width: 340px;
+  width: 100%;
+  margin: 0;
+  text-align: center;
 }
 
 .loading-orb-large {
   position: relative;
   width: 120px;
   height: 120px;
-  margin-bottom: var(--z-space-4);
+  margin: 0;
+  flex-shrink: 0;
 }
 
 .loading-orb-ring {
@@ -84,14 +85,18 @@
   font-weight: 700;
   color: var(--z-gold);
   letter-spacing: 3px;
-  margin-bottom: var(--z-space-1);
+  margin: 0;
+  line-height: 1.2;
+  text-align: center;
 }
 
 .loading-message {
   font-size: var(--z-fs-md);
   color: var(--z-text-muted);
   min-height: 1.4em;
-  margin-bottom: var(--z-space-4);
+  margin: 0;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .loading-bar {
@@ -101,7 +106,7 @@
   background: rgba(201, 169, 97, 0.15);
   border-radius: 2px;
   overflow: hidden;
-  margin-bottom: var(--z-space-3);
+  margin: 0;
 }
 
 .loading-bar-fill {
@@ -118,7 +123,7 @@
   font-size: var(--z-fs-3xl);
   color: var(--z-gold);
   letter-spacing: 2px;
-  margin-top: var(--z-space-2);
+  margin: 0;
   text-shadow: 0 0 12px rgba(201, 169, 97, 0.4);
 }
 
@@ -127,6 +132,8 @@
   color: var(--z-text-dim);
   line-height: 1.4;
   max-width: 260px;
+  margin: 0;
+  text-align: center;
 }
 
 /* ============================================================

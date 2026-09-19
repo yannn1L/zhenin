@@ -1,12 +1,11 @@
 /* ============================================================
-   ZHENIN - Layout (v2.7.1)
+   ZHENIN - Layout (v2.7.4)
    App shell, screens, header, navigation
-   Mobile-first dengan Grid layout untuk tablet/desktop
    
-   CHANGELOG v2.7.1:
-   - FIX: Splash screen geser ke kanan di tablet/desktop
-   - Splash & Login override grid-column: 1 / -1
-   - Consistent full-screen behavior di semua breakpoint
+   CHANGELOG v2.7.4:
+   - FIX: Loading screen off-center (grid place-items)
+   - FIX: Base .screen flex konflik dengan loading grid
+   - FIX: Semua inset & padding reset di .screen-loading
    ============================================================ */
 
 /* ============================================================
@@ -42,6 +41,14 @@
   opacity: 1;
   transition: opacity 0.2s ease, visibility 0s linear 0s;
   pointer-events: auto;
+}
+
+/* Hide bottom-nav di screen tanpa nav */
+.screen-splash .bottom-nav,
+.screen-login .bottom-nav,
+.screen-admin .bottom-nav,
+.screen-loading .bottom-nav {
+  display: none !important;
 }
 
 .screen-scroll {
@@ -168,7 +175,7 @@
 }
 
 /* ============================================================
-   4. BOTTOM NAV (MOBILE)
+   4. BOTTOM NAV (MOBILE — default)
    ============================================================ */
 .bottom-nav {
   position: absolute;
@@ -241,13 +248,6 @@
   background: radial-gradient(circle at center, var(--z-plum) 0%, var(--z-night) 70%);
   padding: var(--z-space-8);
   text-align: center;
-  position: absolute;
-  inset: 0;
-  /* ⚠️ FIX: Selalu full screen, override grid */
-  grid-column: 1 / -1 !important;
-  grid-row: 1 / -1 !important;
-  width: 100% !important;
-  height: 100% !important;
   z-index: 100;
 }
 
@@ -331,11 +331,6 @@
     var(--z-deep);
   overflow-y: auto;
   padding: calc(var(--z-safe-top) + var(--z-space-6)) var(--z-space-5) calc(var(--z-safe-bottom) + var(--z-space-6));
-  /* ⚠️ FIX: Login juga full screen, override grid */
-  grid-column: 1 / -1 !important;
-  grid-row: 1 / -1 !important;
-  width: 100% !important;
-  height: 100% !important;
   z-index: 90;
 }
 
@@ -421,7 +416,49 @@
 }
 
 /* ============================================================
-   8. RESPONSIVE: LANDSCAPE MOBILE (< 500px tinggi)
+   8. LOADING SCREEN — BULLETPROOF GRID CENTERING
+   ============================================================ */
+.screen-loading {
+  /* Grid centering paling reliable */
+  display: grid !important;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  place-items: center;
+  place-content: center;
+  background: radial-gradient(circle at center, rgba(107, 63, 160, 0.15) 0%, var(--z-deep) 70%);
+  padding: var(--z-space-6);
+  text-align: center;
+  z-index: 100;
+  overflow: hidden;
+  position: absolute;
+  inset: 0;
+}
+
+.screen-loading.active {
+  display: grid !important;
+  place-items: center !important;
+  place-content: center !important;
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: var(--z-space-6) !important;
+  grid-column: unset !important;
+  grid-row: unset !important;
+}
+
+.screen-loading > * {
+  grid-column: 1;
+  grid-row: 1;
+  place-self: center;
+  margin: 0 !important;
+  max-width: 340px;
+  width: 100%;
+}
+
+/* ============================================================
+   9. RESPONSIVE: LANDSCAPE MOBILE
    ============================================================ */
 @media (orientation: landscape) and (max-height: 500px) {
   .app-header {
@@ -475,18 +512,59 @@
     font-size: 0.625rem;
     letter-spacing: 4px;
   }
+
+  .screen-loading {
+    padding: var(--z-space-4) !important;
+  }
 }
 
 /* ============================================================
-   9. RESPONSIVE: TABLET (768px - 1023px)
+   10. RESPONSIVE: TABLET (768px - 1023px)
    ============================================================ */
 @media (min-width: 768px) and (max-width: 1023px) {
   .app {
     display: grid;
     grid-template-columns: var(--z-sidebar-w-compact) 1fr;
     grid-template-rows: 1fr;
+    position: relative;
   }
 
+  /* Splash, Login, Admin, Loading — absolute full screen, tidak ikut grid */
+  .screen-splash,
+  .screen-login,
+  .screen-admin,
+  .screen-loading {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    grid-column: unset !important;
+    grid-row: unset !important;
+    z-index: 100 !important;
+  }
+
+  /* Loading tetap grid center */
+  .screen-loading.active {
+    display: grid !important;
+    place-items: center !important;
+    place-content: center !important;
+  }
+
+  /* Screen normal — masuk grid */
+  .screen-home,
+  .screen-ai,
+  .screen-result,
+  .screen-profile,
+  .screen-files {
+    grid-column: 2;
+    grid-row: 1;
+    position: relative;
+    inset: auto;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Bottom nav di kolom 1 */
   .bottom-nav {
     position: relative;
     grid-column: 1;
@@ -526,29 +604,8 @@
     border-radius: 0 3px 3px 0;
   }
 
-  /* ⚠️ Screen normal: di kolom 2 */
-  .screen {
-    grid-column: 2;
-    grid-row: 1;
-    position: relative;
-    inset: auto;
-    width: 100%;
-    height: 100%;
-  }
-
-  /* ⚠️ FIX: Splash & Login tetap full screen */
-  .screen-splash,
-  .screen-login {
-    grid-column: 1 / -1 !important;
-    grid-row: 1 / -1 !important;
-    position: absolute !important;
-    inset: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-  }
-
   .screen-scroll {
-    padding: var(--z-space-5) var(--z-space-5);
+    padding: var(--z-space-5);
   }
 
   .app-header {
@@ -566,15 +623,52 @@
 }
 
 /* ============================================================
-   10. RESPONSIVE: DESKTOP (>= 1024px)
+   11. RESPONSIVE: DESKTOP (>= 1024px)
    ============================================================ */
 @media (min-width: 1024px) {
   .app {
     display: grid;
     grid-template-columns: var(--z-sidebar-w) 1fr;
     grid-template-rows: 1fr;
+    position: relative;
   }
 
+  /* Splash, Login, Admin, Loading — absolute full screen, tidak ikut grid */
+  .screen-splash,
+  .screen-login,
+  .screen-admin,
+  .screen-loading {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    grid-column: unset !important;
+    grid-row: unset !important;
+    z-index: 100 !important;
+  }
+
+  /* Loading tetap grid center */
+  .screen-loading.active {
+    display: grid !important;
+    place-items: center !important;
+    place-content: center !important;
+  }
+
+  /* Screen normal — masuk grid */
+  .screen-home,
+  .screen-ai,
+  .screen-result,
+  .screen-profile,
+  .screen-files {
+    grid-column: 2;
+    grid-row: 1;
+    position: relative;
+    inset: auto;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Bottom nav di kolom 1 */
   .bottom-nav {
     position: relative;
     grid-column: 1;
@@ -628,27 +722,6 @@
     transform: none;
   }
 
-  /* ⚠️ Screen normal: di kolom 2 */
-  .screen {
-    grid-column: 2;
-    grid-row: 1;
-    position: relative;
-    inset: auto;
-    width: 100%;
-    height: 100%;
-  }
-
-  /* ⚠️ FIX: Splash & Login tetap full screen */
-  .screen-splash,
-  .screen-login {
-    grid-column: 1 / -1 !important;
-    grid-row: 1 / -1 !important;
-    position: absolute !important;
-    inset: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-  }
-
   .screen-scroll {
     max-width: 900px;
     margin: 0 auto;
@@ -670,22 +743,10 @@
 }
 
 /* ============================================================
-   11. RESPONSIVE: LARGE DESKTOP (>= 1440px)
+   12. RESPONSIVE: LARGE DESKTOP (>= 1440px)
    ============================================================ */
 @media (min-width: 1440px) {
   .screen-scroll {
     max-width: 1100px;
   }
-}
-
-/* ============================================================
-   12. SCREEN: ADMIN (override — selalu full screen)
-   ============================================================ */
-.screen-admin {
-  grid-column: 1 / -1 !important;
-  grid-row: 1 / -1 !important;
-  position: absolute !important;
-  inset: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
 }

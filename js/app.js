@@ -121,29 +121,36 @@ const UI = {
   },
 
   goTo(screenId) {
-    const screens = $$('.screen');
-    const currentScreen = State.currentScreen;
-    if (currentScreen === screenId) return;
-
-    // Save editor content sebelum pindah dari result
-    if (currentScreen === 'result' && screenId !== 'result') {
-      try { if (window.Editor) Editor.saveNow(); } catch (e) {}
-    }
-
-    screens.forEach(s => {
-      s.classList.toggle('active', s.dataset.screen === screenId);
-    });
-    State.currentScreen = screenId;
-    document.body.setAttribute('data-page', screenId);
-
-    $$('.bottom-nav .nav-item').forEach(item => {
-      const nav = item.dataset.nav;
-      const screenMap = { home: 'home', generate: 'ai', files: 'files', profile: 'profile' };
-      item.classList.toggle('active', screenMap[nav] === screenId);
-    });
-
-    const scroll = $(`.screen[data-screen="${screenId}"] .screen-scroll`);
-    if (scroll) scroll.scrollTop = 0;
+  const screens = $$('.screen');
+  const currentScreen = State.currentScreen;
+  if (currentScreen === screenId) return;
+  
+  // Save editor content sebelum pindah dari result
+  if (currentScreen === 'result' && screenId !== 'result') {
+    try { if (window.Editor) Editor.saveNow(); } catch (e) {}
+  }
+  
+  screens.forEach(s => {
+    s.classList.toggle('active', s.dataset.screen === screenId);
+  });
+  State.currentScreen = screenId;
+  document.body.setAttribute('data-page', screenId);
+  
+  $$('.bottom-nav .nav-item').forEach(item => {
+    const nav = item.dataset.nav;
+    const screenMap = { home: 'home', generate: 'ai', files: 'files', profile: 'profile' };
+    item.classList.toggle('active', screenMap[nav] === screenId);
+  });
+  
+  // ⚠️ FIXED: Hide bottom-nav di splash, login, admin
+  const nav = document.querySelector('.screen.active .bottom-nav');
+  if (nav) {
+    const hideNavScreens = ['splash', 'login', 'admin'];
+    nav.style.display = hideNavScreens.includes(screenId) ? 'none' : '';
+  }
+  
+  const scroll = $(`.screen[data-screen="${screenId}"] .screen-scroll`);
+  if (scroll) scroll.scrollTop = 0;
 
     if (screenId === 'profile') {
       Profile.init();
