@@ -1,6 +1,6 @@
 /* ============================================================
-   ZHENIN - AI Module (v2.6.0)
-   FIX: empty result guard, refusal detection, min length validation
+   ZHENIN - AI Module (v2.6.1)
+   FIX: patient toggle, kuota display, AI busy cooldown
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -14,6 +14,12 @@ export const AI = {
   _loadingTimerInterval: null,
   _loadingStartTime: null,
   _currentDocId: null,
+  _busyCooldownUntil: 0,
+  _resultCache: new Map(),
+  _statusCache: null,
+  _statusCacheTime: 0,
+  _statusInterval: null,
+  STATUS_CACHE_TTL: 30000,
 
   LOADING_MESSAGES: [
     'Menganalisis topik...',
@@ -31,6 +37,203 @@ export const AI = {
     'Merapikan dokumen...',
     'Finalisasi...'
   ],
+
+  initAIScreen() {
+    const form = document.getElementById('aiForm');
+    if (form && !form.dataset.bound) {
+      form.dataset.bound = '1';
+
+      form.addEventListener('click', (e) => {
+        const toggle = e.target.closest('#patientToggle');
+        if (toggle) {
+          e.preventDefault();
+          this.togglePatientSection();
+          return;
+        }
+
+        const typeOpt = e.target.closest('.type-option');
+        if (typeOpt) {
+          this.setType(typeOpt.dataset.type);
+          return;
+        }
+
+        const promptOpt = e.target.closest('.prompt-option');
+        if (promptOpt) {
+          this.setPromptMode(promptOpt.dataset.mode);
+          return;
+        }
+
+        if (e.target.closest('#btnTopicSuggest')) {
+          e.preventDefault();
+          if (window.showTopicSuggestions) window.showTopicSuggestions();
+          return;
+        }
+
+        if (e.target.closest('#btnAiHelp')) {
+          e.preventDefault();
+          if (window.UI) window.UI.openModal('modalHelp');
+          return;
+        }
+      });
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (window.handleAISubmit) window.handleAISubmit(e);
+      });
+    }
+
+    this.refreshUserStatus();
+
+    if (this._statusInterval) clearInterval(this._statusInterval);
+    this._statusInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        this.refreshUserStatus(true);
+      }
+    }, 60000);
+  },
+
+  togglePatientSection() {
+    const toggle = document.getElementById('patientToggle');
+    const body = document.getElementById('patientBody');
+    if (!toggle || !body) return;
+
+    const isCurrentlyVisible = body.style.display === 'block';
+
+    if (isCurrentlyVisible) {
+      body.style.display = 'none';
+      body.hidden = true;
+      toggle.classList.remove('open');
+    } else {
+      body.hidden = false;
+      body.style.display = 'block';
+      toggle.classList.add('open');
+    }
+  },
+
+  setType(type) {
+    if (!['lp', 'askep'].includes(type)) return;
+    document.querySelectorAll('.type-option').forEach(b => {
+      b.classList.toggle('active', b.dataset.type === type);
+    });
+    const hidden = document.getElementById('aiType');
+    if (hidden) hidden.value = type;
+  },
+
+  setPromptMode(mode) {
+    if (!['template', 'custom'].includes(mode)) return;
+    document.querySelectorAll('.prompt-option').forEach(b => {
+      b.classList.toggle('active', b.dataset.mode === mode);
+    });
+    const hidden = document.getElementById('aiMode');
+    if (hidden) hidden.value = mode;
+
+    const customSection = document.getElementById('customPromptSection');
+    if (customSection) customSection.hidden = mode !== 'custom';
+  },
+
+  async refreshUserStatus(silent = true) {
+    const now = Date.now();
+    if (this._statusCache && (now - this._statusCacheTime) < this.STATUS_CACHE_TTL) {
+      this.renderUserStatus(this._statusCache);
+      return this._statusCache;
+    }
+
+    const session = Data.getSession();
+    if (!session) return null;
+
+    try {
+      const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'getUserStatus',
+          password: session.password,
+          deviceHash: session.deviceHash
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        this._statusCache = result.status;
+        this._statusCacheTime = now;
+
+        if (typeof result.status.token === 'number') {
+          TokenManager.updateFromResponse(result.status.token);
+        }
+
+        this.renderUserStatus(result.status);
+        return result.status;
+      }
+    } catch (err) {
+      if (!silent) console.warn('[AI] Status fetch error:', err.message);
+    }
+
+    return null;
+  },
+
+  renderUserStatus(status) {
+    if (!status) return;
+
+    const homeEl = document.getElementById('dailyQuotaHome');
+    if (homeEl) {
+      homeEl.innerHTML = this.buildQuotaHTML(status);
+      homeEl.hidden = false;
+    }
+
+    const aiEl = document.getElementById('dailyQuotaAI');
+    if (aiEl) {
+      aiEl.innerHTML = this.buildQuotaHTML(status);
+      aiEl.hidden = false;
+    }
+
+    const costRemaining = document.getElementById('costRemaining');
+    if (costRemaining) costRemaining.textContent = status.token;
+
+    const genBtn = document.getElementById('btnGenerate');
+    if (genBtn) {
+      if (status.remaining === 0) {
+        genBtn.disabled = true;
+        genBtn.title = 'Kuota AI hari ini habis';
+      } else if (this._busyCooldownUntil > Date.now()) {
+        genBtn.disabled = true;
+        genBtn.title = 'Server AI sibuk, tunggu beberapa detik';
+      } else {
+        genBtn.disabled = false;
+        genBtn.title = '';
+      }
+    }
+  },
+
+  buildQuotaHTML(status) {
+    const dailyPct = status.dailyLimit > 0
+      ? Math.min(100, (status.dailyUsed / status.dailyLimit) * 100) : 0;
+    const dailyColor = dailyPct >= 80 ? 'error' : dailyPct >= 50 ? 'warning' : 'success';
+
+    return `
+      <div class="quota-card">
+        <div class="quota-row">
+          <div class="quota-label">
+            <span class="quota-icon">📊</span>
+            <span>Kuota AI Hari Ini</span>
+          </div>
+          <div class="quota-value">
+            <strong>${status.dailyUsed}</strong> / ${status.dailyLimit}
+            ${status.remaining > 0
+              ? `<span class="quota-remaining">${status.remaining} sisa</span>`
+              : '<span class="quota-exhausted">HABIS</span>'}
+          </div>
+        </div>
+        <div class="quota-bar">
+          <div class="quota-bar-fill ${dailyColor}" style="width:${dailyPct}%"></div>
+        </div>
+        <div class="quota-detail">
+          <span>⏱️ Per jam: ${status.hourlyUsed}/${status.hourlyLimit}</span>
+          <span>💎 Token: ${status.token}</span>
+        </div>
+      </div>
+    `;
+  },
 
   validateForm(formData) {
     const { topic, mode, customPrompt, type } = formData;
@@ -79,14 +282,12 @@ export const AI = {
 
   buildPrompt(formData) {
     const { type, topic, mode, customPrompt, patient } = formData;
-
     if (mode === 'custom') return customPrompt;
 
     const typeLabel = type === 'lp' ? 'Laporan Pendahuluan (LP)' : 'Asuhan Keperawatan (Askep)';
     let prompt = `Buatkan ${typeLabel} tentang "${topic}"`;
 
     const hasPatientData = Object.values(patient).some(v => v && v.trim());
-
     if (hasPatientData) {
       prompt += `\n\nData Pasien:`;
       if (patient.nama) prompt += `\n- Nama: ${patient.nama}`;
@@ -108,8 +309,16 @@ export const AI = {
   },
 
   async generate() {
-    const formData = this.collectFormData();
+    const now = Date.now();
+    if (this._busyCooldownUntil > now) {
+      const waitSec = Math.ceil((this._busyCooldownUntil - now) / 1000);
+      const error = new Error(`Server AI sedang sibuk. Tunggu ${waitSec} detik lagi.`);
+      error.code = 'BUSY_COOLDOWN';
+      error.waitSec = waitSec;
+      throw error;
+    }
 
+    const formData = this.collectFormData();
     const validation = this.validateForm(formData);
     if (!validation.valid) throw new Error(validation.error);
 
@@ -119,11 +328,22 @@ export const AI = {
       throw error;
     }
 
-    if (!Data.isProfileComplete()) {
-      this._showProfileWarning();
+    const status = this._statusCache;
+    if (status && status.remaining === 0) {
+      const error = new Error('Kuota AI hari ini habis. Coba lagi besok atau hubungi admin.');
+      error.code = 'NO_QUOTA';
+      throw error;
     }
 
+    if (!Data.isProfileComplete()) this._showProfileWarning();
+
     const prompt = this.buildPrompt(formData);
+
+    const cacheKey = this.buildCacheKey(formData, prompt);
+    if (this._resultCache.has(cacheKey)) {
+      const cached = this._resultCache.get(cacheKey);
+      return { action: 'aiGenerate', fromCache: true, cachedResult: cached };
+    }
 
     const session = Data.getSession();
     if (!session || !session.password || !session.deviceHash) {
@@ -138,13 +358,21 @@ export const AI = {
       type: formData.type
     };
 
-    this._currentRequest = { formData, prompt };
-
+    this._currentRequest = { formData, prompt, cacheKey };
     return requestBody;
   },
 
+  buildCacheKey(formData, prompt) {
+    const key = formData.type + '|' + (formData.topic || formData.customPrompt);
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+      hash = ((hash << 5) - hash + key.charCodeAt(i)) | 0;
+    }
+    return 'ai_' + hash;
+  },
+
   _showProfileWarning() {
-    if (typeof window !== 'undefined' && window.UI) {
+    if (window.UI) {
       window.UI.toast(
         '💡 Tips: Isi profil mahasiswa dulu agar identitas otomatis muncul',
         'info', 4000
@@ -153,12 +381,9 @@ export const AI = {
   },
 
   async callBackend(requestBody) {
-    if (!CONFIG.APPS_SCRIPT_URL) {
-      throw new Error('Backend belum dikonfigurasi');
-    }
+    if (!CONFIG.APPS_SCRIPT_URL) throw new Error('Backend belum dikonfigurasi');
 
     this._abortController = new AbortController();
-
     const timeoutId = setTimeout(() => {
       if (this._abortController) this._abortController.abort();
     }, CONFIG.TIMING.AI_TIMEOUT_MS);
@@ -173,13 +398,15 @@ export const AI = {
 
       clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        throw new Error(`Network error: HTTP ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`Network error: HTTP ${response.status}`);
 
       const result = await response.json();
-      return result;
 
+      if (!result.success && result.error && this.isBusyError(result.error)) {
+        this.setBusyCooldown(30);
+      }
+
+      return result;
     } catch (err) {
       clearTimeout(timeoutId);
       if (err.name === 'AbortError') {
@@ -193,36 +420,55 @@ export const AI = {
     }
   },
 
-  /**
-   * ⚠️ FIX: Validate result tidak kosong + bukan refusal
-   */
-  validateResult(result) {
-    if (!result) {
-      return { valid: false, reason: 'Response kosong dari server' };
+  isBusyError(msg) {
+    const lower = String(msg || '').toLowerCase();
+    return lower.includes('sibuk') || lower.includes('503') ||
+           lower.includes('502') || lower.includes('504');
+  },
+
+  setBusyCooldown(seconds) {
+    this._busyCooldownUntil = Date.now() + (seconds * 1000);
+    const btn = document.getElementById('btnGenerate');
+    if (btn) {
+      btn.disabled = true;
+      let remaining = seconds;
+      const interval = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+          clearInterval(interval);
+          btn.disabled = false;
+          btn.title = '';
+          this._busyCooldownUntil = 0;
+        } else {
+          btn.title = `Server sibuk. Tunggu ${remaining}s`;
+        }
+      }, 1000);
     }
+
+    if (window.UI) {
+      window.UI.toast(
+        `⚠️ Server AI sedang sibuk. Tunggu ${seconds} detik ya.`,
+        'warning', 5000
+      );
+    }
+  },
+
+  validateResult(result) {
+    if (!result) return { valid: false, reason: 'Response kosong dari server' };
 
     const content = String(result.result || '').trim();
-
-    if (!content) {
-      return { valid: false, reason: 'AI menghasilkan dokumen kosong' };
-    }
-
+    if (!content) return { valid: false, reason: 'AI menghasilkan dokumen kosong' };
     if (content.length < 500) {
       return { valid: false, reason: `Dokumen terlalu pendek (${content.length} char). Coba lagi.` };
     }
 
-    // Detect refusal
     const lower = content.toLowerCase();
     if (lower.indexOf('maaf, saya hanya dapat membantu') !== -1) {
       return { valid: false, reason: 'AI menolak topik ini. Coba topik keperawatan lain.' };
     }
-
-    // Detect jika hanya error message
     if (lower.startsWith('error') || lower.indexOf('gagal') === 0) {
       return { valid: false, reason: 'AI mengalami kesalahan. Coba lagi.' };
     }
-
-    // Detect jika tidak ada struktur markdown
     if (!content.includes('#') && !content.includes('|')) {
       return { valid: false, reason: 'Dokumen tidak memiliki struktur. Coba lagi.' };
     }
@@ -248,40 +494,39 @@ export const AI = {
       const list = Data.getLP();
       list.unshift(doc);
       const saveResult = Data.saveLP(list);
-      if (!saveResult || !saveResult.success) {
-        throw new Error('Gagal menyimpan dokumen ke storage');
-      }
+      if (!saveResult || !saveResult.success) throw new Error('Gagal menyimpan dokumen');
     } else {
       const list = Data.getAskep();
       list.unshift(doc);
       const saveResult = Data.saveAskep(list);
-      if (!saveResult || !saveResult.success) {
-        throw new Error('Gagal menyimpan dokumen ke storage');
-      }
+      if (!saveResult || !saveResult.success) throw new Error('Gagal menyimpan dokumen');
     }
 
-    // ⚠️ VERIFY: Read back untuk pastikan tersimpan
     const saved = this.getDocument(doc.id, type);
     if (!saved || !saved.content || saved.content.length < 100) {
-      console.error('[AI] Save verification failed', { docId: doc.id });
       throw new Error('Dokumen gagal tersimpan. Coba lagi.');
     }
 
+    if (this._currentRequest && this._currentRequest.cacheKey) {
+      this._resultCache.set(this._currentRequest.cacheKey, result);
+      if (this._resultCache.size > 10) {
+        const firstKey = this._resultCache.keys().next().value;
+        this._resultCache.delete(firstKey);
+      }
+    }
+
     this._currentDocId = doc.id;
+
+    this._statusCache = null;
+    this._statusCacheTime = 0;
+    setTimeout(() => this.refreshUserStatus(true), 2000);
+
     return doc;
   },
 
-  getCurrentDocId() {
-    return this._currentDocId;
-  },
-
-  setCurrentDocId(id) {
-    this._currentDocId = id;
-  },
-
-  getCurrentRequest() {
-    return this._currentRequest;
-  },
+  getCurrentDocId() { return this._currentDocId; },
+  setCurrentDocId(id) { this._currentDocId = id; },
+  getCurrentRequest() { return this._currentRequest; },
 
   cancel() {
     if (this._abortController) {
@@ -320,7 +565,6 @@ export const AI = {
           fillEl.style.width = pct + '%';
         }
 
-        // Warning kalau > 45 detik
         if (hintEl && elapsed > 45000 && !hintEl.dataset.warned) {
           hintEl.dataset.warned = '1';
           hintEl.textContent = '⏳ Server AI sedang sibuk, dokumen sedang diproses...';
@@ -355,12 +599,16 @@ export const AI = {
 
     if (err.code === 'ABORTED') return { type: 'info', text: 'Dibatalkan' };
     if (err.code === 'NO_TOKEN') return { type: 'warning', text: 'Token habis. Hubungi admin.' };
+    if (err.code === 'NO_QUOTA') return { type: 'warning', text: 'Kuota AI hari ini habis. Coba besok.' };
+    if (err.code === 'BUSY_COOLDOWN') {
+      return { type: 'warning', text: `Server sibuk. Tunggu ${err.waitSec || 30} detik.` };
+    }
     if (msg.includes('token habis')) return { type: 'warning', text: 'Token habis. Hubungi admin.' };
     if (msg.includes('sibuk') || msg.includes('503') || msg.includes('502') || msg.includes('504')) {
-      return { type: 'warning', text: 'Server AI sedang sibuk. Coba lagi dalam 30 detik ya.' };
+      return { type: 'warning', text: 'Server AI sedang sibuk. Tunggu 30 detik ya.' };
     }
     if (msg.includes('timeout') || msg.includes('aborted')) {
-      return { type: 'warning', text: 'AI butuh waktu lebih lama. Coba lagi atau sederhanakan topik.' };
+      return { type: 'warning', text: 'AI butuh waktu lebih lama. Coba lagi.' };
     }
     if (msg.includes('limit') || msg.includes('rate') || msg.includes('429')) {
       return { type: 'warning', text: 'Tunggu 1 menit lagi ya, server AI sedang penuh.' };

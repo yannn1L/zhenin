@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="Zhenin - Generator dokumen keperawatan dengan AI">
-<title>Zhenin</title>
+<title>Zhenin · Keperawatan Suite</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,15 +21,14 @@
 <link rel="stylesheet" href="/css/main.css">
 <link rel="stylesheet" href="/css/layout.css">
 <link rel="stylesheet" href="/css/components.css">
+<link rel="stylesheet" href="/css/admin.css">
 </head>
 <body data-page="splash">
 
 <!-- Global Loading Overlay -->
 <div class="loading-overlay" id="loadingOverlay" aria-hidden="true">
   <div class="loading-box">
-    <div class="loading-orb">
-      <div class="loading-orb-inner"></div>
-    </div>
+    <div class="loading-orb"><div class="loading-orb-inner"></div></div>
     <div class="loading-text" id="loadingText">Memproses...</div>
   </div>
 </div>
@@ -41,7 +40,7 @@
 <div class="app" id="app">
 
   <!-- ============================================================
-       SPLASH
+       SCREEN: SPLASH
        ============================================================ -->
   <section class="screen screen-splash active" data-screen="splash">
     <div class="splash-logo">
@@ -56,14 +55,12 @@
     </div>
     <h1 class="splash-title">ZHENIN</h1>
     <p class="splash-subtitle">Keperawatan Suite</p>
-    <div class="splash-loader">
-      <div class="splash-loader-fill"></div>
-    </div>
-    <div class="splash-version" id="splashVersion">v2.3.0</div>
+    <div class="splash-loader"><div class="splash-loader-fill"></div></div>
+    <div class="splash-version" id="splashVersion">v2.6.1</div>
   </section>
 
   <!-- ============================================================
-       LOGIN
+       SCREEN: LOGIN
        ============================================================ -->
   <section class="screen screen-login" data-screen="login">
     <div class="login-container">
@@ -87,15 +84,13 @@
               placeholder="USER-XXXX-XXXX" autocomplete="off"
               autocapitalize="characters" spellcheck="false"
               maxlength="20" required>
-            <button type="button" class="input-icon-btn" id="clearPassword" title="Hapus" aria-label="Hapus">
+            <button type="button" class="input-icon-btn" id="clearPassword" aria-label="Hapus">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M18 6L6 18M6 6l12 12"/>
               </svg>
             </button>
           </div>
-          <div class="form-hint" id="loginHint">
-            Password didapat dari admin setelah pembelian
-          </div>
+          <div class="form-hint">Password didapat dari admin setelah pembelian</div>
         </div>
 
         <button type="submit" class="btn btn-primary btn-block btn-lg" id="loginBtn">
@@ -110,17 +105,16 @@
       </form>
 
       <div class="login-footer">
-        <div class="login-version" id="loginVersion">v2.3.0</div>
+        <div class="login-version" id="loginVersion">v2.6.1</div>
         <div class="login-legal">
-          Dengan masuk, Anda menyetujui
-          <button type="button" class="link-btn" id="termsBtn">Syarat & Ketentuan</button>
+          Dengan masuk, Anda menyetujui Syarat & Ketentuan Zhenin
         </div>
       </div>
     </div>
   </section>
 
   <!-- ============================================================
-       HOME
+       SCREEN: HOME
        ============================================================ -->
   <section class="screen screen-home" data-screen="home">
     <div class="app-header">
@@ -148,12 +142,11 @@
     </div>
 
     <div class="screen-scroll" id="homeScroll">
-      <!-- Promo Banner -->
       <div class="promo-banner" id="promoBanner" hidden>
         <div class="promo-content">
           <span class="promo-icon" id="promoIcon">🎉</span>
           <div class="promo-text">
-            <div class="promo-title" id="promoTitle">PROMO LAUNCHING</div>
+            <div class="promo-title" id="promoTitle">PROMO SPESIAL</div>
             <div class="promo-desc" id="promoDesc">Diskon 20% paket Ultimate!</div>
           </div>
           <button class="promo-close" id="promoClose" aria-label="Tutup">
@@ -164,7 +157,6 @@
         </div>
       </div>
 
-      <!-- Token Card -->
       <div class="token-card">
         <div class="token-card-bg"></div>
         <div class="token-card-inner">
@@ -183,7 +175,8 @@
         </div>
       </div>
 
-      <!-- Token Warning -->
+      <div class="quota-wrapper" id="dailyQuotaHome" hidden></div>
+
       <div class="alert alert-warning" id="tokenWarning" hidden>
         <div class="alert-icon">⚠️</div>
         <div class="alert-content">
@@ -193,7 +186,6 @@
         <button class="btn btn-sm btn-warning" id="btnWarningTopup">Top-up</button>
       </div>
 
-      <!-- Quick Actions -->
       <div class="section-header">
         <h2 class="section-title">Buat Dokumen</h2>
       </div>
@@ -214,7 +206,6 @@
         </button>
       </div>
 
-      <!-- Recent Documents -->
       <div class="section-header">
         <h2 class="section-title">Dokumen Terbaru</h2>
         <button class="link-btn" id="btnSeeAll">Lihat Semua →</button>
@@ -252,7 +243,7 @@
   </section>
 
   <!-- ============================================================
-       AI GENERATOR
+       SCREEN: AI GENERATOR
        ============================================================ -->
   <section class="screen screen-ai" data-screen="ai">
     <div class="app-header">
@@ -273,9 +264,10 @@
       </button>
     </div>
 
+    <div class="quota-wrapper" id="dailyQuotaAI" hidden></div>
+
     <div class="screen-scroll">
       <form class="ai-form" id="aiForm" autocomplete="off">
-        <!-- Type -->
         <div class="form-section">
           <label class="form-label required">Jenis Dokumen</label>
           <div class="type-selector">
@@ -293,7 +285,6 @@
           <input type="hidden" id="aiType" value="askep">
         </div>
 
-        <!-- Topic -->
         <div class="form-section">
           <label class="form-label required" for="aiTopic">Topik / Judul</label>
           <input type="text" id="aiTopic" class="form-input"
@@ -304,7 +295,6 @@
           </div>
         </div>
 
-        <!-- Patient Data -->
         <div class="form-section">
           <button type="button" class="collapsible-toggle" id="patientToggle">
             <span class="collapsible-icon">👤</span>
@@ -315,7 +305,7 @@
             <span class="collapsible-chevron">▼</span>
           </button>
 
-          <div class="collapsible-body" id="patientBody" hidden>
+          <div class="collapsible-body" id="patientBody" style="display:none;">
             <div class="form-field">
               <label for="pName">Nama Pasien</label>
               <input type="text" id="pName" class="form-input" placeholder="Tn. A" maxlength="60">
@@ -349,12 +339,11 @@
             </div>
             <div class="form-field">
               <label for="pDetail">Detail Tambahan</label>
-              <textarea id="pDetail" class="form-input" rows="3" placeholder="Riwayat hipertensi sejak 2018, DM tipe 2 sejak 2020..." maxlength="500"></textarea>
+              <textarea id="pDetail" class="form-input" rows="3" placeholder="Riwayat hipertensi sejak 2018..." maxlength="500"></textarea>
             </div>
           </div>
         </div>
 
-        <!-- Prompt Mode -->
         <div class="form-section">
           <label class="form-label">Mode Prompt</label>
           <div class="prompt-mode">
@@ -372,7 +361,6 @@
           <input type="hidden" id="aiMode" value="template">
         </div>
 
-        <!-- Custom Prompt -->
         <div class="form-section" id="customPromptSection" hidden>
           <label class="form-label required" for="aiCustomPrompt">Prompt Anda</label>
           <textarea id="aiCustomPrompt" class="form-input" rows="6"
@@ -383,13 +371,11 @@
           </div>
         </div>
 
-        <!-- Cost Info -->
         <div class="cost-info">
           <span class="cost-icon">💎</span>
           <span>Membutuhkan <strong>1 token</strong> · Tersisa <strong id="costRemaining">0</strong> token</span>
         </div>
 
-        <!-- Submit -->
         <div class="form-actions">
           <button type="submit" class="btn btn-primary btn-block btn-lg" id="btnGenerate">
             <span class="btn-icon">✨</span>
@@ -404,7 +390,7 @@
   </section>
 
   <!-- ============================================================
-       LOADING
+       SCREEN: LOADING
        ============================================================ -->
   <section class="screen screen-loading" data-screen="loading">
     <div class="loading-fullscreen">
@@ -429,7 +415,7 @@
   </section>
 
   <!-- ============================================================
-       RESULT
+       SCREEN: RESULT
        ============================================================ -->
   <section class="screen screen-result" data-screen="result">
     <div class="app-header">
@@ -450,17 +436,10 @@
       </button>
     </div>
 
-    <!-- View Mode Toggle -->
     <div class="result-toolbar">
-      <button class="result-mode-btn active" data-view-mode="preview">
-        👁️ Preview
-      </button>
-      <button class="result-mode-btn" data-view-mode="edit">
-        ✏️ Edit
-      </button>
-      <button class="result-mode-btn" data-view-mode="markdown">
-        📝 Markdown
-      </button>
+      <button class="result-mode-btn active" data-view-mode="preview">👁️ Preview</button>
+      <button class="result-mode-btn" data-view-mode="edit">✏️ Edit</button>
+      <button class="result-mode-btn" data-view-mode="markdown">📝 Markdown</button>
     </div>
 
     <div class="result-body" id="resultBody">
@@ -488,7 +467,7 @@
   </section>
 
   <!-- ============================================================
-       PROFILE
+       SCREEN: PROFILE
        ============================================================ -->
   <section class="screen screen-profile" data-screen="profile">
     <div class="app-header">
@@ -525,7 +504,6 @@
         </div>
       </div>
 
-      <!-- Identitas Mahasiswa -->
       <div class="menu-group">
         <div class="menu-group-title">Identitas Mahasiswa</div>
         <div class="menu-group-info">
@@ -534,7 +512,6 @@
         <div class="profile-fields" id="profileFieldsContainer"></div>
       </div>
 
-      <!-- Storage -->
       <div class="menu-group">
         <div class="menu-group-title">Data Saya</div>
         <div class="storage-widget" id="storageWidget"></div>
@@ -556,7 +533,6 @@
         </button>
       </div>
 
-      <!-- Bantuan -->
       <div class="menu-group">
         <div class="menu-group-title">Bantuan</div>
         <button class="menu-item" data-menu="help">
@@ -585,7 +561,6 @@
         </button>
       </div>
 
-      <!-- Logout -->
       <div class="menu-group">
         <button class="menu-item menu-item-danger" data-menu="logout">
           <div class="menu-item-icon">🚪</div>
@@ -599,7 +574,7 @@
 
       <div class="app-info">
         <div>Zhenin Keperawatan Suite</div>
-        <div id="appVersionInfo">v2.3.0</div>
+        <div id="appVersionInfo">v2.6.1</div>
       </div>
 
       <div class="screen-bottom-spacer"></div>
@@ -626,7 +601,7 @@
   </section>
 
   <!-- ============================================================
-       FILES (dari Sprint 2D)
+       SCREEN: FILES
        ============================================================ -->
   <section class="screen screen-files" data-screen="files">
     <div class="app-header">
@@ -638,12 +613,7 @@
       <div class="app-header-center">
         <div class="app-header-title">Dokumen Saya</div>
       </div>
-      <button class="icon-btn" id="btnFilesSearch" title="Cari">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"/>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-      </button>
+      <div style="width:36px;"></div>
     </div>
 
     <div class="files-filter" id="filesFilter">
@@ -654,13 +624,11 @@
 
     <div class="screen-scroll">
       <div class="doc-list doc-list-full" id="filesDocList"></div>
-
       <div class="empty-state" id="filesEmpty" hidden>
         <div class="empty-icon">📭</div>
         <div class="empty-title">Belum ada dokumen</div>
         <div class="empty-desc">Mulai buat dokumen dengan AI</div>
       </div>
-
       <div class="screen-bottom-spacer"></div>
     </div>
 
@@ -685,7 +653,7 @@
   </section>
 
   <!-- ============================================================
-       ADMIN (dynamic)
+       SCREEN: ADMIN (diload dinamis)
        ============================================================ -->
   <section class="screen screen-admin" data-screen="admin" hidden>
     <div id="adminRoot"></div>
@@ -696,6 +664,20 @@
 <!-- ============================================================
      MODALS
      ============================================================ -->
+
+<!-- Session Expired (Force Logout) -->
+<div class="modal-overlay" id="modalSessionExpired" hidden>
+  <div class="modal modal-sm">
+    <div class="modal-body text-center">
+      <div class="confirm-icon" id="sessionExpiredIcon">⚠️</div>
+      <h3 class="confirm-title" id="sessionExpiredTitle">Session Berakhir</h3>
+      <p class="confirm-desc" id="sessionExpiredDesc">Session Anda tidak valid lagi.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary btn-block" id="sessionExpiredOk">Login Kembali</button>
+    </div>
+  </div>
+</div>
 
 <!-- Contact Admin -->
 <div class="modal-overlay" id="modalContact" hidden>
@@ -763,19 +745,18 @@
 
       <div class="help-section">
         <h4>2. Lengkapi Profil Anda</h4>
-        <p style="font-size:13px;color:var(--z-text-muted);line-height:1.6;margin-bottom:8px;">
-          Buka <strong>Profile</strong> → isi <strong>Identitas Mahasiswa</strong> (nama, NIM, kelompok, dll).
-          Data ini akan <strong>otomatis muncul</strong> di bagian IDENTITAS MAHASISWA pada Askep/LP.
+        <p style="font-size:13px;color:var(--z-text-muted);line-height:1.6;">
+          Buka <strong>Profile</strong> → isi <strong>Identitas Mahasiswa</strong>. Data ini otomatis muncul di bagian IDENTITAS MAHASISWA pada Askep/LP.
         </p>
       </div>
 
       <div class="help-section">
-        <h4>3. Token & Pembelian</h4>
+        <h4>3. Token & Kuota</h4>
         <ul class="help-list">
           <li><strong>1 token = 1 dokumen</strong> yang di-generate AI</li>
-          <li>Token <strong>tidak akan hangus</strong> — pakai kapan saja</li>
-          <li>Kalau AI gagal, <strong>token dikembalikan otomatis</strong></li>
-          <li>Untuk beli token: hubungi admin via WhatsApp</li>
+          <li>Token <strong>tidak akan hangus</strong></li>
+          <li>Kuota harian: <strong>10 AI/hari</strong> (default)</li>
+          <li>Kalau AI gagal, token <strong>dikembalikan otomatis</strong></li>
         </ul>
       </div>
 
@@ -783,9 +764,8 @@
         <h4>4. Tips Prompt</h4>
         <ul class="help-list">
           <li>✅ Gunakan bahasa keperawatan yang profesional</li>
-          <li>✅ Sebutkan diagnosis dan umur pasien untuk hasil lebih akurat</li>
-          <li>❌ Hindari prompt di luar topik keperawatan (akan ditolak)</li>
-          <li>❌ Hindari permintaan resep, cerita, kode program</li>
+          <li>✅ Sebutkan diagnosis dan umur pasien untuk hasil akurat</li>
+          <li>❌ Hindari prompt di luar topik keperawatan</li>
         </ul>
       </div>
 
@@ -793,9 +773,9 @@
         <h4>5. Masalah Umum</h4>
         <ul class="help-list">
           <li><strong>Password tidak bisa login?</strong> Hubungi admin untuk reset device</li>
-          <li><strong>Token tidak bertambah setelah top-up?</strong> Refresh aplikasi</li>
+          <li><strong>Token tidak bertambah?</strong> Refresh aplikasi</li>
           <li><strong>AI error/timeout?</strong> Coba lagi, token otomatis kembali</li>
-          <li><strong>Ganti HP?</strong> Hubungi admin untuk reset device binding</li>
+          <li><strong>AI sibuk terus?</strong> Tunggu 30 detik, coba lagi</li>
         </ul>
       </div>
     </div>
@@ -893,39 +873,7 @@
   </div>
 </div>
 
-<!-- Onboarding -->
-<div class="modal-overlay" id="modalOnboarding" hidden>
-  <div class="onboarding-container">
-    <button class="onboarding-skip" id="onboardingSkip">Lewati</button>
-
-    <div class="onboarding-slides" id="onboardingSlides"></div>
-
-    <div class="onboarding-dots" id="onboardingDots"></div>
-
-    <div class="onboarding-actions">
-      <button class="btn btn-secondary" id="onboardingPrev" style="display:none;">Sebelumnya</button>
-      <button class="btn btn-primary" id="onboardingNext">Lanjut</button>
-    </div>
-  </div>
-</div>
-
-<!-- Session Expired (Force Logout - Tidak Bisa Dismiss) -->
-<div class="modal-overlay" id="modalSessionExpired" hidden>
-  <div class="modal modal-sm">
-    <div class="modal-body text-center">
-      <div class="confirm-icon" id="sessionExpiredIcon">⚠️</div>
-      <h3 class="confirm-title" id="sessionExpiredTitle">Session Berakhir</h3>
-      <p class="confirm-desc" id="sessionExpiredDesc">
-        Session Anda tidak valid lagi. Silakan login kembali.
-      </p>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-primary btn-block" id="sessionExpiredOk">Login Kembali</button>
-    </div>
-  </div>
-</div>
-
-<!-- Rename Document -->
+<!-- Rename Modal -->
 <div class="modal-overlay" id="modalRename" hidden>
   <div class="modal">
     <div class="modal-header">
@@ -949,35 +897,65 @@
   </div>
 </div>
 
-<script>
-  (function () {
-    const params = new URLSearchParams(window.location.search);
-    const isAdmin = params.get('admin') === '1';
+<!-- Onboarding -->
+<div class="modal-overlay" id="modalOnboarding" hidden>
+  <div class="onboarding-container">
+    <button class="onboarding-skip" id="onboardingSkip">Lewati</button>
+    <div class="onboarding-slides" id="onboardingSlides"></div>
+    <div class="onboarding-dots" id="onboardingDots"></div>
+    <div class="onboarding-actions">
+      <button class="btn btn-secondary" id="onboardingPrev" style="display:none;">Sebelumnya</button>
+      <button class="btn btn-primary" id="onboardingNext">Lanjut</button>
+    </div>
+  </div>
+</div>
 
-    if (isAdmin) {
-      document.body.setAttribute('data-mode', 'admin');
-      document.body.setAttribute('data-page', 'admin');
-      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-      const adminScreen = document.querySelector('.screen-admin');
-      if (adminScreen) {
-        adminScreen.hidden = false;
-        adminScreen.classList.add('active');
-      }
-      const script = document.createElement('script');
-      script.type = 'module';
-      script.src = '/js/admin.js';
-      script.onerror = function () {
-        document.getElementById('adminRoot').innerHTML =
-          '<div style="padding:40px;text-align:center;color:#F87171;">Admin module gagal dimuat</div>';
-      };
-      document.head.appendChild(script);
-    } else {
-      const script = document.createElement('script');
-      script.type = 'module';
-      script.src = '/js/app.js';
-      document.head.appendChild(script);
+<!-- ============================================================
+     BOOTSTRAP SCRIPT
+     ============================================================ -->
+<script>
+(function() {
+  'use strict';
+
+  // Detect admin mode dari URL
+  var params = new URLSearchParams(window.location.search);
+  var isAdmin = params.get('admin') === '1';
+
+  if (isAdmin) {
+    document.body.setAttribute('data-mode', 'admin');
+    document.body.setAttribute('data-page', 'admin');
+
+    // Hide semua screen, show admin screen
+    var screens = document.querySelectorAll('.screen');
+    for (var i = 0; i < screens.length; i++) {
+      screens[i].classList.remove('active');
     }
-  })();
+    var adminScreen = document.querySelector('.screen-admin');
+    if (adminScreen) {
+      adminScreen.hidden = false;
+      adminScreen.classList.add('active');
+    }
+
+    // Load admin.js
+    var script = document.createElement('script');
+    script.type = 'module';
+    script.src = '/js/admin.js';
+    script.onerror = function() {
+      var root = document.getElementById('adminRoot');
+      if (root) {
+        root.innerHTML = '<div style="padding:40px;text-align:center;color:#F87171;font-family:system-ui;">Admin module gagal dimuat. Refresh halaman.</div>';
+      }
+    };
+    document.head.appendChild(script);
+  } else {
+    // Load user app
+    var script2 = document.createElement('script');
+    script2.type = 'module';
+    script2.src = '/js/app.js';
+    document.head.appendChild(script2);
+  }
+})();
 </script>
+
 </body>
 </html>
