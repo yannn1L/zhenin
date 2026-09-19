@@ -1,20 +1,15 @@
 /* ============================================================
-   ZHENIN - Markdown Parser (v2.5.0)
-   Parse markdown ke blocks (heading, paragraph, table, dll)
+   ZHENIN - Markdown Parser (v2.6.0)
+   FIX: serialize table, table detection, edge cases
    ============================================================ */
 
 import { CONFIG } from './config.js';
 
 export const Parser = {
-  /**
-   * Main parse: markdown text → blocks[]
-   */
   parse(text) {
     const blocks = [];
     const lines = String(text || '').split('\n');
     let i = 0;
-
-    // Pending table modifiers
     let pendingWidth = null;
     let pendingAutonumber = false;
     let pendingStyle = null;
@@ -23,10 +18,8 @@ export const Parser = {
     while (i < lines.length) {
       const rawLine = lines[i];
       const trimmed = rawLine.trim();
-
       if (!trimmed) { i++; continue; }
 
-      // HTML comment modifiers
       if (/^<!--\s*width:\s*[\d\s,.]+\s*-->$/i.test(trimmed)) {
         const m = trimmed.match(/width:\s*([\d\s,.]+)/i);
         if (m) {
@@ -49,32 +42,21 @@ export const Parser = {
         i++; continue;
       }
 
-      // Page break
       if (trimmed === '\\page' || trimmed === '[PAGE_BREAK]') {
-        blocks.push({ type: 'pagebreak' });
-        i++; continue;
+        blocks.push({ type: 'pagebreak' }); i++; continue;
       }
-
-      // Horizontal rule
       if (/^-{3,}$/.test(trimmed)) {
-        blocks.push({ type: 'hr' });
-        i++; continue;
+        blocks.push({ type: 'hr' }); i++; continue;
       }
-
-      // Signature
       if (trimmed === '[TABEL_TTD]') {
-        blocks.push({ type: 'signature' });
-        i++; continue;
+        blocks.push({ type: 'signature' }); i++; continue;
       }
-
-      // Image placeholder
       const imgMatch = trimmed.match(/^\[GAMBAR:\s*(.+?)\]$/i);
       if (imgMatch) {
         blocks.push({ type: 'image', caption: imgMatch[1].trim() });
         i++; continue;
       }
 
-      // Table
       if (trimmed.startsWith('|')) {
         const tStart = i;
         const tLines = [];
@@ -100,43 +82,35 @@ export const Parser = {
         continue;
       }
 
-      // Headings
       if (trimmed.startsWith('#### ')) {
-        blocks.push({ type: 'h4', text: trimmed.slice(5).trim() });
-        i++; continue;
+        blocks.push({ type: 'h4', text: trimmed.slice(5).trim() }); i++; continue;
       }
       if (trimmed.startsWith('### ')) {
-        blocks.push({ type: 'h3', text: trimmed.slice(4).trim() });
-        i++; continue;
+        blocks.push({ type: 'h3', text: trimmed.slice(4).trim() }); i++; continue;
       }
       if (trimmed.startsWith('## ')) {
-        blocks.push({ type: 'h2', text: trimmed.slice(3).trim() });
-        i++; continue;
+        blocks.push({ type: 'h2', text: trimmed.slice(3).trim() }); i++; continue;
       }
       if (trimmed.startsWith('# ')) {
-        blocks.push({ type: 'h1', text: trimmed.slice(2).trim() });
-        i++; continue;
+        blocks.push({ type: 'h1', text: trimmed.slice(2).trim() }); i++; continue;
       }
 
-      // Blockquote
       if (trimmed.startsWith('> ')) {
-        blocks.push({ type: 'quote', text: trimmed.slice(2).trim() });
-        i++; continue;
+        blocks.push({ type: 'quote', text: trimmed.slice(2).trim() }); i++; continue;
       }
 
-      // Numbered list
       if (/^\d+\.\s/.test(trimmed)) {
         const indent = this.getIndentLevel(rawLine);
+        const numMatch = trimmed.match(/^(\d+)/);
         blocks.push({
           type: 'numbered',
           indent,
           text: trimmed.replace(/^\d+\.\s*/, ''),
-          number: parseInt(trimmed.match(/^(\d+)/)[1])
+          number: numMatch ? parseInt(numMatch[1]) : 1
         });
         i++; continue;
       }
 
-      // Bullet list
       if (/^[-*•]\s/.test(trimmed)) {
         const indent = this.getIndentLevel(rawLine);
         blocks.push({
@@ -147,7 +121,6 @@ export const Parser = {
         i++; continue;
       }
 
-      // Regular paragraph
       const indent = this.getIndentLevel(rawLine);
       blocks.push({ type: 'paragraph', indent, text: trimmed });
       i++;
@@ -156,9 +129,6 @@ export const Parser = {
     return blocks;
   },
 
-  /**
-   * Parse markdown table
-   */
   parseTable(lines, opts = {}) {
     const valid = lines.filter(l => l.trim().startsWith('|'));
     if (valid.length < 2) return null;
@@ -166,10 +136,9 @@ export const Parser = {
     const headers = this.splitRow(valid[0]);
     if (!headers.length) return null;
 
-    // Detect separator + alignment
     let dataStart = 2;
     const secondRow = this.splitRow(valid[1]);
-    const isSep = secondRow.every(c => /^:?-+:?$/.test(c));
+    const isSep = secondRow.length > 0 && secondRow.every(c => /^:?-+:?$/.test(c));
     let aligns = new Array(headers.length).fill('left');
 
     if (isSep) {
@@ -178,6 +147,8 @@ export const Parser = {
         if (/^-+:$/.test(sep)) return 'right';
         return 'left';
       });
+      while (aligns.length < headers.length) aligns.push('left');
+      aligns = aligns.slice(0, headers.length);
     } else {
       dataStart = 1;
     }
@@ -188,7 +159,6 @@ export const Parser = {
       return cells.slice(0, headers.length);
     });
 
-    // Auto-number detection
     const firstHeader = (headers[0] || '').toLowerCase().trim();
     const autonumber = opts.autonumber ||
                        firstHeader === 'no' ||
@@ -201,7 +171,6 @@ export const Parser = {
       });
     }
 
-    // Column widths
     let colWidths;
     if (opts.width && opts.width.length === headers.length) {
       const total = opts.width.reduce((a, b) => a + b, 0);
@@ -222,9 +191,6 @@ export const Parser = {
     };
   },
 
-  /**
-   * Split row by `|`
-   */
   splitRow(line) {
     let s = line.trim();
     if (s.startsWith('|')) s = s.slice(1);
@@ -232,9 +198,6 @@ export const Parser = {
     return s.split('|').map(c => c.trim());
   },
 
-  /**
-   * Compute column widths based on content
-   */
   computeColumnWidths(headers, rows) {
     const colCount = headers.length;
     const MIN_PCT = 8;
@@ -249,15 +212,12 @@ export const Parser = {
       lengths[c] = Math.max(lengths[c], 3);
     }
 
-    const total = lengths.reduce((a, b) => a + b, 0);
+    const total = lengths.reduce((a, b) => a + b, 0) || 1;
     const pcts = lengths.map(l => Math.max(MIN_PCT, (l / total) * 100));
     const newTotal = pcts.reduce((a, b) => a + b, 0);
     return pcts.map(p => Math.min(MAX_PCT, (p / newTotal) * 100));
   },
 
-  /**
-   * Get indent level (Tab = 1, 2 spaces = 1)
-   */
   getIndentLevel(line) {
     let level = 0;
     for (const ch of line) {
@@ -268,10 +228,6 @@ export const Parser = {
     return Math.floor(level);
   },
 
-  /**
-   * Parse inline formatting (bold, italic, dll)
-   * Returns: runs[] = [{text, bold, italic, underline, code, strike, highlight}]
-   */
   parseInline(text) {
     const runs = [];
     let i = 0;
@@ -304,10 +260,9 @@ export const Parser = {
     }];
   },
 
-  /**
-   * Serialize blocks back to markdown
-   */
   serialize(blocks) {
+    if (!Array.isArray(blocks)) return '';
+
     return blocks.map(block => {
       switch (block.type) {
         case 'h1': return '# ' + block.text;

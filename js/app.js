@@ -1,6 +1,12 @@
 /* ============================================================
-   ZHENIN - App.js (v2.3.0 FINAL)
-   Sprint 2C+ : Complete Integration
+   ZHENIN - App.js (v2.6.0 FINAL)
+   Sprint 2F: Full Bug Fix + Prevention
+   
+   FIX:
+   - Generate kosong guard (validate before save)
+   - Export salah dokumen guard (docId verification)
+   - Auto-save race condition (cleanup editor on switch)
+   - State sync dengan Editor
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -78,7 +84,7 @@ function sleep(ms) {
 }
 
 /* ============================================================
-   UI
+   UI COMPONENTS
    ============================================================ */
 const UI = {
   toast(message, type = 'info', duration = CONFIG.TIMING.TOAST_DURATION_MS) {
@@ -123,6 +129,15 @@ const UI = {
     const screens = $$('.screen');
     const currentScreen = State.currentScreen;
     if (currentScreen === screenId) return;
+
+    // ⚠️ FIX: Save editor content sebelum pindah dari result
+    if (currentScreen === 'result' && screenId !== 'result') {
+      try {
+        if (window.Editor) Editor.saveNow();
+      } catch (e) {
+        console.warn('[goTo] Editor save error:', e.message);
+      }
+    }
 
     screens.forEach(s => {
       s.classList.toggle('active', s.dataset.screen === screenId);
@@ -434,30 +449,23 @@ async function initUserApp() {
   SessionManager.init();
   BackButton.init();
 
-  // ⚠️ SESSION GUARD: Auto-logout handler
   SessionGuard.init(({ title, message, icon }) => {
     showSessionExpiredDialog(title, message, icon);
   });
 
-  // Load promo
   Promo.load().catch(() => {});
-
-  // Initial silent refresh
   setTimeout(() => SessionManager.refresh(true), 2000);
 }
 
 /* ============================================================
-   SESSION EXPIRED DIALOG (Force Logout)
+   SESSION EXPIRED DIALOG
    ============================================================ */
 function showSessionExpiredDialog(title, message, icon = '⚠️') {
-  // Prevent multiple dialogs
   if (window._sessionExpiredShown) return;
   window._sessionExpiredShown = true;
 
-  // Save profile dulu sebelum logout (biar data tidak hilang)
   try { Profile.saveNow(); } catch (e) {}
 
-  // Show modal yang tidak bisa dismiss
   const modal = document.getElementById('modalSessionExpired');
   if (modal) {
     const titleEl = document.getElementById('sessionExpiredTitle');
@@ -471,41 +479,29 @@ function showSessionExpiredDialog(title, message, icon = '⚠️') {
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
 
-    // Bind OK button
     const okBtn = document.getElementById('sessionExpiredOk');
     if (okBtn && !okBtn.dataset.bound) {
       okBtn.dataset.bound = '1';
-      okBtn.addEventListener('click', () => {
-        performForceLogout();
-      });
+      okBtn.addEventListener('click', () => performForceLogout());
     }
   } else {
-    // Fallback: langsung logout
     performForceLogout();
   }
 }
 
 function performForceLogout() {
-  // Stop semua timer
   SessionManager.stop();
   SessionGuard.destroy();
-  Onboarding.hide(false); // Tutup onboarding kalau terbuka
+  Onboarding.hide(false);
+  try { Editor.cleanup(); } catch (e) {}
 
-  // Clear session
   Auth.logout();
   State.session = null;
   TokenManager.reset();
-
-  // Reset flag
   window._sessionExpiredShown = false;
 
-  // Tutup semua modal
   UI.closeAllModals();
-
-  // Go to login
   UI.goTo('login');
-
-  // Show toast
   UI.toast('Anda telah logout. Silakan login kembali.', 'info', 4000);
 }
 
@@ -526,7 +522,6 @@ function initHome() {
     this.style.transform = 'rotate(360deg)';
     setTimeout(() => this.style.transform = '', 500);
     await SessionManager.refresh(false);
-    // Also check session guard
     await SessionGuard.checkNow();
   });
 
@@ -534,7 +529,6 @@ function initHome() {
   $('#btnTopup')?.addEventListener('click', () => showContactModal('topup'));
   $('#btnWarningTopup')?.addEventListener('click', () => showContactModal('topup'));
   $('#btnSeeAll')?.addEventListener('click', () => UI.goTo('files'));
-
   $('#promoClose')?.addEventListener('click', () => Promo.dismiss());
 }
 
@@ -618,20 +612,29 @@ function goToGenerate(type = 'askep') {
   }, 100);
 }
 
+/**
+ * ⚠️ FIXED: openDocument dengan Editor cleanup
+ */
 function openDocument(docId, docType) {
   try {
+    // Cleanup editor lama dulu jika ganti dokumen
+    if (Editor.getCurrentDocId() && Editor.getCurrentDocId() !== docId) {
+      try { Editor.cleanup(); } catch (e) {
+        console.warn('[openDocument] Editor cleanup error:', e.message);
+      }
+    }
+
     const doc = Editor.load(docId, docType);
     State.currentDoc = { ...doc, _type: docType };
     AI.setCurrentDocId(docId);
-    
-    // Update title
+
     const titleEl = $('#resultTitle');
     if (titleEl) titleEl.textContent = doc.judul || 'Dokumen';
-    
-    // Render
+
     Editor.render();
     UI.goTo('result');
   } catch (err) {
+    console.error('[openDocument] Error:', err);
     UI.toast('Gagal buka dokumen: ' + err.message, 'error');
   }
 }
@@ -681,6 +684,9 @@ function initAIScreen() {
   $('#btnAiHelp')?.addEventListener('click', () => UI.openModal('modalHelp'));
 }
 
+/**
+ * ⚠️ FIXED: handleAISubmit dengan validate result sebelum save
+ */
 async function handleAISubmit(e) {
   e.preventDefault();
 
@@ -688,44 +694,81 @@ async function handleAISubmit(e) {
   UI.setBtnLoading(btn, true);
 
   try {
-    // ⚠️ SESSION GUARD: Check dulu sebelum generate (fail-safe)
+    // Session guard check
     const guardResult = await SessionGuard.checkNow();
-    if (!guardResult.success && guardResult.reason !== 'network_error' && guardResult.reason !== 'offline') {
-      // Session invalid → will be handled by force logout
+    if (!guardResult.success && !['network_error', 'offline'].includes(guardResult.reason)) {
       return;
     }
 
+    // Generate request
     const requestBody = await AI.generate();
 
+    // Go to loading screen
     UI.goTo('loading');
     AI.startLoadingScreen();
 
+    // Call backend
     const result = await AI.callBackend(requestBody);
 
     AI.stopLoadingScreen();
 
-    if (result.success && result.result) {
-      const formData = AI.collectFormData();
-      const prompt = requestBody.prompt;
-      const doc = AI.saveResult(result.result, formData, prompt);
-
-      if (typeof result.remainingToken === 'number') {
-        TokenManager.updateFromResponse(result.remainingToken);
-      }
-
-      State.currentDoc = { ...doc, _type: formData.type };
-      AI.setCurrentDocId(doc.id);
-
-      renderResultScreen();
-      UI.toast('✅ Dokumen berhasil dibuat!', 'success');
-      UI.goTo('result');
-    } else {
+    // ⚠️ FIX: Verify result.success
+    if (!result.success) {
       const errorMsg = result.error || 'AI gagal';
       const mapped = AI.mapError({ message: errorMsg });
       await SessionManager.refresh(true);
       UI.goTo('ai');
       UI.toast(mapped.text, mapped.type, 5000);
+      return;
     }
+
+    // ⚠️ FIX: Validate content tidak kosong
+    const validation = AI.validateResult(result);
+    if (!validation.valid) {
+      await SessionManager.refresh(true);
+      UI.goTo('ai');
+      UI.toast('⚠️ ' + validation.reason, 'warning', 5000);
+      return;
+    }
+
+    // Save doc
+    const formData = AI.collectFormData();
+    const prompt = requestBody.prompt;
+
+    let doc;
+    try {
+      doc = AI.saveResult(validation.content, formData, prompt);
+    } catch (saveErr) {
+      console.error('[AI Submit] Save error:', saveErr);
+      await SessionManager.refresh(true);
+      UI.goTo('ai');
+      UI.toast('❌ ' + saveErr.message, 'error', 5000);
+      return;
+    }
+
+    // Update token count
+    if (typeof result.remainingToken === 'number') {
+      TokenManager.updateFromResponse(result.remainingToken);
+    }
+
+    // Set state
+    State.currentDoc = { ...doc, _type: formData.type };
+    AI.setCurrentDocId(doc.id);
+
+    // Load ke editor
+    try {
+      Editor.load(doc.id, formData.type);
+      Editor.render();
+    } catch (editorErr) {
+      console.error('[AI Submit] Editor load error:', editorErr);
+      UI.toast('Dokumen tersimpan tapi gagal tampil. Buka dari File.', 'warning', 5000);
+      UI.goTo('home');
+      renderDocList();
+      return;
+    }
+
+    UI.toast('✅ Dokumen berhasil dibuat!', 'success');
+    UI.goTo('result');
 
   } catch (err) {
     console.error('AI Submit error:', err);
@@ -762,15 +805,14 @@ function initResultScreen() {
       Editor.setMode(btn.dataset.viewMode);
     });
   });
-  
-  // Bind editor textarea
+
   const editorEl = $('#resultEditor');
   if (editorEl) {
     editorEl.addEventListener('input', () => {
       Editor.updateFromEditor();
     });
   }
-  
+
   $('#btnRegenerate')?.addEventListener('click', handleRegenerate);
   $('#btnExport')?.addEventListener('click', handleExportDocx);
   $('#btnResultMenu')?.addEventListener('click', () => {
@@ -783,10 +825,10 @@ function initResultScreen() {
 function renderResultScreen() {
   const doc = State.currentDoc;
   if (!doc) return;
-  
+
   const titleEl = $('#resultTitle');
   if (titleEl) titleEl.textContent = doc.judul || 'Dokumen';
-  
+
   Editor.render();
 }
 
@@ -812,25 +854,35 @@ async function handleRegenerate() {
   $('#aiForm').dispatchEvent(new Event('submit'));
 }
 
+/**
+ * ⚠️ FIXED: handleExportDocx dengan docId verification
+ */
 async function handleExportDocx() {
   if (!State.currentDoc) {
     UI.toast('Dokumen tidak ditemukan', 'error');
     return;
   }
-  
-  // Save dulu
+
+  // ⚠️ FIX: Verify editor docId match dengan State
+  const editorDocId = Editor.getCurrentDocId();
+  if (!editorDocId || editorDocId !== State.currentDoc.id) {
+    UI.toast('Dokumen berubah, mohon buka ulang', 'warning');
+    return;
+  }
+
+  // Save content dulu
   Editor.saveNow();
-  
+
   UI.showLoading('Menyiapkan DOCX...');
-  
+
   try {
     const result = await Editor.exportDocx();
     UI.hideLoading();
-    UI.toast('✅ Berhasil export: ' + result.filename, 'success', 4000);
+    UI.toast('✅ Berhasil: ' + result.filename, 'success', 4000);
   } catch (err) {
     UI.hideLoading();
     console.error('Export error:', err);
-    UI.toast('Gagal export: ' + err.message, 'error', 5000);
+    UI.toast('❌ Gagal export: ' + err.message, 'error', 5000);
   }
 }
 
@@ -917,7 +969,9 @@ async function handleLogout() {
   );
 
   if (confirmed) {
-    Profile.saveNow();
+    try { Profile.saveNow(); } catch (e) {}
+    try { Editor.cleanup(); } catch (e) {}
+
     SessionManager.stop();
     SessionGuard.destroy();
     Auth.logout();
@@ -988,7 +1042,7 @@ function initDocActionsModal() {
         case 'open': openDocument(target.id, target.type); break;
         case 'rename': showRenameModal(target.id, target.type); break;
         case 'duplicate': duplicateDoc(target.id, target.type); break;
-        case 'export': UI.toast('Export DOCX akan tersedia di Sprint 2D', 'info'); break;
+        case 'export': await exportDocById(target.id, target.type); break;
         case 'delete':
           const confirmed = await UI.confirm(
             'Hapus Dokumen?',
@@ -1007,6 +1061,34 @@ function initDocActionsModal() {
       }
     });
   });
+}
+
+async function exportDocById(docId, docType) {
+  const doc = AI.getDocument(docId, docType);
+  if (!doc) {
+    UI.toast('Dokumen tidak ditemukan', 'error');
+    return;
+  }
+
+  const content = (doc.content || '').trim();
+  if (content.length < 50) {
+    UI.toast('Dokumen kosong atau terlalu pendek', 'warning');
+    return;
+  }
+
+  UI.showLoading('Menyiapkan DOCX...');
+  try {
+    const result = await Exporter.exportDocx(content, {
+      title: doc.judul || 'Dokumen',
+      filename: doc.judul || 'Dokumen',
+      docId: docId
+    });
+    UI.hideLoading();
+    UI.toast('✅ ' + result.filename, 'success', 4000);
+  } catch (err) {
+    UI.hideLoading();
+    UI.toast('❌ Gagal export: ' + err.message, 'error', 5000);
+  }
 }
 
 function showRenameModal(docId, docType) {
@@ -1099,7 +1181,6 @@ function initModals() {
   $$('.modal-overlay').forEach(overlay => {
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
-        // Prevent close untuk session expired
         if (overlay.id === 'modalSessionExpired') return;
         UI.closeModal(overlay.id);
       }
@@ -1108,7 +1189,6 @@ function initModals() {
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      // Prevent ESC untuk session expired
       const expiredModal = document.getElementById('modalSessionExpired');
       if (expiredModal && !expiredModal.hidden) return;
       UI.closeAllModals();
@@ -1186,7 +1266,8 @@ function startAutoBackup() {
   if (autoBackupTimer) clearInterval(autoBackupTimer);
   autoBackupTimer = setInterval(() => {
     if (Auth.isLoggedIn()) {
-      Profile.saveNow();
+      try { Profile.saveNow(); } catch (e) {}
+      try { Editor.saveNow(); } catch (e) {}
       Backup.autoBackup();
     }
   }, CONFIG.TIMING.AUTOBACKUP_MS);

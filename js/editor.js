@@ -1,6 +1,6 @@
 /* ============================================================
-   ZHENIN - Editor Controller (v2.5.0)
-   Handle preview/edit/markdown mode, auto-save, contenteditable
+   ZHENIN - Editor Controller (v2.6.0)
+   FIX: doc switch race condition, stale content, timer leak
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -8,6 +8,7 @@ import { Data } from './storage.js';
 import Parser from './parser.js';
 import Renderer from './renderer.js';
 import AI from './ai.js';
+import Exporter from './exporter.js';
 
 export const Editor = {
   _currentDocId: null,
@@ -15,48 +16,67 @@ export const Editor = {
   _currentContent: '',
   _currentMode: 'preview',
   _saveTimer: null,
+  _saveTimerDocId: null,    // ⚠️ Capture docId saat timer dibuat
   _lastSavedContent: '',
+  _editableBound: false,
 
   /**
-   * Load document ke editor
+   * Load document — CLEAR TIMER DULU untuk prevent race condition
    */
   load(docId, docType) {
+    // ⚠️ FIX: Save pending dulu jika ada
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer);
+      this._saveTimer = null;
+    }
+
+    // ⚠️ FIX: Save dokumen lama sebelum switch (jika beda doc)
+    if (this._currentDocId && this._currentDocId !== docId) {
+      this.saveNow();
+    }
+
     const doc = AI.getDocument(docId, docType);
     if (!doc) {
       throw new Error('Dokumen tidak ditemukan');
     }
 
+    // ⚠️ Verify content tidak kosong
+    const content = doc.content || '';
+    if (!content || content.trim().length === 0) {
+      console.warn('[Editor] Dokumen kosong:', docId);
+    }
+
     this._currentDocId = docId;
     this._currentDocType = docType;
-    this._currentContent = doc.content || '';
-    this._lastSavedContent = this._currentContent;
+    this._currentContent = content;
+    this._lastSavedContent = content;
     this._currentMode = 'preview';
+    this._editableBound = false;
 
     return doc;
   },
 
-  /**
-   * Get current document
-   */
   getCurrentDoc() {
     if (!this._currentDocId) return null;
     return AI.getDocument(this._currentDocId, this._currentDocType);
   },
 
-  /**
-   * Render ke container
-   */
+  getCurrentDocId() {
+    return this._currentDocId;
+  },
+
+  getCurrentContent() {
+    return this._currentContent;
+  },
+
   render() {
     const paper = document.getElementById('resultPaper');
     const editor = document.getElementById('resultEditor');
     if (!paper || !editor) return;
 
     const content = this._currentContent;
-
-    // Set editor value
     editor.value = content;
 
-    // Render paper
     try {
       const blocks = Parser.parse(content);
       paper.innerHTML = Renderer.render(blocks);
@@ -66,20 +86,15 @@ export const Editor = {
       paper.innerHTML = `<p style="color:red;padding:20px;">Error render: ${err.message}</p>`;
     }
 
-    // Apply mode
     this.setMode(this._currentMode);
   },
 
-  /**
-   * Set view mode
-   */
   setMode(mode) {
     this._currentMode = mode;
 
     const paper = document.getElementById('resultPaper');
     const editor = document.getElementById('resultEditor');
 
-    // Update button states
     document.querySelectorAll('[data-view-mode]').forEach(b => {
       b.classList.toggle('active', b.dataset.viewMode === mode);
     });
@@ -92,11 +107,11 @@ export const Editor = {
       }
       if (editor) editor.classList.add('hidden');
 
-      // Re-render from editor content
       if (paper && editor) {
         try {
-          const blocks = Parser.parse(editor.value);
+          // ⚠️ Save dulu sebelum re-render
           this._currentContent = editor.value;
+          const blocks = Parser.parse(this._currentContent);
           paper.innerHTML = Renderer.render(blocks);
           this.bindTableActions();
         } catch (err) {
@@ -110,8 +125,6 @@ export const Editor = {
         paper.classList.add('paper-editing');
       }
       if (editor) editor.classList.add('hidden');
-
-      // Bind input listener untuk auto-save
       this.bindEditableListeners();
     } else if (mode === 'markdown') {
       if (paper) {
@@ -126,13 +139,10 @@ export const Editor = {
     }
   },
 
-  /**
-   * Bind listener untuk contenteditable
-   */
   bindEditableListeners() {
     const paper = document.getElementById('resultPaper');
-    if (!paper || paper.dataset.bound === '1') return;
-    paper.dataset.bound = '1';
+    if (!paper || this._editableBound) return;
+    this._editableBound = true;
 
     paper.addEventListener('input', () => {
       this.scheduleSave();
@@ -143,9 +153,6 @@ export const Editor = {
     });
   },
 
-  /**
-   * Bind action buttons di table
-   */
   bindTableActions() {
     const paper = document.getElementById('resultPaper');
     if (!paper) return;
@@ -165,19 +172,12 @@ export const Editor = {
     });
   },
 
-  /**
-   * Handle edit table
-   */
   onTableEdit(tableIdx) {
-    // Placeholder - akan implement table editor di iterasi berikut
     if (window.UI) {
       window.UI.toast('Table editor akan tersedia di update berikutnya', 'info');
     }
   },
 
-  /**
-   * Handle copy table markdown
-   */
   async onTableCopy(tableIdx) {
     try {
       const blocks = Parser.parse(this._currentContent);
@@ -197,9 +197,6 @@ export const Editor = {
     }
   },
 
-  /**
-   * Update content dari editor textarea
-   */
   updateFromEditor() {
     const editor = document.getElementById('resultEditor');
     if (!editor) return;
@@ -207,58 +204,79 @@ export const Editor = {
     this.scheduleSave();
   },
 
-  /**
-   * Update content dari contenteditable
-   */
   updateFromPaper() {
     const paper = document.getElementById('resultPaper');
     if (!paper) return;
-
-    // Convert HTML back ke markdown (basic)
     const markdown = this.htmlToMarkdown(paper);
     this._currentContent = markdown;
-    this.scheduleSave();
   },
 
-  /**
-   * Convert HTML contenteditable back ke markdown (basic)
-   * Ini fallback; untuk editing advanced, user bisa switch ke markdown mode
-   */
   htmlToMarkdown(container) {
-    // Basic approach: parse ulang HTML structure
-    // Ini sangat basic, cukup untuk text edits
-    let output = [];
+    if (!container) return '';
+    const output = [];
     const children = container.children;
 
     for (let i = 0; i < children.length; i++) {
       const el = children[i];
-      const text = el.textContent.trim();
-      if (!text) continue;
+      if (!el) continue;
 
       const tag = el.tagName.toLowerCase();
       const cls = el.className || '';
 
-      if (tag === 'h1') output.push('# ' + text);
-      else if (tag === 'h2') output.push('## ' + text);
-      else if (tag === 'h3') output.push('### ' + text);
-      else if (tag === 'h4') output.push('#### ' + text);
-      else if (tag === 'hr') output.push('---');
-      else if (tag === 'ol') {
+      // Skip action buttons
+      if (el.classList && el.classList.contains('pv-table-actions')) continue;
+
+      if (el.classList && el.classList.contains('pv-pagebreak')) {
+        output.push('\\page');
+        continue;
+      }
+
+      if (el.classList && el.classList.contains('pv-hr')) {
+        output.push('---');
+        continue;
+      }
+
+      if (el.classList && el.classList.contains('pv-quote')) {
+        output.push('> ' + el.textContent.trim());
+        continue;
+      }
+
+      if (tag === 'table') {
+        if (el.classList.contains('pv-ttd')) {
+          output.push('[TABEL_TTD]');
+          continue;
+        }
+        if (el.classList.contains('pv-image')) {
+          const caption = el.querySelector('.pv-img-caption');
+          const cap = caption ? caption.textContent.replace(/^Gambar:\s*/, '').trim() : '';
+          output.push(`[GAMBAR: ${cap}]`);
+          continue;
+        }
+        output.push(this.tableToMarkdown(el));
+        continue;
+      }
+
+      if (tag === 'h1') { output.push('# ' + el.textContent.trim()); continue; }
+      if (tag === 'h2') { output.push('## ' + el.textContent.trim()); continue; }
+      if (tag === 'h3') { output.push('### ' + el.textContent.trim()); continue; }
+      if (tag === 'h4') { output.push('#### ' + el.textContent.trim()); continue; }
+
+      if (tag === 'ol') {
         const items = el.querySelectorAll('li');
         items.forEach((li, idx) => output.push(`${idx + 1}. ${li.textContent.trim()}`));
+        continue;
       }
-      else if (tag === 'ul') {
+
+      if (tag === 'ul') {
         const items = el.querySelectorAll('li');
         items.forEach(li => output.push(`- ${li.textContent.trim()}`));
+        continue;
       }
-      else if (el.classList.contains('pv-pagebreak')) output.push('\\page');
-      else if (el.classList.contains('pv-quote')) output.push('> ' + text);
-      else if (tag === 'table') {
-        // Extract table markdown
-        output.push(this.tableToMarkdown(el));
-      }
-      else if (tag === 'p') {
-        // Detect indent
+
+      if (tag === 'p' || tag === 'div') {
+        const text = el.textContent.trim();
+        if (!text) continue;
+
         const indentMatch = cls.match(/indent-(\d)/);
         const indent = indentMatch ? parseInt(indentMatch[1]) : 0;
         const tabs = '\t'.repeat(indent);
@@ -269,22 +287,19 @@ export const Editor = {
     return output.join('\n\n');
   },
 
-  /**
-   * Extract table HTML → markdown
-   */
   tableToMarkdown(table) {
     const rows = [];
     table.querySelectorAll('tr').forEach(tr => {
       const cells = [];
       tr.querySelectorAll('th, td').forEach(cell => {
-        cells.push(cell.textContent.trim().replace(/\|/g, '\\|'));
+        let text = cell.textContent.trim().replace(/\|/g, '\\|');
+        cells.push(text);
       });
       rows.push('| ' + cells.join(' | ') + ' |');
     });
 
     if (!rows.length) return '';
 
-    // Insert separator after first row
     const headerCells = rows[0].split('|').length - 2;
     const separator = '|' + '---|'.repeat(headerCells);
 
@@ -292,28 +307,46 @@ export const Editor = {
   },
 
   /**
-   * Schedule auto-save
+   * ⚠️ CRITICAL: Schedule save dengan capture docId
    */
   scheduleSave() {
+    // Capture current docId
+    const targetDocId = this._currentDocId;
+    const targetDocType = this._currentDocType;
+
     if (this._saveTimer) clearTimeout(this._saveTimer);
+
+    this._saveTimerDocId = targetDocId;
     this._saveTimer = setTimeout(() => {
-      this.saveNow();
-    }, 2000); // debounce 2 detik
+      // ⚠️ Verify docId masih sama saat timer fire
+      if (this._currentDocId !== targetDocId) {
+        console.warn('[Editor] Timer skipped: doc changed');
+        return;
+      }
+      this.saveNow(targetDocId, targetDocType);
+    }, 2000);
   },
 
   /**
-   * Save now
+   * Save now — dengan explicit docId untuk prevent race
    */
-  saveNow() {
+  saveNow(explicitDocId, explicitDocType) {
     if (this._saveTimer) {
       clearTimeout(this._saveTimer);
       this._saveTimer = null;
+      this._saveTimerDocId = null;
     }
 
-    if (!this._currentDocId) return;
-    if (this._currentContent === this._lastSavedContent) return;
+    const targetDocId = explicitDocId || this._currentDocId;
+    const targetDocType = explicitDocType || this._currentDocType;
 
-    // Update content from active mode
+    if (!targetDocId) return;
+    if (this._currentDocId !== targetDocId) {
+      console.warn('[Editor] Save skipped: doc mismatch');
+      return;
+    }
+
+    // Get latest content dari active mode
     if (this._currentMode === 'markdown') {
       const editor = document.getElementById('resultEditor');
       if (editor) this._currentContent = editor.value;
@@ -321,59 +354,85 @@ export const Editor = {
       this.updateFromPaper();
     }
 
-    // Save
-    AI.updateDocument(this._currentDocId, this._currentDocType, {
+    // Skip jika sama
+    if (this._currentContent === this._lastSavedContent) return;
+
+    // Verify content valid (tidak kosong)
+    if (!this._currentContent || this._currentContent.trim().length === 0) {
+      console.warn('[Editor] Skip save: konten kosong');
+      return;
+    }
+
+    // Save ke storage
+    const saved = AI.updateDocument(targetDocId, targetDocType, {
       content: this._currentContent
     });
 
-    this._lastSavedContent = this._currentContent;
+    if (saved) {
+      this._lastSavedContent = this._currentContent;
+      console.log('[Editor] Saved:', targetDocId, '(' + this._currentContent.length + ' chars)');
 
-    // Update UI
-    if (window.Profile && window.Profile.renderStats) {
-      window.Profile.renderStats();
+      if (window.Profile && window.Profile.renderStats) {
+        window.Profile.renderStats();
+      }
     }
   },
 
   /**
-   * Export current doc to DOCX
+   * Export DOCX — baca langsung dari document object
    */
   async exportDocx() {
     if (!this._currentDocId) {
       throw new Error('Tidak ada dokumen aktif');
     }
 
-    const doc = this.getCurrentDoc();
-    if (!doc) throw new Error('Dokumen tidak ditemukan');
-
-    // Save dulu
+    // ⚠️ Save dulu
     this.saveNow();
 
-    // Get latest content
-    const content = this._currentContent || doc.content || '';
+    // ⚠️ Verify docId masih sama
+    if (!this._currentDocId) {
+      throw new Error('Dokumen berubah saat export');
+    }
 
-    const result = await Exporter.exportDocx(content, {
+    const targetDocId = this._currentDocId;
+    const targetDocType = this._currentDocType;
+
+    // Read langsung dari storage (source of truth)
+    const doc = AI.getDocument(targetDocId, targetDocType);
+    if (!doc) throw new Error('Dokumen tidak ditemukan');
+
+    // ⚠️ Verify content tidak kosong
+    const content = (doc.content || '').trim();
+    if (!content || content.length < 50) {
+      throw new Error('Konten dokumen kosong atau terlalu pendek');
+    }
+
+    // Get fresh content
+    const exportContent = this._currentContent || content;
+
+    const result = await Exporter.exportDocx(exportContent, {
       title: doc.judul || 'Dokumen',
-      filename: doc.judul || 'Dokumen'
+      filename: doc.judul || 'Dokumen',
+      docId: targetDocId
     });
 
     return result;
   },
 
-  /**
-   * Cleanup saat pindah screen
-   */
   cleanup() {
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer);
+      this._saveTimer = null;
+    }
     this.saveNow();
     this._currentDocId = null;
     this._currentDocType = null;
     this._currentContent = '';
     this._lastSavedContent = '';
     this._currentMode = 'preview';
+    this._editableBound = false;
   }
 };
-
-// Import Exporter di sini biar tidak circular
-import Exporter from './exporter.js';
 
 window.Editor = Editor;
 

@@ -11,7 +11,7 @@ export const CONFIG = {
   APP_BUILD: '2025-09-19',
 
   // ===== BACKEND =====
-  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycby55SWhrJo148rlOPcsFrA71w5d5sCmuuIe7L_gIzuZswINkaUBh6x7RHGIRcO4zHWm/exec',
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbytv6LbvjALAXKYAWWqKj1llDbcoC2ikf_guYx2juYOC2zPuVW_MuGzPK_cKIR5gfsy/exec',
 
   // ===== CONTACT =====
   CONTACT: {

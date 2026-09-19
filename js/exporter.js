@@ -1,7 +1,6 @@
 /* ============================================================
-   ZHENIN - DOCX Exporter (v2.5.0)
-   Export blocks → DOCX dengan format KTI
-   TNR 12pt, margin 4-3-3-3 cm, line 1.5
+   ZHENIN - DOCX Exporter (v2.6.0)
+   FIX: empty content guard, filename unique per doc
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -10,12 +9,15 @@ import Parser from './parser.js';
 import Renderer from './renderer.js';
 
 export const Exporter = {
-  /**
-   * Export markdown → DOCX
-   */
   async exportDocx(markdown, options = {}) {
     const d = window.docx;
     if (!d) throw new Error('Library docx tidak ditemukan');
+
+    // ⚠️ Verify content
+    const content = String(markdown || '').trim();
+    if (!content || content.length < 50) {
+      throw new Error('Konten dokumen kosong atau terlalu pendek (min 50 char)');
+    }
 
     const {
       Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
@@ -28,7 +30,6 @@ export const Exporter = {
     const FONT_SIZE_TABLE = 22;
     const LINE_SPACING = 360;
 
-    // A4 + margin 4-3-3-3
     const PAGE_WIDTH = convertMillimetersToTwip(210);
     const PAGE_HEIGHT = convertMillimetersToTwip(297);
     const MARGIN_LEFT = convertMillimetersToTwip(40);
@@ -38,10 +39,9 @@ export const Exporter = {
     const CONTENT_WIDTH = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT;
 
     // Parse
-    const blocks = Parser.parse(markdown);
-    if (!blocks.length) throw new Error('Dokumen kosong');
+    const blocks = Parser.parse(content);
+    if (!blocks.length) throw new Error('Tidak ada konten valid');
 
-    // Context
     const ctx = {
       FONT, FONT_SIZE, FONT_SIZE_TABLE, LINE_SPACING, CONTENT_WIDTH,
       Paragraph, TextRun, Table, TableRow, TableCell,
@@ -51,7 +51,6 @@ export const Exporter = {
 
     const children = [];
 
-    // Title (opsional)
     if (options.title) {
       children.push(new Paragraph({
         alignment: AlignmentType.CENTER,
@@ -63,12 +62,10 @@ export const Exporter = {
       }));
     }
 
-    // Render blocks
     for (const block of blocks) {
       this.renderBlock(block, children, ctx);
     }
 
-    // Create document
     const doc = new Document({
       styles: {
         default: {
@@ -91,14 +88,16 @@ export const Exporter = {
 
     const blob = await Packer.toBlob(doc);
 
+    // ⚠️ FIX: Unique filename dengan docId untuk prevent cache
     const safeName = this.sanitizeFilename(options.filename || 'Dokumen');
     const datePart = new Date().toISOString().slice(0, 10);
-    const finalName = `${safeName}_${datePart}.docx`;
+    const timePart = Date.now().toString(36).slice(-4);
+    const docIdShort = options.docId ? options.docId.slice(-4) : timePart;
+    const finalName = `${safeName}_${datePart}_${docIdShort}.docx`;
 
     if (window.saveAs) {
       window.saveAs(blob, finalName);
     } else {
-      // Fallback
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -112,12 +111,8 @@ export const Exporter = {
     return { success: true, filename: finalName };
   },
 
-  /**
-   * Render block ke DOCX elements
-   */
   renderBlock(block, out, ctx) {
-    const { FONT, FONT_SIZE, LINE_SPACING, CONTENT_WIDTH } = ctx;
-
+    const { FONT, FONT_SIZE, LINE_SPACING } = ctx;
     const repl = (t) => Renderer.replacePlaceholders(t);
 
     const buildRuns = (text, opts = {}) => {
@@ -186,7 +181,6 @@ export const Exporter = {
         break;
       case 'paragraph': {
         const txt = repl(block.text);
-        // Special: identity table marker
         if (txt.trim() === '__IDENTITAS_MHS_MARKER__') {
           out.push(this.buildIdentityTable(ctx));
           out.push(new ctx.Paragraph({ spacing: { after: 120 }, children: [] }));
@@ -256,9 +250,6 @@ export const Exporter = {
     }
   },
 
-  /**
-   * Build table untuk DOCX
-   */
   buildTable(block, ctx) {
     const {
       FONT, FONT_SIZE_TABLE, CONTENT_WIDTH,
@@ -336,14 +327,11 @@ export const Exporter = {
     });
   },
 
-  /**
-   * Build identity table untuk DOCX
-   */
   buildIdentityTable(ctx) {
     const {
       FONT, FONT_SIZE, CONTENT_WIDTH,
       Paragraph, TextRun, Table, TableRow, TableCell,
-      WidthType, AlignmentType, BorderStyle, VerticalAlign, TableLayoutType
+      WidthType, VerticalAlign, BorderStyle, TableLayoutType
     } = ctx;
 
     const BRD = { style: BorderStyle.SINGLE, size: 4, color: '000000' };
@@ -392,14 +380,12 @@ export const Exporter = {
     });
   },
 
-  /**
-   * Build signature table
-   */
   buildSignatureTable(ctx) {
     const {
       FONT, FONT_SIZE, CONTENT_WIDTH,
       Paragraph, TextRun, Table, TableRow, TableCell,
-      WidthType, AlignmentType, BorderStyle, VerticalAlign, HeightRule, TableLayoutType
+      WidthType, AlignmentType, BorderStyle, VerticalAlign, HeightRule,
+      TableLayoutType
     } = ctx;
 
     const BRD = { style: BorderStyle.SINGLE, size: 4, color: '000000' };
@@ -445,9 +431,6 @@ export const Exporter = {
     });
   },
 
-  /**
-   * Build image placeholder
-   */
   buildImagePlaceholder(block, ctx) {
     const {
       FONT, CONTENT_WIDTH,
@@ -490,9 +473,6 @@ export const Exporter = {
     });
   },
 
-  /**
-   * Sanitize filename
-   */
   sanitizeFilename(name) {
     return String(name || 'Dokumen')
       .replace(/[\\/:*?"<>|\x00-\x1F]+/g, '_')
