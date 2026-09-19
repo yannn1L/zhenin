@@ -407,3 +407,40 @@ h1, h2, h3, h4, h5, h6 {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ============================================================
+   RESPONSIVE SAFETY (v2.6.3)
+   ============================================================ */
+*,
+*::before,
+*::after {
+  /* Prevent overflow di layar sempit */
+  min-width: 0;
+}
+
+.screen-scroll,
+.main,
+.home-scroll,
+.editor-panel-scroll,
+.result-body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* Prevent horizontal scroll di seluruh app */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Images & tables tidak overflow */
+img, video, svg, table {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Container safety */
+.screen {
+  max-width: 100vw;
+  overflow-x: hidden;
+}

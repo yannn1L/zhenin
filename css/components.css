@@ -1,19 +1,26 @@
 /* ============================================================
-   QUOTA CARD (v2.6.2)
+   QUOTA CARD — RESPONSIVE (v2.6.3)
+   Fluid layout untuk semua ukuran & orientasi layar
    ============================================================ */
+
 .quota-wrapper {
-  margin: 0 var(--z-s-lg) var(--z-s-lg);
+  margin: 0 clamp(12px, 3vw, 20px) clamp(12px, 3vw, 20px);
   padding: 0;
+  width: auto;
+  max-width: 100%;
 }
 
 .quota-card {
   background: linear-gradient(135deg, rgba(107, 63, 160, 0.25), rgba(45, 27, 61, 0.5));
   border: 1px solid rgba(201, 169, 97, 0.2);
-  border-radius: var(--z-r-md);
-  padding: 14px 16px;
+  border-radius: clamp(10px, 2vw, 14px);
+  padding: clamp(10px, 2.5vw, 16px);
   box-shadow: 0 4px 16px rgba(107, 63, 160, 0.15);
   position: relative;
   overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+  container-type: inline-size;
 }
 
 .quota-card::before {
@@ -21,96 +28,108 @@
   position: absolute;
   top: -40%;
   right: -10%;
-  width: 120px;
-  height: 120px;
+  width: clamp(80px, 20vw, 140px);
+  height: clamp(80px, 20vw, 140px);
   background: radial-gradient(circle, rgba(201, 169, 97, 0.15), transparent 70%);
   pointer-events: none;
 }
 
+/* Header row — fluid flex */
 .quota-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
-  gap: 8px;
+  gap: clamp(6px, 1.5vw, 12px);
+  margin-bottom: clamp(6px, 1.5vw, 10px);
   position: relative;
   z-index: 1;
+  flex-wrap: wrap;
 }
 
 .quota-label {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.6875rem;
+  gap: clamp(4px, 1vw, 6px);
+  font-size: clamp(0.625rem, 2.6vw, 0.75rem);
   font-weight: 700;
   color: var(--z-gold);
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: clamp(0.5px, 0.1vw, 1px);
+  flex-shrink: 1;
+  min-width: 0;
+  line-height: 1.2;
 }
 
 .quota-icon {
-  font-size: 0.875rem;
+  font-size: clamp(0.75rem, 3vw, 1rem);
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .quota-value {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.75rem;
+  font-size: clamp(0.6875rem, 2.6vw, 0.8125rem);
   color: var(--z-text-muted);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: clamp(4px, 1vw, 6px);
   line-height: 1;
+  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .quota-value strong {
   font-family: 'Cinzel', serif;
-  font-size: 1rem;
+  font-size: clamp(0.9375rem, 3.8vw, 1.125rem);
   color: var(--z-white);
   font-weight: 700;
   text-shadow: 0 0 12px rgba(201, 169, 97, 0.4);
+  line-height: 1;
+}
+
+.quota-remaining,
+.quota-exhausted {
+  font-size: clamp(0.5625rem, 2vw, 0.6875rem);
+  font-weight: 700;
+  padding: clamp(2px, 0.6vw, 3px) clamp(5px, 1.5vw, 8px);
+  border-radius: 999px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  line-height: 1.3;
 }
 
 .quota-remaining {
-  font-size: 0.625rem;
-  font-weight: 700;
   color: var(--z-success);
-  padding: 3px 8px;
   background: rgba(74, 222, 128, 0.15);
   border: 1px solid rgba(74, 222, 128, 0.25);
-  border-radius: var(--z-r-full);
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
 }
 
 .quota-exhausted {
-  font-size: 0.625rem;
-  font-weight: 700;
   color: var(--z-error);
-  padding: 3px 8px;
   background: rgba(248, 113, 113, 0.15);
   border: 1px solid rgba(248, 113, 113, 0.3);
-  border-radius: var(--z-r-full);
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
 }
 
+/* Progress bar */
 .quota-bar {
-  height: 6px;
+  height: clamp(4px, 1vw, 6px);
   background: rgba(0, 0, 0, 0.3);
-  border-radius: 3px;
+  border-radius: 999px;
   overflow: hidden;
-  margin-bottom: 10px;
+  margin-bottom: clamp(6px, 1.5vw, 10px);
   position: relative;
   z-index: 1;
+  width: 100%;
 }
 
 .quota-bar-fill {
   height: 100%;
   background: linear-gradient(90deg, #4ADE80, #22C55E);
-  border-radius: 3px;
+  border-radius: 999px;
   transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s;
   box-shadow: 0 0 12px rgba(74, 222, 128, 0.4);
+  min-width: 4px;
 }
 
 .quota-bar-fill.warning {
@@ -123,11 +142,12 @@
   box-shadow: 0 0 12px rgba(248, 113, 113, 0.4);
 }
 
+/* Detail row — adaptive */
 .quota-detail {
   display: flex;
-  gap: 14px;
   flex-wrap: wrap;
-  font-size: 0.6875rem;
+  gap: clamp(8px, 2vw, 14px);
+  font-size: clamp(0.625rem, 2.4vw, 0.6875rem);
   color: var(--z-text-dim);
   font-family: 'JetBrains Mono', monospace;
   position: relative;
@@ -139,19 +159,147 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-/* Responsive */
-@media (max-width: 480px) {
+/* ============================================================
+   CONTAINER QUERIES — adaptif per lebar container
+   ============================================================ */
+
+/* Container sangat sempit (< 240px) — stack vertical */
+@container (max-width: 240px) {
+  .quota-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .quota-value {
+    align-self: flex-start;
+  }
+}
+
+/* Container sedang (240px - 360px) */
+@container (min-width: 240px) and (max-width: 360px) {
+  .quota-detail {
+    gap: 8px;
+  }
+}
+
+/* ============================================================
+   FALLBACK MEDIA QUERIES (untuk browser tanpa container query)
+   ============================================================ */
+
+/* Mobile portrait kecil */
+@media (max-width: 360px) {
+  .quota-wrapper {
+    margin: 0 12px 12px;
+  }
+  .quota-card {
+    padding: 10px 12px;
+  }
+  .quota-detail {
+    flex-direction: column;
+    gap: 4px;
+  }
+  .quota-detail span {
+    font-size: 0.625rem;
+  }
+}
+
+/* Mobile portrait sedang */
+@media (min-width: 361px) and (max-width: 480px) {
   .quota-card {
     padding: 12px 14px;
+  }
+}
+
+/* Tablet portrait */
+@media (min-width: 481px) and (max-width: 768px) {
+  .quota-wrapper {
+    margin: 0 20px 16px;
+  }
+  .quota-card {
+    padding: 14px 18px;
+  }
+  .quota-label {
+    font-size: 0.75rem;
+  }
+  .quota-value strong {
+    font-size: 1.125rem;
+  }
+}
+
+/* Tablet landscape & desktop */
+@media (min-width: 769px) {
+  .quota-wrapper {
+    margin: 0 24px 20px;
+  }
+  .quota-card {
+    padding: 16px 20px;
+    max-width: none;
+  }
+  .quota-label {
+    font-size: 0.8125rem;
+  }
+  .quota-value strong {
+    font-size: 1.25rem;
+  }
+  .quota-detail {
+    font-size: 0.75rem;
+  }
+}
+
+/* Desktop besar */
+@media (min-width: 1200px) {
+  .quota-wrapper {
+    margin: 0 32px 24px;
+  }
+  .quota-card {
+    padding: 18px 24px;
+  }
+}
+
+/* ============================================================
+   LANDSCAPE MODE — ketinggian terbatas
+   ============================================================ */
+@media (orientation: landscape) and (max-height: 500px) {
+  .quota-wrapper {
+    margin: 0 16px 10px;
+  }
+  .quota-card {
+    padding: 8px 14px;
+  }
+  .quota-row {
+    margin-bottom: 6px;
+  }
+  .quota-bar {
+    margin-bottom: 6px;
+  }
+  .quota-label {
+    font-size: 0.625rem;
   }
   .quota-value strong {
     font-size: 0.9375rem;
   }
   .quota-detail {
-    gap: 10px;
     font-size: 0.625rem;
+    gap: 10px;
+  }
+}
+
+/* ============================================================
+   DARK MODE / HIGH CONTRAST (opsional)
+   ============================================================ */
+@media (prefers-contrast: more) {
+  .quota-card {
+    border-color: var(--z-border-strong);
+  }
+  .quota-value strong {
+    text-shadow: none;
+  }
+  .quota-bar-fill {
+    box-shadow: none;
   }
 }
 
