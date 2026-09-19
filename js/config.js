@@ -7,7 +7,7 @@ export const CONFIG = {
   // ===== APP =====
   APP_NAME: 'Zhenin',
   APP_FULL_NAME: 'Zhenin Keperawatan Suite',
-  APP_VERSION: '2.3.0',
+  APP_VERSION: '2.4.0',
   APP_BUILD: '2025-09-19',
 
   // ===== BACKEND =====
