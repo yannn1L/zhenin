@@ -13,6 +13,10 @@ import SessionGuard from './session-guard.js';
 import Onboarding from './onboarding.js';
 import Promo from './promo.js';
 import StorageWidget from './storage-monitor.js';
+import Editor from './editor.js';
+import Parser from './parser.js';
+import Renderer from './renderer.js';
+import Exporter from './exporter.js';
 
 /* ============================================================
    STATE
@@ -414,6 +418,7 @@ function initLogin() {
    USER APP INIT
    ============================================================ */
 async function initUserApp() {
+  window.Profile = Profile;
   Profile.init();
   TokenManager.refreshAllUI();
   initHome();
@@ -614,15 +619,21 @@ function goToGenerate(type = 'askep') {
 }
 
 function openDocument(docId, docType) {
-  const doc = AI.getDocument(docId, docType);
-  if (!doc) {
-    UI.toast('Dokumen tidak ditemukan', 'error');
-    return;
+  try {
+    const doc = Editor.load(docId, docType);
+    State.currentDoc = { ...doc, _type: docType };
+    AI.setCurrentDocId(docId);
+    
+    // Update title
+    const titleEl = $('#resultTitle');
+    if (titleEl) titleEl.textContent = doc.judul || 'Dokumen';
+    
+    // Render
+    Editor.render();
+    UI.goTo('result');
+  } catch (err) {
+    UI.toast('Gagal buka dokumen: ' + err.message, 'error');
   }
-  State.currentDoc = { ...doc, _type: docType };
-  AI.setCurrentDocId(docId);
-  renderResultScreen();
-  UI.goTo('result');
 }
 
 /* ============================================================
@@ -748,12 +759,18 @@ async function handleAISubmit(e) {
 function initResultScreen() {
   $$('[data-view-mode]').forEach(btn => {
     btn.addEventListener('click', () => {
-      $$('[data-view-mode]').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      setResultViewMode(btn.dataset.viewMode);
+      Editor.setMode(btn.dataset.viewMode);
     });
   });
-
+  
+  // Bind editor textarea
+  const editorEl = $('#resultEditor');
+  if (editorEl) {
+    editorEl.addEventListener('input', () => {
+      Editor.updateFromEditor();
+    });
+  }
+  
   $('#btnRegenerate')?.addEventListener('click', handleRegenerate);
   $('#btnExport')?.addEventListener('click', handleExportDocx);
   $('#btnResultMenu')?.addEventListener('click', () => {
@@ -766,53 +783,11 @@ function initResultScreen() {
 function renderResultScreen() {
   const doc = State.currentDoc;
   if (!doc) return;
-
+  
   const titleEl = $('#resultTitle');
   if (titleEl) titleEl.textContent = doc.judul || 'Dokumen';
-
-  const paperEl = $('#resultPaper');
-  if (paperEl) {
-    paperEl.innerHTML = renderMarkdownToHtml(doc.content || '');
-  }
-
-  const editorEl = $('#resultEditor');
-  if (editorEl) editorEl.value = doc.content || '';
-
-  setResultViewMode('preview');
-}
-
-function setResultViewMode(mode) {
-  State.viewMode = mode;
-  const paper = $('#resultPaper');
-  const editor = $('#resultEditor');
-
-  $$('[data-view-mode]').forEach(b => {
-    b.classList.toggle('active', b.dataset.viewMode === mode);
-  });
-
-  if (mode === 'preview') {
-    if (paper) {
-      paper.classList.remove('hidden');
-      paper.removeAttribute('contenteditable');
-      paper.classList.remove('paper-editing');
-    }
-    if (editor) editor.classList.add('hidden');
-    if (paper && editor) paper.innerHTML = renderMarkdownToHtml(editor.value);
-  } else if (mode === 'edit') {
-    if (paper) {
-      paper.classList.remove('hidden');
-      paper.setAttribute('contenteditable', 'true');
-      paper.classList.add('paper-editing');
-    }
-    if (editor) editor.classList.add('hidden');
-  } else if (mode === 'markdown') {
-    if (paper) {
-      paper.classList.add('hidden');
-      paper.removeAttribute('contenteditable');
-      paper.classList.remove('paper-editing');
-    }
-    if (editor) editor.classList.remove('hidden');
-  }
+  
+  Editor.render();
 }
 
 async function handleRegenerate() {
@@ -842,215 +817,21 @@ async function handleExportDocx() {
     UI.toast('Dokumen tidak ditemukan', 'error');
     return;
   }
-  UI.toast('Export DOCX akan tersedia di Sprint 2D', 'info');
-}
-
-/* ============================================================
-   MARKDOWN RENDERER (Basic)
-   ============================================================ */
-function renderMarkdownToHtml(markdown) {
-  if (!markdown) return '<p style="color:#94a3b8;text-align:center;padding:40px;">Dokumen kosong</p>';
-
-  let text = replacePlaceholders(markdown);
-  const lines = text.split('\n');
-  const blocks = [];
-  let i = 0;
-
-  while (i < lines.length) {
-    const raw = lines[i];
-    const trimmed = raw.trim();
-    if (!trimmed) { i++; continue; }
-
-    if (trimmed === '\\page' || trimmed === '[PAGE_BREAK]') {
-      blocks.push('<div class="pv-pagebreak"></div>');
-      i++; continue;
-    }
-
-    if (/^-{3,}$/.test(trimmed)) {
-      blocks.push('<hr class="pv-hr">');
-      i++; continue;
-    }
-
-    if (trimmed === '[TABEL_TTD]') {
-      blocks.push(`
-        <table class="pv-ttd">
-          <tr>
-            <th>Yang Membuat/Mahasiswa</th>
-            <th>Yang Memverifikasi/Clinical Instructure(CI)</th>
-          </tr>
-          <tr>
-            <td>Nama Lengkap &amp; Tanda Tangan</td>
-            <td>Nama Lengkap &amp; Tanda Tangan</td>
-          </tr>
-        </table>
-      `);
-      i++; continue;
-    }
-
-    const imgMatch = trimmed.match(/^\[GAMBAR:\s*(.+?)\]$/i);
-    if (imgMatch) {
-      blocks.push(`
-        <table class="pv-image"><tr><td>
-          [ Sisipkan gambar di sini ]
-          <span class="pv-img-caption">Gambar: ${escapeHtml(imgMatch[1])}</span>
-        </td></tr></table>
-      `);
-      i++; continue;
-    }
-
-    if (trimmed.startsWith('|')) {
-      const tLines = [];
-      while (i < lines.length && lines[i].trim().startsWith('|')) {
-        tLines.push(lines[i]);
-        i++;
-      }
-      blocks.push(renderTable(tLines));
-      continue;
-    }
-
-    if (trimmed.startsWith('#### ')) {
-      blocks.push(`<h4 class="pv-h4">${renderInline(trimmed.slice(5))}</h4>`);
-      i++; continue;
-    }
-    if (trimmed.startsWith('### ')) {
-      blocks.push(`<h3 class="pv-h3">${renderInline(trimmed.slice(4))}</h3>`);
-      i++; continue;
-    }
-    if (trimmed.startsWith('## ')) {
-      blocks.push(`<h2 class="pv-h2">${renderInline(trimmed.slice(3))}</h2>`);
-      i++; continue;
-    }
-    if (trimmed.startsWith('# ')) {
-      blocks.push(`<h1 class="pv-h1">${renderInline(trimmed.slice(2))}</h1>`);
-      i++; continue;
-    }
-
-    if (trimmed.startsWith('> ')) {
-      blocks.push(`<div class="pv-quote">${renderInline(trimmed.slice(2))}</div>`);
-      i++; continue;
-    }
-
-    if (/^\d+\.\s/.test(trimmed)) {
-      const indent = getIndent(raw);
-      const content = trimmed.replace(/^\d+\.\s*/, '');
-      blocks.push(`<ol class="pv-list indent-${Math.min(indent, 3)}"><li>${renderInline(content)}</li></ol>`);
-      i++; continue;
-    }
-    if (/^[-*•]\s/.test(trimmed)) {
-      const indent = getIndent(raw);
-      const content = trimmed.replace(/^[-*•]\s*/, '');
-      blocks.push(`<ul class="pv-list indent-${Math.min(indent, 3)}"><li>${renderInline(content)}</li></ul>`);
-      i++; continue;
-    }
-
-    const indent = getIndent(raw);
-    blocks.push(`<p class="pv-p indent-${Math.min(indent, 3)}">${renderInline(trimmed)}</p>`);
-    i++;
+  
+  // Save dulu
+  Editor.saveNow();
+  
+  UI.showLoading('Menyiapkan DOCX...');
+  
+  try {
+    const result = await Editor.exportDocx();
+    UI.hideLoading();
+    UI.toast('✅ Berhasil export: ' + result.filename, 'success', 4000);
+  } catch (err) {
+    UI.hideLoading();
+    console.error('Export error:', err);
+    UI.toast('Gagal export: ' + err.message, 'error', 5000);
   }
-
-  return blocks.join('\n');
-}
-
-function renderTable(lines) {
-  const valid = lines.filter(l => l.trim().startsWith('|'));
-  if (valid.length < 2) return '';
-
-  const headers = splitRow(valid[0]);
-  if (!headers.length) return '';
-
-  let dataStart = 2;
-  const secondRow = splitRow(valid[1]);
-  const isSep = secondRow.every(c => /^:?-+:?$/.test(c));
-  let aligns = new Array(headers.length).fill('left');
-
-  if (isSep) {
-    aligns = secondRow.map(sep => {
-      if (/^:-+:$/.test(sep)) return 'center';
-      if (/^-+:$/.test(sep)) return 'right';
-      return 'left';
-    });
-  } else {
-    dataStart = 1;
-  }
-
-  const rows = valid.slice(dataStart).map(line => {
-    const cells = splitRow(line);
-    while (cells.length < headers.length) cells.push('');
-    return cells.slice(0, headers.length);
-  });
-
-  let html = '<table class="pv-table"><thead><tr>';
-  headers.forEach((h, i) => {
-    html += `<th class="align-${aligns[i] || 'left'}">${renderInline(h)}</th>`;
-  });
-  html += '</tr></thead><tbody>';
-  rows.forEach(row => {
-    html += '<tr>';
-    row.forEach((c, i) => {
-      html += `<td class="align-${aligns[i] || 'left'}">${renderInline(c)}</td>`;
-    });
-    html += '</tr>';
-  });
-  html += '</tbody></table>';
-  return html;
-}
-
-function splitRow(line) {
-  let s = line.trim();
-  if (s.startsWith('|')) s = s.slice(1);
-  if (s.endsWith('|')) s = s.slice(0, -1);
-  return s.split('|').map(c => c.trim());
-}
-
-function renderInline(text) {
-  if (!text) return '';
-  let html = escapeHtml(text);
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/~~(.+?)~~/g, '<s>$1</s>');
-  html = html.replace(/==(.+?)==/g, '<mark>$1</mark>');
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  html = html.replace(/__(.+?)__/g, '<u>$1</u>');
-  html = html.replace(/`(.+?)`/g, '<code>$1</code>');
-  return html;
-}
-
-function getIndent(line) {
-  let level = 0;
-  for (const ch of line) {
-    if (ch === '\t') level += 1;
-    else if (ch === ' ') level += 0.5;
-    else break;
-  }
-  return Math.floor(level);
-}
-
-function replacePlaceholders(text) {
-  const profile = Data.getProfile();
-  return text
-    .replace(/\[NAMA_MHS\]/g, profile.nama || '[NAMA_MHS]')
-    .replace(/\[NIM\]/g, profile.nim || '-')
-    .replace(/\[KELOMPOK\]/g, profile.kelompok || '-')
-    .replace(/\[TEMPAT\]/g, profile.tempatPraktik || '-')
-    .replace(/\[PERIODE\]/g, profile.periodePraktik || '-')
-    .replace(/\[NAMA_CI\]/g, profile.ci || '[NAMA_CI]')
-    .replace(/\[TANGGAL\]/g, new Date().toLocaleDateString('id-ID', {
-      day: 'numeric', month: 'long', year: 'numeric'
-    }))
-    .replace(/\[IDENTITAS_MHS\]/g, buildIdentityTable());
-}
-
-function buildIdentityTable() {
-  const p = Data.getProfile();
-  return `
-    <table class="pv-table"><tbody>
-      <tr><td style="width:35%"><strong>Nama</strong></td><td>${escapeHtml(p.nama || '-')}</td></tr>
-      <tr><td><strong>NIM</strong></td><td>${escapeHtml(p.nim || '-')}</td></tr>
-      <tr><td><strong>Kelompok</strong></td><td>${escapeHtml(p.kelompok || '-')}</td></tr>
-      <tr><td><strong>Tempat Praktik</strong></td><td>${escapeHtml(p.tempatPraktik || '-')}</td></tr>
-      <tr><td><strong>Periode Praktik</strong></td><td>${escapeHtml(p.periodePraktik || '-')}</td></tr>
-      <tr><td><strong>Clinical Instruktur</strong></td><td>${escapeHtml(p.ci || '-')}</td></tr>
-    </tbody></table>
-  `;
 }
 
 /* ============================================================
