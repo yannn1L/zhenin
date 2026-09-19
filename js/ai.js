@@ -205,35 +205,39 @@ export const AI = {
     }
   },
 
-  buildQuotaHTML(status) {
-    const dailyPct = status.dailyLimit > 0
-      ? Math.min(100, (status.dailyUsed / status.dailyLimit) * 100) : 0;
-    const dailyColor = dailyPct >= 80 ? 'error' : dailyPct >= 50 ? 'warning' : 'success';
-
-    return `
-      <div class="quota-card">
-        <div class="quota-row">
-          <div class="quota-label">
-            <span class="quota-icon">📊</span>
-            <span>Kuota AI Hari Ini</span>
-          </div>
-          <div class="quota-value">
-            <strong>${status.dailyUsed}</strong> / ${status.dailyLimit}
-            ${status.remaining > 0
-              ? `<span class="quota-remaining">${status.remaining} sisa</span>`
-              : '<span class="quota-exhausted">HABIS</span>'}
-          </div>
-        </div>
-        <div class="quota-bar">
-          <div class="quota-bar-fill ${dailyColor}" style="width:${dailyPct}%"></div>
-        </div>
-        <div class="quota-detail">
-          <span>⏱️ Per jam: ${status.hourlyUsed}/${status.hourlyLimit}</span>
-          <span>💎 Token: ${status.token}</span>
-        </div>
+buildQuotaHTML(status) {
+  const dailyPct = status.dailyLimit > 0 ?
+    Math.min(100, (status.dailyUsed / status.dailyLimit) * 100) : 0;
+  
+  let barClass = '';
+  if (dailyPct >= 80) barClass = 'error';
+  else if (dailyPct >= 50) barClass = 'warning';
+  
+  const remaining = Math.max(0, status.dailyLimit - status.dailyUsed);
+  
+  return `
+    <div class="quota-card">
+      <div class="quota-header">
+        <span class="quota-title">📊 Kuota AI Hari Ini</span>
+        <span class="quota-badge ${remaining === 0 ? 'empty' : ''}">
+          ${remaining > 0 ? remaining + ' sisa' : 'HABIS'}
+        </span>
       </div>
-    `;
-  },
+      <div class="quota-numbers">
+        <span class="quota-used">${status.dailyUsed}</span>
+        <span class="quota-sep">/</span>
+        <span class="quota-limit">${status.dailyLimit}</span>
+      </div>
+      <div class="quota-progress">
+        <div class="quota-progress-bar ${barClass}" style="width:${dailyPct}%"></div>
+      </div>
+      <div class="quota-info">
+        <span>⏱️ Per jam: ${status.hourlyUsed}/${status.hourlyLimit}</span>
+        <span>💎 Token: ${status.token}</span>
+      </div>
+    </div>
+  `;
+},
 
   validateForm(formData) {
     const { topic, mode, customPrompt, type } = formData;
