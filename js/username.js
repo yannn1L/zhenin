@@ -124,11 +124,13 @@ export const Username = {
       if (errEl) errEl.hidden = true;
       
       modal.hidden = false;
+      modal.classList.add('show');
       document.body.style.overflow = 'hidden';
       
       setTimeout(() => input?.focus(), 100);
       
       const cleanup = () => {
+        modal.classList.remove('show');
         modal.hidden = true;
         document.body.style.overflow = '';
         btn.onclick = null;

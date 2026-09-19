@@ -1,49 +1,37 @@
 /* ============================================================
-   ZHENIN - Session Guard (v2.3.0)
-   Auto-logout jika akun dihapus/revoked/device mismatch
+   ZHENIN - Session Guard (v2.7.1)
+   Auto-logout dengan response validation
    ============================================================ */
 
 import { CONFIG } from './config.js';
 import { Data } from './storage.js';
 import { Auth } from './auth.js';
 
-/* ============================================================
-   SESSION GUARD
-   ============================================================ */
 export const SessionGuard = {
   _intervalId: null,
   _checking: false,
   _onLogout: null,
-  CHECK_INTERVAL_MS: 5 * 60 * 1000, // 5 menit
+  CHECK_INTERVAL_MS: 5 * 60 * 1000,
   
-  /**
-   * Initialize guard dengan callback logout
-   */
   init(onLogout) {
     this._onLogout = onLogout;
     this.startPeriodicCheck();
     this.bindEvents();
   },
   
-  /**
-   * Bind ke events untuk immediate check
-   */
   bindEvents() {
-    // Check saat app kembali fokus (buka dari background)
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && Auth.isLoggedIn()) {
         this.check('visibility');
       }
     });
     
-    // Check saat window focus
     window.addEventListener('focus', () => {
       if (Auth.isLoggedIn()) {
         this.check('focus');
       }
     });
     
-    // Check saat tab menjadi online kembali
     window.addEventListener('online', () => {
       if (Auth.isLoggedIn()) {
         this.check('online');
@@ -51,9 +39,6 @@ export const SessionGuard = {
     });
   },
   
-  /**
-   * Start periodic check
-   */
   startPeriodicCheck() {
     this.stopPeriodicCheck();
     this._intervalId = setInterval(() => {
@@ -63,9 +48,6 @@ export const SessionGuard = {
     }, this.CHECK_INTERVAL_MS);
   },
   
-  /**
-   * Stop periodic check
-   */
   stopPeriodicCheck() {
     if (this._intervalId) {
       clearInterval(this._intervalId);
@@ -73,10 +55,6 @@ export const SessionGuard = {
     }
   },
   
-  /**
-   * Main check function
-   * @param {string} source - 'periodic' | 'visibility' | 'focus' | 'online' | 'manual'
-   */
   async check(source = 'manual') {
     if (this._checking) return { success: true, reason: 'in_progress' };
     if (!Auth.isLoggedIn()) return { success: false, reason: 'not_logged_in' };
@@ -90,16 +68,13 @@ export const SessionGuard = {
         return { success: false, reason: 'invalid_session_data' };
       }
       
-      // Skip kalau offline
       if (!navigator.onLine) {
         return { success: true, reason: 'offline' };
       }
       
-      // Call backend validate
       const result = await this.callValidate(session.password, session.deviceHash);
       
       if (result.valid) {
-        // Update token kalau berubah
         if (typeof result.token === 'number' && result.token !== session.token) {
           session.token = result.token;
           session.lastActive = Date.now();
@@ -108,13 +83,10 @@ export const SessionGuard = {
         return { success: true };
       }
       
-      // Handle invalid
       this.handleInvalidReason(result.reason);
-      
       return { success: false, reason: result.reason };
       
     } catch (err) {
-      // Network error → jangan logout (silent fail)
       console.warn('[SessionGuard] Check error:', err.message);
       return { success: true, reason: 'network_error' };
     } finally {
@@ -123,11 +95,11 @@ export const SessionGuard = {
   },
   
   /**
-   * Call backend validate
+   * ⚠️ FIXED: Validate response dengan shape checking
    */
   async callValidate(password, deviceHash) {
     if (!CONFIG.APPS_SCRIPT_URL) {
-      return { valid: true }; // Skip kalau belum dikonfigurasi
+      return { valid: true };
     }
     
     const controller = new AbortController();
@@ -147,20 +119,46 @@ export const SessionGuard = {
       
       clearTimeout(timeoutId);
       
+      // Network error → assume valid (fail-open)
       if (!response.ok) {
-        return { valid: true }; // Assume valid on network error
+        return { valid: true, reason: 'http_error' };
       }
       
-      return await response.json();
+      // Parse JSON safely
+      let result;
+      try {
+        result = await response.json();
+      } catch (parseErr) {
+        console.warn('[SessionGuard] Parse error:', parseErr.message);
+        return { valid: true, reason: 'parse_error' };
+      }
+      
+      // Validate shape
+      if (!result || typeof result !== 'object') {
+        return { valid: true, reason: 'invalid_shape' };
+      }
+      
+      // ⚠️ CRITICAL: Hanya trigger logout kalau reason EKSPLISIT
+      if (result.valid === false) {
+        const validReasons = ['not_found', 'revoked', 'device_mismatch'];
+        if (validReasons.includes(result.reason)) {
+          return result; // Trigger logout
+        }
+        // Reason tidak dikenal → assume valid
+        console.warn('[SessionGuard] Unknown reason:', result.reason);
+        return { valid: true, reason: 'unknown_reason' };
+      }
+      
+      // `valid` bukan false → assume valid
+      return { valid: true };
+      
     } catch (e) {
       clearTimeout(timeoutId);
-      return { valid: true }; // Assume valid on error
+      // Exception (network, abort, dll) → assume valid
+      return { valid: true, reason: 'exception' };
     }
   },
   
-  /**
-   * Handle invalid reason dari backend
-   */
   handleInvalidReason(reason) {
     const messages = {
       'not_found': {
@@ -194,28 +192,18 @@ export const SessionGuard = {
     this._forceLogout(info.desc, info.title, info.icon);
   },
   
-  /**
-   * Force logout dengan notifikasi
-   */
   _forceLogout(message, title = 'Session Berakhir', icon = '⚠️') {
     console.log('[SessionGuard] Force logout:', title);
     
-    // Call external logout handler
     if (typeof this._onLogout === 'function') {
       this._onLogout({ title, message, icon });
     }
   },
   
-  /**
-   * Manual check (dipanggil sebelum critical action)
-   */
   async checkNow() {
     return await this.check('manual');
   },
   
-  /**
-   * Destroy
-   */
   destroy() {
     this.stopPeriodicCheck();
     this._onLogout = null;

@@ -163,23 +163,26 @@ const UI = {
     const modal = document.getElementById(modalId);
     if (modal) {
       modal.hidden = false;
+      modal.classList.add('show');
       document.body.style.overflow = 'hidden';
     }
   },
-
+  
   closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
+      modal.classList.remove('show');
       modal.hidden = true;
       document.body.style.overflow = '';
     }
   },
-
+  
   closeAllModals() {
     $$('.modal-overlay').forEach(m => {
-      // Skip session expired + username required
-      if (m.id === 'modalSessionExpired' && !m.hidden) return;
-      if (m.id === 'modalUsernameRequired' && !m.hidden) return;
+      // Skip session expired + username required kalau aktif
+      if (m.id === 'modalSessionExpired' && m.classList.contains('show')) return;
+      if (m.id === 'modalUsernameRequired' && m.classList.contains('show')) return;
+      m.classList.remove('show');
       m.hidden = true;
     });
     document.body.style.overflow = '';
@@ -492,27 +495,41 @@ async function initUserApp() {
 function showSessionExpiredDialog(title, message, icon = '⚠️') {
   if (window._sessionExpiredShown) return;
   window._sessionExpiredShown = true;
-
+  
   try { Profile.saveNow(); } catch (e) {}
-
+  
+  // ⚠️ Close semua modal lain dulu
+  UI.closeAllModals();
+  
   const modal = document.getElementById('modalSessionExpired');
   if (modal) {
     const titleEl = document.getElementById('sessionExpiredTitle');
     const descEl = document.getElementById('sessionExpiredDesc');
     const iconEl = document.getElementById('sessionExpiredIcon');
-
+    
     if (titleEl) titleEl.textContent = title;
     if (descEl) descEl.textContent = message;
     if (iconEl) iconEl.textContent = icon;
-
+    
+    // ⚠️ FIXED: gunakan .show class + hapus hidden attribute
     modal.hidden = false;
+    modal.classList.add('show');
     document.body.style.overflow = 'hidden';
-
+    
     const okBtn = document.getElementById('sessionExpiredOk');
     if (okBtn && !okBtn.dataset.bound) {
       okBtn.dataset.bound = '1';
-      okBtn.addEventListener('click', () => performForceLogout());
+      okBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        performForceLogout();
+      });
     }
+    
+    // ⚠️ FIXED: force focus ke tombol
+    setTimeout(() => {
+      if (okBtn) okBtn.focus();
+    }, 100);
   } else {
     performForceLogout();
   }

@@ -1789,3 +1789,90 @@ select.form-input {
 .onboarding-actions .btn {
   flex: 1;
 }
+
+/* ============================================================
+   17. MODALS
+   ============================================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 11, 26, 0.85);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: none;  /* ⚠️ FIXED: default hidden */
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 8000;
+  padding: 0;
+  /* ⚠️ FIXED: pointer-events & visibility management */
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.modal-overlay.show {
+  display: flex;  /* ⚠️ Only show when active */
+  pointer-events: auto;
+  visibility: visible;
+  opacity: 1;
+}
+
+@media (min-width: 600px) {
+  .modal-overlay.show {
+    align-items: center;
+    padding: var(--z-space-4);
+  }
+}
+
+.modal {
+  background: var(--z-deep);
+  border-top-left-radius: var(--z-radius-xl);
+  border-top-right-radius: var(--z-radius-xl);
+  border: 1px solid var(--z-border);
+  border-bottom: none;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.6);
+  animation: z-modal-up 0.28s var(--z-t-slow);
+  overflow: hidden;
+}
+
+@media (min-width: 600px) {
+  .modal {
+    border-radius: var(--z-radius-lg);
+    border-bottom: 1px solid var(--z-border);
+    animation: z-modal-in 0.25s var(--z-t-slow);
+  }
+}
+
+/* ... sisa modal styling tidak berubah ... */
+
+/* Session expired modal — pastikan di atas semua */
+#modalSessionExpired {
+  z-index: 99999 !important;  /* ⚠️ FIXED: tinggi + important */
+}
+
+#modalSessionExpired .modal {
+  max-width: 360px;
+}
+
+#modalSessionExpired .confirm-icon {
+  font-size: 3.5rem;
+  margin-bottom: var(--z-space-4);
+}
+
+#modalSessionExpired .confirm-title {
+  font-family: 'Cinzel', serif;
+  color: var(--z-gold);
+  font-size: var(--z-fs-3xl);
+  letter-spacing: 0.5px;
+}
+
+#modalSessionExpired .confirm-desc {
+  font-size: var(--z-fs-md);
+  line-height: 1.6;
+}
