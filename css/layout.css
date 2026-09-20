@@ -1,8 +1,16 @@
 /* ============================================================
-   ZHENIN - Layout (v2.7.5 Fixed Sidebar)
+   ZHENIN - Layout (v2.7.3)
+   App shell, screens, header, navigation
+   
+   CHANGELOG v2.7.3:
+   - FIX: Loading screen tidak centered (terlalu ke bawah)
+   - Loading screen di-unset dari grid, jadi absolute full screen
+   - Konsisten: splash, login, admin, loading = full screen
    ============================================================ */
 
-/* 1. APP SHELL — Menggunakan CSS Grid yang Konsisten */
+/* ============================================================
+   1. APP SHELL
+   ============================================================ */
 .app {
   position: fixed;
   inset: 0;
@@ -12,7 +20,9 @@
   background: var(--z-bg);
 }
 
-/* 2. SCREEN BASE */
+/* ============================================================
+   2. SCREEN BASE
+   ============================================================ */
 .screen {
   position: absolute;
   inset: 0;
@@ -33,20 +43,473 @@
   pointer-events: auto;
 }
 
+/* Hide bottom-nav di screen yang tidak butuh */
+.screen-splash .bottom-nav,
+.screen-login .bottom-nav,
+.screen-admin .bottom-nav,
+.screen-loading .bottom-nav {
+  display: none !important;
+}
+
+.screen-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: var(--z-space-4);
+}
+
+.screen-bottom-spacer {
+  height: calc(var(--z-nav-h) + var(--z-safe-bottom) + var(--z-space-4));
+}
+
 /* ============================================================
-   RESPONSIVE: DESKTOP (>= 1024px) — Proper Sidebar Layout
+   3. APP HEADER
    ============================================================ */
-@media (min-width: 1024px) {
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: var(--z-space-3);
+  height: var(--z-header-h);
+  padding: 0 var(--z-space-4);
+  padding-top: var(--z-safe-top);
+  background: rgba(26, 26, 46, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--z-border);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 50;
+}
+
+.app-header-left,
+.app-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--z-space-2);
+}
+
+.app-header-center {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.app-header-title {
+  font-family: 'Cinzel', serif;
+  font-size: var(--z-fs-xl);
+  font-weight: 600;
+  color: var(--z-gold);
+  letter-spacing: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* User avatar */
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--z-radius-sm);
+  background: var(--z-grad-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: var(--z-fs-lg);
+  color: var(--z-gold);
+  border: 1px solid var(--z-border-strong);
+  box-shadow: var(--z-shadow-glow);
+  flex-shrink: 0;
+}
+
+.user-info {
+  min-width: 0;
+}
+
+.user-greeting {
+  font-size: var(--z-fs-xs);
+  color: var(--z-text-dim);
+  line-height: 1.2;
+}
+
+.user-name {
+  font-size: var(--z-fs-lg);
+  font-weight: 700;
+  color: var(--z-text);
+  font-family: 'Cinzel', serif;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+/* Icon button */
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--z-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--z-lavender);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all var(--z-t-fast);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.icon-btn:hover,
+.icon-btn:active {
+  background: rgba(107, 63, 160, 0.2);
+  border-color: var(--z-border);
+  color: var(--z-gold);
+}
+
+.icon-btn svg {
+  pointer-events: none;
+}
+
+/* ============================================================
+   4. BOTTOM NAV (MOBILE — default)
+   ============================================================ */
+.bottom-nav {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--z-nav-h) + var(--z-safe-bottom));
+  padding-bottom: var(--z-safe-bottom);
+  background: rgba(15, 11, 26, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--z-border);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  z-index: 40;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: var(--z-text-dim);
+  transition: color var(--z-t-fast);
+  position: relative;
+  padding: var(--z-space-2) var(--z-space-1);
+}
+
+.nav-item .nav-icon {
+  font-size: var(--z-fs-3xl);
+  line-height: 1;
+  transition: transform var(--z-t-base);
+}
+
+.nav-item .nav-label {
+  font-size: var(--z-fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.nav-item.active {
+  color: var(--z-gold);
+}
+
+.nav-item.active .nav-icon {
+  transform: translateY(-2px);
+  filter: drop-shadow(0 0 8px rgba(201, 169, 97, 0.7));
+}
+
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 2px;
+  background: var(--z-gold);
+  border-radius: 0 0 2px 2px;
+  box-shadow: 0 0 8px var(--z-gold);
+}
+
+/* ============================================================
+   5. SPLASH SCREEN
+   ============================================================ */
+.screen-splash {
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, var(--z-plum) 0%, var(--z-night) 70%);
+  padding: var(--z-space-8);
+  text-align: center;
+  z-index: 100;
+}
+
+.splash-logo {
+  width: 140px;
+  height: 140px;
+  margin-bottom: var(--z-space-6);
+  animation: z-float 4s ease-in-out infinite;
+}
+
+.splash-logo svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 24px rgba(201, 169, 97, 0.4));
+}
+
+.splash-title {
+  font-family: 'Cinzel', serif;
+  font-size: var(--z-fs-7xl);
+  font-weight: 700;
+  color: var(--z-gold);
+  letter-spacing: 8px;
+  margin-bottom: var(--z-space-2);
+  text-shadow: 0 0 30px rgba(201, 169, 97, 0.5);
+  padding-left: 8px;
+}
+
+.splash-subtitle {
+  font-family: 'Cinzel', serif;
+  font-size: var(--z-fs-xs);
+  color: var(--z-lavender);
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  opacity: 0.85;
+  margin-bottom: var(--z-space-8);
+  padding-left: 6px;
+}
+
+.splash-loader {
+  width: 200px;
+  height: 2px;
+  background: rgba(201, 169, 97, 0.15);
+  border-radius: 1px;
+  overflow: hidden;
+  margin: 0 auto var(--z-space-4);
+}
+
+.splash-loader-fill {
+  height: 100%;
+  background: var(--z-grad-gold);
+  width: 0;
+  animation: z-splash-load 2.2s ease-in-out forwards;
+  box-shadow: 0 0 12px var(--z-gold);
+}
+
+@keyframes z-splash-load {
+  0% { width: 0; }
+  60% { width: 70%; }
+  100% { width: 100%; }
+}
+
+.splash-version {
+  position: absolute;
+  bottom: var(--z-space-6);
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--z-fs-xs);
+  color: rgba(166, 123, 200, 0.35);
+  letter-spacing: 1px;
+}
+
+/* ============================================================
+   6. LOGIN SCREEN
+   ============================================================ */
+.screen-login {
+  background:
+    radial-gradient(circle at 20% 10%, rgba(107, 63, 160, 0.2) 0%, transparent 50%),
+    radial-gradient(circle at 80% 90%, rgba(201, 169, 97, 0.12) 0%, transparent 50%),
+    var(--z-deep);
+  overflow-y: auto;
+  padding: calc(var(--z-safe-top) + var(--z-space-6)) var(--z-space-5) calc(var(--z-safe-bottom) + var(--z-space-6));
+  z-index: 90;
+}
+
+.login-container {
+  max-width: 400px;
+  width: 100%;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: var(--z-space-8);
+  padding-top: var(--z-space-5);
+}
+
+.login-logo {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto var(--z-space-4);
+}
+
+.login-logo svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 20px rgba(201, 169, 97, 0.3));
+}
+
+.login-title {
+  font-family: 'Cinzel', serif;
+  font-size: var(--z-fs-5xl);
+  font-weight: 700;
+  color: var(--z-gold);
+  letter-spacing: 5px;
+  margin-bottom: var(--z-space-1);
+}
+
+.login-subtitle {
+  font-size: var(--z-fs-base);
+  color: var(--z-text-muted);
+  letter-spacing: 0.5px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--z-space-4);
+}
+
+.login-help {
+  text-align: center;
+  font-size: var(--z-fs-base);
+  color: var(--z-text-muted);
+  margin-top: var(--z-space-2);
+}
+
+.login-footer {
+  margin-top: auto;
+  padding-top: var(--z-space-6);
+  text-align: center;
+}
+
+.login-version {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--z-fs-xs);
+  color: var(--z-text-dim);
+  letter-spacing: 1px;
+  margin-bottom: var(--z-space-2);
+}
+
+.login-legal {
+  font-size: var(--z-fs-xs);
+  color: var(--z-text-dim);
+}
+
+/* ============================================================
+   7. HOME SCREEN
+   ============================================================ */
+.screen-home .screen-scroll {
+  padding-top: var(--z-space-3);
+}
+
+/* ============================================================
+   8. LOADING SCREEN — ALWAYS FULL SCREEN CENTERED
+   ============================================================ */
+.screen-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, rgba(107, 63, 160, 0.15) 0%, var(--z-deep) 70%);
+  padding: var(--z-space-8);
+  text-align: center;
+  z-index: 100;
+  overflow: hidden;
+}
+
+/* Override grid positioning untuk loading — selalu full screen */
+.screen-loading.active {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  grid-column: unset !important;
+  grid-row: unset !important;
+}
+
+/* ============================================================
+   9. RESPONSIVE: LANDSCAPE MOBILE
+   ============================================================ */
+@media (orientation: landscape) and (max-height: 500px) {
+  .app-header {
+    height: var(--z-header-h-compact);
+  }
+
+  .bottom-nav {
+    height: calc(var(--z-nav-h-compact) + var(--z-safe-bottom));
+  }
+
+  .nav-item {
+    flex-direction: row;
+    gap: var(--z-space-1);
+    padding: var(--z-space-1) var(--z-space-2);
+  }
+
+  .nav-item .nav-icon {
+    font-size: var(--z-fs-xl);
+  }
+
+  .nav-item .nav-label {
+    font-size: 0.5625rem;
+  }
+
+  .nav-item.active::before {
+    top: auto;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+  }
+
+  .screen-bottom-spacer {
+    height: calc(var(--z-nav-h-compact) + var(--z-safe-bottom) + var(--z-space-2));
+  }
+
+  .splash-logo {
+    width: 80px;
+    height: 80px;
+    margin-bottom: var(--z-space-4);
+  }
+
+  .splash-title {
+    font-size: var(--z-fs-5xl);
+    letter-spacing: 5px;
+  }
+
+  .splash-subtitle {
+    font-size: 0.625rem;
+    letter-spacing: 4px;
+  }
+}
+
+/* ============================================================
+   10. RESPONSIVE: TABLET (768px - 1023px)
+   ============================================================ */
+@media (min-width: 768px) and (max-width: 1023px) {
   .app {
     display: grid;
-    grid-template-columns: var(--z-sidebar-w) 1fr;
-    grid-template-rows: 100vh;
-    width: 100vw;
-    height: 100vh;
-    overflow: hidden;
+    grid-template-columns: var(--z-sidebar-w-compact) 1fr;
+    grid-template-rows: 1fr;
+    position: relative;
   }
-  
-  /* Screen overlay / khusus (Splash, Login, dll) mengambil seluruh grid */
+
+  /* Splash, Login, Admin, Loading — absolute full screen, tidak ikut grid */
   .screen-splash,
   .screen-login,
   .screen-admin,
@@ -55,12 +518,12 @@
     inset: 0 !important;
     width: 100% !important;
     height: 100% !important;
-    grid-column: 1 / -1 !important;
-    grid-row: 1 !important;
+    grid-column: unset !important;
+    grid-row: unset !important;
     z-index: 100 !important;
   }
-  
-  /* Screen aplikasi utama wajib dikunci di kolom ke-2 (di sebelah kanan sidebar) */
+
+  /* Screen normal — masuk grid */
   .screen-home,
   .screen-ai,
   .screen-result,
@@ -72,81 +535,184 @@
     inset: auto;
     width: 100%;
     height: 100%;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
   }
-  
-  /* Transformasi Sidebar Kiri yang Proper */
+
+  /* Bottom nav di kolom 1 */
   .bottom-nav {
     position: relative;
     grid-column: 1;
     grid-row: 1;
-    width: var(--z-sidebar-w);
-    height: 100vh;
+    width: 100%;
+    height: 100%;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    padding: var(--z-space-6) var(--z-space-3);
+    padding: var(--z-space-4) 0;
     gap: var(--z-space-2);
-    background: rgba(15, 11, 26, 0.98);
     border-top: none;
     border-right: 1px solid var(--z-border);
-    z-index: 40;
-    box-shadow: var(--z-shadow-md);
   }
-  
+
+  .nav-item {
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--z-space-2) var(--z-space-1);
+  }
+
+  .nav-item .nav-icon {
+    font-size: var(--z-fs-3xl);
+  }
+
+  .nav-item .nav-label {
+    font-size: 0.5625rem;
+  }
+
+  .nav-item.active::before {
+    top: 50%;
+    bottom: auto;
+    left: 0;
+    width: 3px;
+    height: 32px;
+    transform: translateY(-50%);
+    border-radius: 0 3px 3px 0;
+  }
+
+  .screen-scroll {
+    padding: var(--z-space-5);
+  }
+
+  .app-header {
+    padding: 0 var(--z-space-5);
+  }
+
+  .screen-bottom-spacer {
+    height: var(--z-space-6);
+  }
+
+  .quick-actions {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--z-space-3);
+  }
+}
+
+/* ============================================================
+   11. RESPONSIVE: DESKTOP (>= 1024px)
+   ============================================================ */
+@media (min-width: 1024px) {
+  .app {
+    display: grid;
+    grid-template-columns: var(--z-sidebar-w) 1fr;
+    grid-template-rows: 1fr;
+    position: relative;
+  }
+
+  /* Splash, Login, Admin, Loading — absolute full screen, tidak ikut grid */
+  .screen-splash,
+  .screen-login,
+  .screen-admin,
+  .screen-loading {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    grid-column: unset !important;
+    grid-row: unset !important;
+    z-index: 100 !important;
+  }
+
+  /* Screen normal — masuk grid */
+  .screen-home,
+  .screen-ai,
+  .screen-result,
+  .screen-profile,
+  .screen-files {
+    grid-column: 2;
+    grid-row: 1;
+    position: relative;
+    inset: auto;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Bottom nav di kolom 1 */
+  .bottom-nav {
+    position: relative;
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: var(--z-space-5) 0;
+    gap: var(--z-space-1);
+    border-top: none;
+    border-right: 1px solid var(--z-border);
+  }
+
   .nav-item {
     flex-direction: row;
     justify-content: flex-start;
     gap: var(--z-space-3);
-    padding: var(--z-space-3) var(--z-space-4);
-    border-radius: var(--z-radius-md);
-    width: 100%;
-    background: transparent;
+    padding: var(--z-space-3) var(--z-space-5);
+    min-height: 48px;
+    border-radius: 0;
   }
-  
-  .nav-item:hover {
-    background: rgba(107, 63, 160, 0.15);
-    color: var(--z-gold);
-  }
-  
+
   .nav-item .nav-icon {
-    font-size: var(--z-fs-2xl);
+    font-size: var(--z-fs-3xl);
   }
-  
+
   .nav-item .nav-label {
-    font-size: var(--z-fs-sm);
-    display: inline-block;
+    font-size: var(--z-fs-base);
+    font-weight: 600;
+    letter-spacing: 0.5px;
   }
-  
-  /* Indikator aktif di sisi kiri sidebar */
+
   .nav-item.active {
-    background: rgba(107, 63, 160, 0.25);
-    color: var(--z-gold);
+    background: rgba(107, 63, 160, 0.2);
   }
 
   .nav-item.active::before {
-    content: '';
-    position: absolute;
     top: 0;
     bottom: 0;
     left: 0;
-    width: 4px;
+    width: 3px;
     height: 100%;
     transform: none;
-    border-radius: 0 2px 2px 0;
-    background: var(--z-gold);
+    border-radius: 0 3px 3px 0;
   }
-  
+
+  .nav-item.active .nav-icon {
+    transform: none;
+  }
+
   .screen-scroll {
-    flex: 1;
-    overflow-y: auto;
+    max-width: 900px;
+    margin: 0 auto;
     padding: var(--z-space-6);
-    max-width: 100%;
   }
-  
+
+  .app-header {
+    padding: 0 var(--z-space-8);
+  }
+
   .screen-bottom-spacer {
-    display: none;
+    height: var(--z-space-6);
+  }
+
+  .quick-actions {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--z-space-4);
+  }
+}
+
+/* ============================================================
+   12. RESPONSIVE: LARGE DESKTOP (>= 1440px)
+   ============================================================ */
+@media (min-width: 1440px) {
+  .screen-scroll {
+    max-width: 1100px;
   }
 }
