@@ -1,7 +1,18 @@
 /* ============================================================
-   ZHENIN - Main CSS (v2.7.0)
+   ZHENIN - Main CSS (v2.7.1)
    Reset + Design Tokens + Base Typography
+   
+   CHANGELOG v2.7.1:
+   - CRITICAL FIX: [hidden] attribute selalu display: none
+   - FIX: Modal overlay tidak lagi force display: flex
    ============================================================ */
+
+/* ============================================================
+   0. CRITICAL: [HIDDEN] ATTRIBUTE
+   ============================================================ */
+[hidden] {
+  display: none !important;
+}
 
 /* ============================================================
    1. RESET
@@ -36,6 +47,7 @@ body {
   background: var(--z-bg);
 }
 
+/* ... rest of main.css tidak berubah ... */
 img, svg, video, canvas {
   display: block;
   max-width: 100%;

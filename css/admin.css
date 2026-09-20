@@ -721,13 +721,23 @@
   background: rgba(15, 11, 26, 0.85);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  display: flex;
+  display: none;  /* ⚠️ FIXED */
   align-items: center;
   justify-content: center;
   padding: var(--z-space-5);
   z-index: 9999;
-  animation: z-fade-in 0.2s ease;
   overflow-y: auto;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.admin-modal-overlay.show {
+  display: flex;
+  pointer-events: auto;
+  visibility: visible;
+  opacity: 1;
 }
 
 .admin-modal {
