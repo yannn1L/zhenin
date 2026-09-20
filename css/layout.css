@@ -596,17 +596,54 @@
 }
 
 /* ============================================================
-   11. RESPONSIVE: DESKTOP (>= 1024px)
+   ZHENIN - Layout (v2.7.5 Fixed Sidebar)
+   ============================================================ */
+
+/* 1. APP SHELL — Menggunakan CSS Grid yang Konsisten */
+.app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--z-bg);
+}
+
+/* 2. SCREEN BASE */
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--z-bg);
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease, visibility 0s linear 0.2s;
+  pointer-events: none;
+}
+
+.screen.active {
+  visibility: visible;
+  opacity: 1;
+  transition: opacity 0.2s ease, visibility 0s linear 0s;
+  pointer-events: auto;
+}
+
+/* ============================================================
+   RESPONSIVE: DESKTOP (>= 1024px) — Proper Sidebar Layout
    ============================================================ */
 @media (min-width: 1024px) {
   .app {
     display: grid;
     grid-template-columns: var(--z-sidebar-w) 1fr;
-    grid-template-rows: 1fr;
-    position: relative;
+    grid-template-rows: 100vh;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
   }
-
-  /* Splash, Login, Admin, Loading — absolute full screen, tidak ikut grid */
+  
+  /* Screen overlay / khusus (Splash, Login, dll) mengambil seluruh grid */
   .screen-splash,
   .screen-login,
   .screen-admin,
@@ -615,12 +652,12 @@
     inset: 0 !important;
     width: 100% !important;
     height: 100% !important;
-    grid-column: unset !important;
-    grid-row: unset !important;
+    grid-column: 1 / -1 !important;
+    grid-row: 1 !important;
     z-index: 100 !important;
   }
-
-  /* Screen normal — masuk grid */
+  
+  /* Screen aplikasi utama wajib dikunci di kolom ke-2 (di sebelah kanan sidebar) */
   .screen-home,
   .screen-ai,
   .screen-result,
@@ -632,87 +669,81 @@
     inset: auto;
     width: 100%;
     height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
-
-  /* Bottom nav di kolom 1 */
+  
+  /* Transformasi Sidebar Kiri yang Proper */
   .bottom-nav {
     position: relative;
     grid-column: 1;
     grid-row: 1;
-    width: 100%;
-    height: 100%;
+    width: var(--z-sidebar-w);
+    height: 100vh;
     display: flex;
     flex-direction: column;
-    align-items: stretch;
     justify-content: flex-start;
-    padding: var(--z-space-5) 0;
-    gap: var(--z-space-1);
+    padding: var(--z-space-6) var(--z-space-3);
+    gap: var(--z-space-2);
+    background: rgba(15, 11, 26, 0.98);
     border-top: none;
     border-right: 1px solid var(--z-border);
+    z-index: 40;
+    box-shadow: var(--z-shadow-md);
   }
-
+  
   .nav-item {
     flex-direction: row;
     justify-content: flex-start;
     gap: var(--z-space-3);
-    padding: var(--z-space-3) var(--z-space-5);
-    min-height: 48px;
-    border-radius: 0;
+    padding: var(--z-space-3) var(--z-space-4);
+    border-radius: var(--z-radius-md);
+    width: 100%;
+    background: transparent;
   }
-
+  
+  .nav-item:hover {
+    background: rgba(107, 63, 160, 0.15);
+    color: var(--z-gold);
+  }
+  
   .nav-item .nav-icon {
-    font-size: var(--z-fs-3xl);
+    font-size: var(--z-fs-2xl);
   }
-
+  
   .nav-item .nav-label {
-    font-size: var(--z-fs-base);
-    font-weight: 600;
-    letter-spacing: 0.5px;
+    font-size: var(--z-fs-sm);
+    display: inline-block;
   }
-
+  
+  /* Indikator aktif di sisi kiri sidebar */
   .nav-item.active {
-    background: rgba(107, 63, 160, 0.2);
+    background: rgba(107, 63, 160, 0.25);
+    color: var(--z-gold);
   }
 
   .nav-item.active::before {
+    content: '';
+    position: absolute;
     top: 0;
     bottom: 0;
     left: 0;
-    width: 3px;
+    width: 4px;
     height: 100%;
     transform: none;
-    border-radius: 0 3px 3px 0;
+    border-radius: 0 2px 2px 0;
+    background: var(--z-gold);
   }
-
-  .nav-item.active .nav-icon {
-    transform: none;
-  }
-
+  
   .screen-scroll {
-    max-width: 900px;
-    margin: 0 auto;
+    flex: 1;
+    overflow-y: auto;
     padding: var(--z-space-6);
+    max-width: 100%;
   }
-
-  .app-header {
-    padding: 0 var(--z-space-8);
-  }
-
+  
   .screen-bottom-spacer {
-    height: var(--z-space-6);
-  }
-
-  .quick-actions {
-    grid-template-columns: 1fr 1fr;
-    gap: var(--z-space-4);
-  }
-}
-
-/* ============================================================
-   12. RESPONSIVE: LARGE DESKTOP (>= 1440px)
-   ============================================================ */
-@media (min-width: 1440px) {
-  .screen-scroll {
-    max-width: 1100px;
+    display: none;
   }
 }
