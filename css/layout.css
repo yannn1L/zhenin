@@ -1,70 +1,78 @@
 /* ============================================================
-   ZHENIN — Layout CSS (v2.7.0)
-   App Shell + Screens + Grid Responsive
+   ZHENIN - Layout CSS (v2.6.2)
+   App structure, screens, responsive
    ============================================================ */
 
 /* ============================================================
-   1. APP SHELL — MOBILE FIRST
+   APP SHELL
    ============================================================ */
 .app {
   position: fixed;
   inset: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   background: var(--z-bg);
-  isolation: isolate;
+  overflow: hidden;
 }
 
 /* ============================================================
-   2. SCREEN BASE
+   SCREEN BASE
    ============================================================ */
 .screen {
   position: absolute;
   inset: 0;
-  display: flex;
+  display: none;
   flex-direction: column;
-  overflow: hidden;
   background: var(--z-bg);
-  visibility: hidden;
+  overflow: hidden;
   opacity: 0;
+  transition: opacity 0.2s ease;
   pointer-events: none;
-  transition: opacity 0.2s ease, visibility 0s linear 0.2s;
-  z-index: 1;
 }
-
 .screen.active {
-  visibility: visible;
+  display: flex;
   opacity: 1;
   pointer-events: auto;
-  transition: opacity 0.2s ease, visibility 0s linear 0s;
-  z-index: 2;
+  animation: z-fade-in 0.25s ease;
+}
+
+.screen-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: var(--z-s-lg);
+}
+
+.screen-bottom-spacer {
+  height: calc(var(--z-nav-h) + var(--z-safe-bottom) + var(--z-s-lg));
 }
 
 /* ============================================================
-   3. APP HEADER
+   APP HEADER
    ============================================================ */
 .app-header {
   display: flex;
   align-items: center;
-  gap: var(--z-space-3);
+  gap: var(--z-s-md);
   height: var(--z-header-h);
-  padding: 0 var(--z-space-4);
+  padding: 0 var(--z-s-lg);
   padding-top: var(--z-safe-top);
   background: rgba(26, 26, 46, 0.96);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--z-border);
   flex-shrink: 0;
-  z-index: var(--z-z-header);
+  z-index: 50;
+  position: sticky;
+  top: 0;
 }
 
 .app-header-left,
 .app-header-right {
   display: flex;
   align-items: center;
-  gap: var(--z-space-2);
-  flex-shrink: 0;
+  gap: var(--z-s-sm);
 }
 
 .app-header-center {
@@ -74,9 +82,9 @@
 }
 
 .app-header-title {
-  font-family: var(--z-font-display);
-  font-size: var(--z-text-lg);
-  font-weight: var(--z-font-semibold);
+  font-family: 'Cinzel', serif;
+  font-size: 1rem;
+  font-weight: 600;
   color: var(--z-gold);
   letter-spacing: 1px;
   overflow: hidden;
@@ -84,18 +92,18 @@
   white-space: nowrap;
 }
 
-/* User Avatar + Info */
+/* User avatar + info */
 .user-avatar {
   width: 40px;
   height: 40px;
-  border-radius: var(--z-radius-sm);
+  border-radius: var(--z-r-sm);
   background: var(--z-grad-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--z-font-display);
-  font-weight: var(--z-font-bold);
-  font-size: var(--z-text-md);
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 0.9375rem;
   color: var(--z-gold);
   border: 1px solid var(--z-border-strong);
   box-shadow: var(--z-shadow-glow);
@@ -104,18 +112,17 @@
 
 .user-info {
   min-width: 0;
-  flex: 1;
 }
 .user-greeting {
-  font-size: var(--z-text-xs);
+  font-size: 0.6875rem;
   color: var(--z-text-dim);
   line-height: 1.2;
 }
 .user-name {
-  font-size: var(--z-text-md);
-  font-weight: var(--z-font-bold);
+  font-size: 0.9375rem;
+  font-weight: 700;
   color: var(--z-text);
-  font-family: var(--z-font-display);
+  font-family: 'Cinzel', serif;
   letter-spacing: 0.5px;
   line-height: 1.2;
   overflow: hidden;
@@ -124,11 +131,11 @@
   max-width: 160px;
 }
 
-/* Icon Button */
+/* Icon button */
 .icon-btn {
   width: 40px;
   height: 40px;
-  border-radius: var(--z-radius-sm);
+  border-radius: var(--z-r-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -138,22 +145,17 @@
   transition: all var(--z-t-fast);
   flex-shrink: 0;
   position: relative;
-  font-size: var(--z-text-lg);
 }
 .icon-btn:hover,
 .icon-btn:active {
-  background: var(--z-surface-2);
+  background: rgba(107, 63, 160, 0.2);
   border-color: var(--z-border);
   color: var(--z-gold);
 }
-.icon-btn svg {
-  pointer-events: none;
-  width: 18px;
-  height: 18px;
-}
+.icon-btn svg { pointer-events: none; }
 
 /* ============================================================
-   4. BOTTOM NAVIGATION
+   BOTTOM NAV
    ============================================================ */
 .bottom-nav {
   position: absolute;
@@ -168,8 +170,7 @@
   border-top: 1px solid var(--z-border);
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  z-index: var(--z-z-nav);
-  flex-shrink: 0;
+  z-index: 40;
 }
 
 .nav-item {
@@ -181,23 +182,18 @@
   color: var(--z-text-dim);
   transition: color var(--z-t-fast);
   position: relative;
-  padding: var(--z-space-1) var(--z-space-1);
-  cursor: pointer;
-  font-family: inherit;
+  padding: 6px 4px;
 }
-
 .nav-item .nav-icon {
-  font-size: var(--z-text-lg);
+  font-size: 1.25rem;
   line-height: 1;
   transition: transform var(--z-t-base);
 }
 .nav-item .nav-label {
-  font-size: var(--z-text-xs);
-  font-weight: var(--z-font-semibold);
+  font-size: 0.625rem;
+  font-weight: 600;
   letter-spacing: 0.5px;
-  line-height: 1;
 }
-
 .nav-item.active {
   color: var(--z-gold);
 }
@@ -219,31 +215,13 @@
 }
 
 /* ============================================================
-   5. SCREEN SCROLL
-   ============================================================ */
-.screen-scroll {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: var(--z-space-4);
-  padding-left: var(--z-safe-left);
-  padding-right: var(--z-safe-right);
-  scroll-behavior: smooth;
-}
-
-.screen-bottom-spacer {
-  height: calc(var(--z-nav-h) + var(--z-safe-bottom) + var(--z-space-4));
-}
-
-/* ============================================================
-   6. SPLASH SCREEN
+   SPLASH SCREEN
    ============================================================ */
 .screen-splash {
   align-items: center;
   justify-content: center;
   background: radial-gradient(circle at center, var(--z-plum) 0%, var(--z-night) 70%);
-  padding: var(--z-space-8);
+  padding: var(--z-s-3xl);
   text-align: center;
   position: relative;
 }
@@ -251,7 +229,7 @@
 .splash-logo {
   width: 140px;
   height: 140px;
-  margin-bottom: var(--z-space-6);
+  margin-bottom: var(--z-s-2xl);
   animation: z-float 4s ease-in-out infinite;
 }
 .splash-logo svg {
@@ -261,25 +239,24 @@
 }
 
 .splash-title {
-  font-family: var(--z-font-display);
+  font-family: 'Cinzel', serif;
   font-size: 2.75rem;
-  font-weight: var(--z-font-bold);
+  font-weight: 700;
   color: var(--z-gold);
   letter-spacing: 8px;
-  margin-bottom: var(--z-space-2);
+  margin-bottom: var(--z-s-sm);
   text-shadow: 0 0 30px rgba(201, 169, 97, 0.5);
   padding-left: 8px;
-  line-height: 1;
 }
 
 .splash-subtitle {
-  font-family: var(--z-font-display);
-  font-size: var(--z-text-xs);
+  font-family: 'Cinzel', serif;
+  font-size: 0.6875rem;
   color: var(--z-lavender);
   letter-spacing: 6px;
   text-transform: uppercase;
   opacity: 0.85;
-  margin-bottom: var(--z-space-10);
+  margin-bottom: var(--z-s-3xl);
   padding-left: 6px;
 }
 
@@ -289,7 +266,7 @@
   background: rgba(201, 169, 97, 0.15);
   border-radius: 1px;
   overflow: hidden;
-  margin: 0 auto var(--z-space-4);
+  margin: 0 auto var(--z-s-lg);
 }
 .splash-loader-fill {
   height: 100%;
@@ -298,21 +275,26 @@
   animation: z-splash-load 2.2s ease-in-out forwards;
   box-shadow: 0 0 12px var(--z-gold);
 }
+@keyframes z-splash-load {
+  0% { width: 0; }
+  60% { width: 70%; }
+  100% { width: 100%; }
+}
 
 .splash-version {
   position: absolute;
-  bottom: var(--z-space-6);
+  bottom: var(--z-s-2xl);
   left: 0;
   right: 0;
   text-align: center;
-  font-family: var(--z-font-mono);
-  font-size: var(--z-text-xs);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.625rem;
   color: rgba(166, 123, 200, 0.35);
   letter-spacing: 1px;
 }
 
 /* ============================================================
-   7. LOGIN SCREEN
+   LOGIN SCREEN
    ============================================================ */
 .screen-login {
   background:
@@ -320,7 +302,7 @@
     radial-gradient(circle at 80% 90%, rgba(201, 169, 97, 0.12) 0%, transparent 50%),
     var(--z-deep);
   overflow-y: auto;
-  padding: calc(var(--z-safe-top) + var(--z-space-6)) var(--z-space-5) calc(var(--z-safe-bottom) + var(--z-space-6));
+  padding: calc(var(--z-safe-top) + var(--z-s-2xl)) var(--z-s-xl) calc(var(--z-safe-bottom) + var(--z-s-2xl));
 }
 
 .login-container {
@@ -334,14 +316,14 @@
 
 .login-header {
   text-align: center;
-  margin-bottom: var(--z-space-8);
-  padding-top: var(--z-space-5);
+  margin-bottom: var(--z-s-3xl);
+  padding-top: var(--z-s-xl);
 }
 
 .login-logo {
   width: 72px;
   height: 72px;
-  margin: 0 auto var(--z-space-4);
+  margin: 0 auto var(--z-s-lg);
 }
 .login-logo svg {
   width: 100%;
@@ -350,17 +332,16 @@
 }
 
 .login-title {
-  font-family: var(--z-font-display);
+  font-family: 'Cinzel', serif;
   font-size: 1.75rem;
-  font-weight: var(--z-font-bold);
+  font-weight: 700;
   color: var(--z-gold);
   letter-spacing: 5px;
-  margin-bottom: var(--z-space-1);
-  line-height: 1;
+  margin-bottom: 4px;
 }
 
 .login-subtitle {
-  font-size: var(--z-text-base);
+  font-size: 0.8125rem;
   color: var(--z-text-muted);
   letter-spacing: 0.5px;
 }
@@ -368,509 +349,84 @@
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: var(--z-space-4);
+  gap: var(--z-s-lg);
 }
 
 .login-help {
   text-align: center;
-  font-size: var(--z-text-base);
+  font-size: 0.8125rem;
   color: var(--z-text-muted);
-  margin-top: var(--z-space-2);
+  margin-top: var(--z-s-sm);
 }
 
 .login-footer {
   margin-top: auto;
-  padding-top: var(--z-space-6);
+  padding-top: var(--z-s-2xl);
   text-align: center;
 }
 .login-version {
-  font-family: var(--z-font-mono);
-  font-size: var(--z-text-xs);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.625rem;
   color: var(--z-text-dim);
   letter-spacing: 1px;
-  margin-bottom: var(--z-space-2);
+  margin-bottom: var(--z-s-sm);
 }
 .login-legal {
-  font-size: var(--z-text-xs);
+  font-size: 0.6875rem;
   color: var(--z-text-dim);
 }
 
 /* ============================================================
-   8. HOME SCREEN
+   HOME SCREEN
    ============================================================ */
 .screen-home .screen-scroll {
-  padding-top: var(--z-space-3);
+  padding-top: var(--z-s-md);
 }
 
 /* ============================================================
-   9. LOADING SCREEN
+   RESPONSIVE - TABLET
    ============================================================ */
-.screen-loading {
-  align-items: center;
-  justify-content: center;
-  background: radial-gradient(circle at center, rgba(107, 63, 160, 0.15) 0%, var(--z-deep) 70%);
-  padding: var(--z-space-8);
-  text-align: center;
-}
-
-.loading-fullscreen {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--z-space-4);
-  max-width: 340px;
-  width: 100%;
-}
-
-.loading-orb-large {
-  position: relative;
-  width: 120px;
-  height: 120px;
-  margin-bottom: var(--z-space-4);
-}
-
-.loading-orb-ring {
-  position: absolute;
-  inset: 0;
-  border: 2px solid transparent;
-  border-top-color: var(--z-gold);
-  border-right-color: var(--z-violet);
-  border-radius: 50%;
-  animation: z-spin 2s linear infinite;
-}
-
-.loading-orb-inner {
-  position: absolute;
-  inset: 32px;
-  background: var(--z-grad-primary);
-  border-radius: 50%;
-  animation: z-pulse 2s ease-in-out infinite;
-  box-shadow: 0 0 40px rgba(107, 63, 160, 0.6);
-}
-
-.loading-orb-pulse {
-  position: absolute;
-  inset: -8px;
-  border: 2px solid rgba(201, 169, 97, 0.3);
-  border-radius: 50%;
-  animation: z-orb-pulse 2s ease-out infinite;
-}
-
-.loading-title {
-  font-family: var(--z-font-display);
-  font-size: var(--z-text-xl);
-  font-weight: var(--z-font-bold);
-  color: var(--z-gold);
-  letter-spacing: 3px;
-  margin-bottom: var(--z-space-1);
-  line-height: 1.2;
-}
-
-.loading-message {
-  font-size: var(--z-text-base);
-  color: var(--z-text-muted);
-  min-height: 1.4em;
-  margin-bottom: var(--z-space-4);
-  line-height: 1.4;
-}
-
-.loading-bar {
-  width: 100%;
-  max-width: 280px;
-  height: 3px;
-  background: rgba(201, 169, 97, 0.15);
-  border-radius: 2px;
-  overflow: hidden;
-  margin-bottom: var(--z-space-3);
-}
-.loading-bar-fill {
-  height: 100%;
-  background: var(--z-grad-gold);
-  border-radius: 2px;
-  box-shadow: 0 0 12px var(--z-gold);
-  width: 0%;
-  transition: width 1s ease;
-}
-
-.loading-timer {
-  font-family: var(--z-font-mono);
-  font-size: var(--z-text-xl);
-  color: var(--z-gold);
-  letter-spacing: 2px;
-  text-shadow: 0 0 12px rgba(201, 169, 97, 0.4);
-  line-height: 1;
-}
-
-.loading-hint {
-  font-size: var(--z-text-xs);
-  color: var(--z-text-dim);
-  line-height: 1.4;
-  max-width: 260px;
-}
-
-/* ============================================================
-   10. RESULT SCREEN
-   ============================================================ */
-.screen-result {
-  background: #2A2A38;
-}
-
-.result-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--z-space-4);
-  -webkit-overflow-scrolling: touch;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.result-actions {
-  display: flex;
-  gap: var(--z-space-2);
-  padding: var(--z-space-3) var(--z-space-4);
-  padding-bottom: calc(var(--z-space-3) + var(--z-safe-bottom));
-  background: rgba(15, 11, 26, 0.96);
-  backdrop-filter: blur(20px);
-  border-top: 1px solid var(--z-border);
-  flex-shrink: 0;
-}
-.result-actions .btn {
-  flex: 1;
-}
-
-/* ============================================================
-   11. PROFILE SCREEN
-   ============================================================ */
-.profile-hero {
-  padding: var(--z-space-6) var(--z-space-4) var(--z-space-5);
-  text-align: center;
-  background: linear-gradient(180deg, var(--z-surface-2), transparent);
-}
-.profile-avatar-large {
-  width: 88px;
-  height: 88px;
-  border-radius: var(--z-radius-lg);
-  background: var(--z-grad-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--z-font-display);
-  font-size: 2rem;
-  font-weight: var(--z-font-bold);
-  color: var(--z-gold);
-  margin: 0 auto var(--z-space-4);
-  border: 2px solid var(--z-border-strong);
-  box-shadow: var(--z-shadow-glow);
-}
-.profile-name {
-  font-family: var(--z-font-display);
-  font-size: var(--z-text-xl);
-  font-weight: var(--z-font-bold);
-  color: var(--z-text);
-  letter-spacing: 1px;
-  margin-bottom: var(--z-space-1);
-}
-.profile-code {
-  display: inline-block;
-  font-family: var(--z-font-mono);
-  font-size: var(--z-text-xs);
-  color: var(--z-gold);
-  letter-spacing: 1px;
-  padding: var(--z-space-1) var(--z-space-3);
-  background: rgba(201, 169, 97, 0.1);
-  border: 1px solid rgba(201, 169, 97, 0.25);
-  border-radius: var(--z-radius-sm);
-}
-
-.profile-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--z-space-2);
-  margin: 0 var(--z-space-4) var(--z-space-5);
-}
-.profile-stat {
-  padding: var(--z-space-3);
-  background: var(--z-surface-1);
-  border: 1px solid var(--z-border);
-  border-radius: var(--z-radius-md);
-  text-align: center;
-}
-.profile-stat-value {
-  font-family: var(--z-font-display);
-  font-size: var(--z-text-2xl);
-  font-weight: var(--z-font-bold);
-  color: var(--z-gold);
-  line-height: 1;
-  margin-bottom: var(--z-space-1);
-}
-.profile-stat-label {
-  font-size: var(--z-text-xs);
-  font-weight: var(--z-font-semibold);
-  color: var(--z-text-muted);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-
-/* ============================================================
-   12. FILES SCREEN
-   ============================================================ */
-.files-filter {
-  display: flex;
-  gap: var(--z-space-1);
-  padding: var(--z-space-2) var(--z-space-4);
-  background: rgba(15, 11, 26, 0.6);
-  border-bottom: 1px solid var(--z-border);
-  flex-shrink: 0;
-  overflow-x: auto;
-}
-.files-filter::-webkit-scrollbar { height: 0; }
-
-.files-filter-btn {
-  padding: var(--z-space-2) var(--z-space-3);
-  background: var(--z-surface-2);
-  border: 1px solid transparent;
-  border-radius: var(--z-radius-full);
-  font-size: var(--z-text-sm);
-  font-weight: var(--z-font-semibold);
-  color: var(--z-text-muted);
-  cursor: pointer;
-  transition: all var(--z-t-fast);
-  font-family: inherit;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.files-filter-btn:hover {
-  background: var(--z-surface-3);
-  color: var(--z-gold);
-}
-.files-filter-btn.active {
-  background: var(--z-grad-primary);
-  color: var(--z-white);
-  border-color: var(--z-border-strong);
-}
-
-/* ============================================================
-   13. RESPONSIVE — TABLET (768-1023)
-   ============================================================ */
-@media (min-width: 768px) and (max-width: 1023px) {
+@media (min-width: 768px) {
   html { font-size: 16px; }
 
-  /* Grid layout dengan sidebar */
-  .app {
-    display: grid;
-    grid-template-columns: var(--z-sidebar-w-tablet) 1fr;
-    grid-template-rows: 1fr;
-  }
-
-  /* Nav jadi sidebar kiri */
-  .bottom-nav {
-    position: relative;
-    grid-column: 1;
-    grid-row: 1;
-    bottom: auto;
-    left: auto;
-    right: auto;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    justify-content: flex-start;
-    padding: var(--z-space-4) 0;
-    padding-top: calc(var(--z-safe-top) + var(--z-space-4));
-    padding-bottom: calc(var(--z-safe-bottom) + var(--z-space-4));
-    gap: var(--z-space-2);
-    border-top: none;
-    border-right: 1px solid var(--z-border);
-    grid-template-columns: none;
-  }
-
-  .nav-item {
-    flex-direction: column;
-    gap: 3px;
-    padding: var(--z-space-2) var(--z-space-1);
-  }
-  .nav-item .nav-icon { font-size: var(--z-text-lg); }
-  .nav-item .nav-label { font-size: var(--z-text-xs); }
-
-  .nav-item.active::before {
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 3px;
-    height: 100%;
-    transform: none;
-    border-radius: 0 3px 3px 0;
-  }
-
-  /* Screen di kolom kanan */
-  .screen {
-    grid-column: 2;
-    grid-row: 1;
-    position: relative;
-    inset: auto;
-    width: 100%;
-    height: 100%;
-  }
-
-  /* Content padding */
-  .screen-scroll {
-    padding-left: var(--z-space-6);
-    padding-right: var(--z-space-6);
-    padding-top: var(--z-space-4);
-    padding-bottom: var(--z-space-4);
-  }
-
   .app-header {
-    padding: 0 var(--z-space-6);
+    padding: 0 var(--z-s-2xl);
   }
 
-  /* Bottom spacer tidak perlu */
-  .screen-bottom-spacer {
-    height: var(--z-space-4);
+  .screen-scroll {
+    padding-left: var(--z-s-2xl);
+    padding-right: var(--z-s-2xl);
   }
 
-  /* Quick actions grid 2 col */
   .quick-actions {
     grid-template-columns: 1fr 1fr;
-    gap: var(--z-space-3);
+    gap: var(--z-s-lg);
   }
 
-  /* Doc list 2 col */
   .doc-list {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--z-space-3);
+    gap: var(--z-s-md);
+  }
+
+  .ai-form {
+    max-width: 720px;
+    margin: 0 auto;
   }
 }
 
 /* ============================================================
-   14. RESPONSIVE — DESKTOP (1024+)
+   RESPONSIVE - DESKTOP
    ============================================================ */
 @media (min-width: 1024px) {
-  html { font-size: 16px; }
-
-  .app {
-    display: grid;
-    grid-template-columns: var(--z-sidebar-w) 1fr;
-    grid-template-rows: 1fr;
-  }
-
-  /* Nav jadi sidebar lebar */
-  .bottom-nav {
-    position: relative;
-    grid-column: 1;
-    grid-row: 1;
-    bottom: auto;
-    left: auto;
-    right: auto;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    justify-content: flex-start;
-    padding: var(--z-space-6) 0;
-    padding-top: calc(var(--z-safe-top) + var(--z-space-6));
-    padding-bottom: calc(var(--z-safe-bottom) + var(--z-space-6));
-    gap: var(--z-space-1);
-    border-top: none;
-    border-right: 1px solid var(--z-border);
-    background: rgba(15, 11, 26, 0.98);
-    grid-template-columns: none;
-  }
-
-  .nav-item {
-    flex-direction: row;
-    justify-content: flex-start;
-    gap: var(--z-space-3);
-    padding: var(--z-space-3) var(--z-space-5);
-    border-radius: 0;
-    min-height: 48px;
-    margin: 0 var(--z-space-3);
-    border-radius: var(--z-radius-sm);
-  }
-  .nav-item .nav-icon { font-size: var(--z-text-xl); }
-  .nav-item .nav-label {
-    font-size: var(--z-text-base);
-    font-weight: var(--z-font-semibold);
-    letter-spacing: 0.5px;
-  }
-  .nav-item:hover {
-    background: var(--z-surface-1);
-  }
-  .nav-item.active {
-    background: var(--z-surface-2);
-  }
-  .nav-item.active::before {
-    top: 50%;
-    bottom: auto;
-    left: 0;
-    width: 3px;
-    height: 24px;
-    transform: translateY(-50%);
-    border-radius: 0 3px 3px 0;
-  }
-  .nav-item.active .nav-icon {
-    transform: none;
-  }
-
-  /* Screen di kolom kanan */
-  .screen {
-    grid-column: 2;
-    grid-row: 1;
-    position: relative;
-    inset: auto;
-    width: 100%;
-    height: 100%;
-  }
-
-  /* Content max-width + center */
-  .screen-scroll {
-    max-width: 900px;
-    margin: 0 auto;
-    width: 100%;
-    padding: var(--z-space-6);
-    padding-top: var(--z-space-5);
-  }
-
-  .app-header {
-    padding: 0 var(--z-space-8);
-  }
-
-  /* Bottom spacer tidak perlu */
-  .screen-bottom-spacer {
-    height: var(--z-space-6);
-  }
-
-  /* Quick actions */
-  .quick-actions {
-    grid-template-columns: 1fr 1fr;
-    gap: var(--z-space-4);
-  }
-
-  /* Doc list 2 col */
-  .doc-list {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--z-space-3);
-  }
-
-  /* Splash bigger */
-  .splash-logo {
-    width: 180px;
-    height: 180px;
-  }
-  .splash-title { font-size: 3.5rem; letter-spacing: 10px; }
-}
-
-/* ============================================================
-   15. RESPONSIVE — LARGE DESKTOP (1440+)
-   ============================================================ */
-@media (min-width: 1440px) {
   .screen-scroll {
     max-width: 1100px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .quick-actions {
+    grid-template-columns: 1fr 1fr;
   }
 
   .doc-list {
@@ -879,102 +435,12 @@
 }
 
 /* ============================================================
-   16. LANDSCAPE MOBILE
+   ADMIN MODE (body[data-mode="admin"])
    ============================================================ */
-@media (orientation: landscape) and (max-height: 500px) and (max-width: 767px) {
-  /* Nav jadi horizontal tipis */
-  .bottom-nav {
-    height: var(--z-nav-h-compact);
-    padding-bottom: 0;
-  }
-
-  .nav-item {
-    flex-direction: row;
-    gap: var(--z-space-1);
-    padding: var(--z-space-1) var(--z-space-2);
-  }
-  .nav-item .nav-icon { font-size: var(--z-text-base); }
-  .nav-item .nav-label { font-size: 0.5625rem; }
-
-  .nav-item.active::before {
-    top: auto;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 20px;
-    height: 2px;
-    border-radius: 2px 2px 0 0;
-  }
-  .nav-item.active .nav-icon {
-    transform: none;
-    filter: none;
-  }
-
-  /* Header kompak */
-  .app-header {
-    height: var(--z-header-h-compact);
-    padding: 0 var(--z-space-4);
-  }
-
-  /* Bottom spacer */
-  .screen-bottom-spacer {
-    height: calc(var(--z-nav-h-compact) + var(--z-safe-bottom) + var(--z-space-2));
-  }
-
-  /* Splash kompak */
-  .splash-logo {
-    width: 80px;
-    height: 80px;
-    margin-bottom: var(--z-space-3);
-  }
-  .splash-title {
-    font-size: 1.75rem;
-    letter-spacing: 5px;
-  }
-  .splash-subtitle {
-    font-size: 0.5625rem;
-    letter-spacing: 4px;
-    margin-bottom: var(--z-space-5);
-  }
-  .splash-loader {
-    width: 160px;
-  }
-
-  /* Loading compact */
-  .loading-orb-large {
-    width: 80px;
-    height: 80px;
-    margin-bottom: var(--z-space-3);
-  }
-  .loading-orb-inner { inset: 22px; }
-  .loading-title { font-size: var(--z-text-lg); letter-spacing: 2px; }
-
-  /* Login compact */
-  .login-header {
-    margin-bottom: var(--z-space-5);
-    padding-top: var(--z-space-3);
-  }
-  .login-logo {
-    width: 56px;
-    height: 56px;
-    margin-bottom: var(--z-space-3);
-  }
-  .login-title { font-size: 1.375rem; letter-spacing: 3px; }
+body[data-mode="admin"] .app {
+  background: var(--z-bg);
 }
 
-/* ============================================================
-   17. LANDSCAPE TABLET (768-1023, max-height 600)
-   ============================================================ */
-@media (orientation: landscape) and (max-height: 600px) and (min-width: 768px) {
-  .splash-logo {
-    width: 100px;
-    height: 100px;
-    margin-bottom: var(--z-space-3);
-  }
-  .splash-title { font-size: 2rem; letter-spacing: 6px; }
-  .splash-subtitle { margin-bottom: var(--z-space-6); }
-
-  .login-header {
-    margin-bottom: var(--z-space-5);
-  }
+body[data-mode="admin"] .bottom-nav {
+  display: none;
 }

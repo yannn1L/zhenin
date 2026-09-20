@@ -1,185 +1,153 @@
 /* ============================================================
-   ZHENIN - Admin Panel CSS (v2.7.0)
-   Standalone admin interface (URL: ?admin=1)
-   
-   CHANGELOG v2.7.0:
-   - Full rewrite: hapus semua duplikasi
-   - Struktur logis: Login → Layout → Dashboard → Forms → Users → Modals
-   - Semua pakai design tokens v2.7.0
-   - Consistent spacing & radius
-   - Better responsive: tablet & desktop optimized
-   - Scroll fix: proper overflow handling
+   ZHENIN - Admin Panel CSS (v2.6.2)
    ============================================================ */
 
 /* ============================================================
-   1. ADMIN SHELL
+   ADMIN APP SHELL
    ============================================================ */
 .admin-app {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
+  height: 100vh;
+  max-height: 100vh;
   background: var(--z-bg);
   color: var(--z-text);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
 /* ============================================================
-   2. LOGIN SCREEN
+   LOGIN
    ============================================================ */
 .admin-login-wrap {
-  position: fixed;
-  inset: 0;
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--z-space-5);
+  padding: 20px;
   background: radial-gradient(circle at center, var(--z-plum) 0%, var(--z-night) 70%);
-  overflow-y: auto;
 }
-
 .admin-login-card {
   background: var(--z-deep);
   border: 1px solid var(--z-border);
-  border-radius: var(--z-radius-lg);
-  padding: var(--z-space-10) var(--z-space-8);
+  border-radius: var(--z-r-lg);
+  padding: 40px 32px;
   max-width: 400px;
   width: 100%;
   text-align: center;
-  box-shadow: var(--z-shadow-xl);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
-
 .admin-login-logo {
   width: 72px;
   height: 72px;
-  margin: 0 auto var(--z-space-5);
+  margin: 0 auto 20px;
 }
-
 .admin-login-logo svg {
   width: 100%;
   height: 100%;
   filter: drop-shadow(0 0 20px rgba(201, 169, 97, 0.4));
 }
-
 .admin-login-title {
   font-family: 'Cinzel', serif;
-  font-size: var(--z-fs-5xl);
+  font-size: 1.75rem;
   color: var(--z-gold);
   letter-spacing: 5px;
-  margin-bottom: var(--z-space-1);
+  margin-bottom: 4px;
 }
-
 .admin-login-subtitle {
-  font-size: var(--z-fs-base);
+  font-size: 0.8125rem;
   color: var(--z-text-muted);
   letter-spacing: 0.5px;
-  margin-bottom: var(--z-space-6);
+  margin-bottom: 28px;
 }
-
-.admin-login-footer {
-  margin-top: var(--z-space-5);
-}
-
+.admin-login-footer { margin-top: 20px; }
 .admin-login-version {
   font-family: 'JetBrains Mono', monospace;
-  font-size: var(--z-fs-xs);
+  font-size: 0.625rem;
   color: var(--z-text-dim);
-  margin-top: var(--z-space-4);
+  margin-top: 16px;
 }
 
 /* ============================================================
-   3. ADMIN HEADER
+   HEADER
    ============================================================ */
 .admin-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--z-space-3) var(--z-space-5);
+  padding: 14px 20px;
   background: var(--z-night);
   border-bottom: 1px solid var(--z-border);
-  flex-shrink: 0;
+  position: sticky;
+  top: 0;
   z-index: 100;
+  flex-shrink: 0;
 }
-
 .admin-header-left {
   display: flex;
   align-items: center;
-  gap: var(--z-space-3);
+  gap: 12px;
 }
-
 .admin-logo {
   width: 40px;
   height: 40px;
-  border-radius: var(--z-radius-sm);
+  border-radius: var(--z-r-sm);
   background: var(--z-grad-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--z-fs-2xl);
+  font-size: 1.125rem;
   border: 1px solid var(--z-border-strong);
-  flex-shrink: 0;
 }
-
 .admin-title {
   font-family: 'Cinzel', serif;
-  font-size: var(--z-fs-md);
+  font-size: 0.875rem;
   color: var(--z-gold);
   letter-spacing: 1.5px;
   font-weight: 700;
 }
-
 .admin-subtitle {
-  font-size: var(--z-fs-xs);
+  font-size: 0.625rem;
   color: var(--z-text-muted);
   letter-spacing: 1px;
 }
-
 .admin-header-right {
   display: flex;
-  gap: var(--z-space-2);
+  gap: 8px;
 }
 
 /* ============================================================
-   4. ADMIN NAVIGATION
+   NAV
    ============================================================ */
 .admin-nav {
   display: flex;
-  gap: var(--z-space-1);
-  padding: var(--z-space-2) var(--z-space-5);
+  gap: 4px;
+  padding: 8px 20px;
   background: var(--z-night);
   border-bottom: 1px solid var(--z-border);
   overflow-x: auto;
   flex-shrink: 0;
-  scrollbar-width: none;
 }
-
-.admin-nav::-webkit-scrollbar {
-  height: 0;
-}
-
+.admin-nav::-webkit-scrollbar { height: 0; }
 .admin-nav-btn {
-  padding: var(--z-space-3) var(--z-space-4);
+  padding: 10px 16px;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--z-radius-sm);
-  font-size: var(--z-fs-sm);
+  border-radius: var(--z-r-sm);
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--z-text-muted);
   cursor: pointer;
-  transition: all var(--z-t-fast);
+  transition: all 0.15s;
   white-space: nowrap;
   font-family: inherit;
   display: flex;
   align-items: center;
-  gap: var(--z-space-1);
-  flex-shrink: 0;
+  gap: 6px;
 }
-
 .admin-nav-btn:hover {
   background: rgba(107, 63, 160, 0.15);
   color: var(--z-gold);
 }
-
 .admin-nav-btn.active {
   background: var(--z-grad-primary);
   color: white;
@@ -188,119 +156,90 @@
 }
 
 /* ============================================================
-   5. ADMIN MAIN (scrollable)
+   MAIN (SCROLLABLE)
    ============================================================ */
 .admin-main {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  padding: var(--z-space-5);
-  scrollbar-width: thin;
-}
-
-.admin-main::-webkit-scrollbar {
-  width: 8px;
-}
-
-.admin-main::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.admin-main::-webkit-scrollbar-thumb {
-  background: rgba(201, 169, 97, 0.2);
-  border-radius: 4px;
-}
-
-.admin-main::-webkit-scrollbar-thumb:hover {
-  background: rgba(201, 169, 97, 0.4);
-}
-
-/* Content max-width di desktop */
-.admin-main > * {
+  padding: 20px;
   max-width: 1200px;
-  margin-left: auto;
-  margin-right: auto;
+  margin: 0 auto;
+  width: 100%;
+  height: calc(100vh - 130px);
+  min-height: 0;
 }
 
 /* ============================================================
-   6. ADMIN SECTIONS
+   SECTION
    ============================================================ */
 .admin-section {
   background: var(--z-deep);
   border: 1px solid var(--z-border);
-  border-radius: var(--z-radius-md);
-  padding: var(--z-space-5);
-  margin-bottom: var(--z-space-4);
+  border-radius: var(--z-r-md);
+  padding: 20px;
+  margin-bottom: 16px;
 }
-
 .admin-section-title {
   font-family: 'Cinzel', serif;
-  font-size: var(--z-fs-xl);
+  font-size: 1rem;
   color: var(--z-gold);
   letter-spacing: 0.5px;
-  margin-bottom: var(--z-space-2);
+  margin-bottom: 8px;
 }
-
 .admin-section-desc {
-  font-size: var(--z-fs-base);
+  font-size: 0.8125rem;
   color: var(--z-text-muted);
   line-height: 1.5;
-  margin-bottom: var(--z-space-4);
+  margin-bottom: 16px;
 }
 
 /* ============================================================
-   7. DASHBOARD STATS
+   STATS GRID
    ============================================================ */
 .admin-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: var(--z-space-3);
-  margin-top: var(--z-space-4);
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
 }
-
 .admin-stat-card {
-  padding: var(--z-space-4);
+  padding: 16px;
   background: linear-gradient(135deg, rgba(107, 63, 160, 0.15), rgba(74, 44, 90, 0.3));
   border: 1px solid var(--z-border);
-  border-radius: var(--z-radius-md);
+  border-radius: var(--z-r-md);
   text-align: center;
-  transition: all var(--z-t-fast);
+  transition: all 0.15s;
 }
-
 .admin-stat-card:hover {
   border-color: var(--z-border-strong);
   transform: translateY(-2px);
 }
-
 .admin-stat-card.warning {
   background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(74, 44, 90, 0.3));
   border-color: rgba(251, 191, 36, 0.3);
 }
-
 .admin-stat-icon {
-  font-size: var(--z-fs-4xl);
-  margin-bottom: var(--z-space-2);
+  font-size: 1.5rem;
+  margin-bottom: 8px;
 }
-
 .admin-stat-value {
   font-family: 'Cinzel', serif;
-  font-size: var(--z-fs-5xl);
+  font-size: 1.75rem;
   font-weight: 700;
   color: var(--z-gold);
   line-height: 1;
-  margin-bottom: var(--z-space-1);
+  margin-bottom: 4px;
 }
-
 .admin-stat-value .unit {
-  font-size: var(--z-fs-sm);
+  font-size: 0.75rem;
   font-family: 'Inter', sans-serif;
   color: var(--z-lavender);
   margin-left: 2px;
 }
-
 .admin-stat-label {
-  font-size: var(--z-fs-xs);
+  font-size: 0.6875rem;
   font-weight: 600;
   color: var(--z-text-muted);
   text-transform: uppercase;
@@ -308,157 +247,128 @@
 }
 
 /* ============================================================
-   8. QUICK ACTIONS
+   QUICK ACTIONS
    ============================================================ */
 .admin-quick-actions {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--z-space-2);
-  margin-top: var(--z-space-3);
+  gap: 10px;
+  margin-top: 12px;
 }
-
 .admin-quick-btn {
   display: flex;
   align-items: center;
-  gap: var(--z-space-3);
-  padding: var(--z-space-3) var(--z-space-4);
+  gap: 12px;
+  padding: 14px;
   background: rgba(74, 44, 90, 0.3);
   border: 1px solid var(--z-border);
-  border-radius: var(--z-radius-md);
+  border-radius: var(--z-r-md);
   cursor: pointer;
   text-align: left;
-  transition: all var(--z-t-fast);
+  transition: all 0.15s;
   font-family: inherit;
   color: var(--z-text);
 }
-
 .admin-quick-btn:hover {
   background: rgba(107, 63, 160, 0.25);
   border-color: var(--z-border-strong);
   transform: translateX(2px);
 }
-
 .admin-quick-icon {
   width: 42px;
   height: 42px;
-  border-radius: var(--z-radius-sm);
+  border-radius: var(--z-r-sm);
   background: rgba(107, 63, 160, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--z-fs-2xl);
+  font-size: 1.125rem;
   flex-shrink: 0;
 }
-
 .admin-quick-text strong {
   display: block;
-  font-size: var(--z-fs-md);
+  font-size: 0.875rem;
   color: var(--z-text);
   margin-bottom: 2px;
 }
-
 .admin-quick-text small {
-  font-size: var(--z-fs-xs);
+  font-size: 0.6875rem;
   color: var(--z-text-muted);
 }
 
 /* ============================================================
-   9. FORMS (in admin)
+   FORMS
    ============================================================ */
 .admin-form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--z-space-3);
-  margin-bottom: var(--z-space-4);
+  gap: 12px;
+  margin-bottom: 16px;
 }
-
 .admin-form-grid-1 {
   display: grid;
   grid-template-columns: 1fr;
-  gap: var(--z-space-3);
-  margin-bottom: var(--z-space-4);
+  gap: 12px;
+  margin-bottom: 16px;
 }
-
 .form-textarea-lg {
   font-family: 'JetBrains Mono', monospace;
-  font-size: var(--z-fs-sm);
+  font-size: 0.75rem;
   min-height: 180px;
   resize: vertical;
 }
 
 /* ============================================================
-   10. GENERATE RESULT (Code list)
+   CODE LIST (Generate Result)
    ============================================================ */
 .admin-result-actions {
   display: flex;
-  gap: var(--z-space-2);
-  margin-bottom: var(--z-space-3);
-  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
 }
-
 .admin-code-list {
   max-height: 400px;
   overflow-y: auto;
   background: var(--z-night);
   border: 1px solid var(--z-border);
-  border-radius: var(--z-radius-sm);
-  padding: var(--z-space-2);
-  scrollbar-width: thin;
+  border-radius: var(--z-r-sm);
+  padding: 8px;
 }
-
-.admin-code-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.admin-code-list::-webkit-scrollbar-thumb {
-  background: rgba(201, 169, 97, 0.2);
-  border-radius: 3px;
-}
-
 .admin-code-item {
   display: flex;
   align-items: center;
-  gap: var(--z-space-3);
-  padding: var(--z-space-2) var(--z-space-3);
+  gap: 10px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--z-border);
 }
-
-.admin-code-item:last-child {
-  border-bottom: none;
-}
-
+.admin-code-item:last-child { border-bottom: none; }
 .admin-code-num {
   font-family: 'JetBrains Mono', monospace;
-  font-size: var(--z-fs-xs);
+  font-size: 0.6875rem;
   color: var(--z-text-dim);
   min-width: 24px;
 }
-
 .admin-code-text {
   flex: 1;
   font-family: 'JetBrains Mono', monospace;
-  font-size: var(--z-fs-base);
+  font-size: 0.8125rem;
   color: var(--z-gold);
   letter-spacing: 0.5px;
-  word-break: break-all;
 }
-
 .admin-code-copy {
   background: transparent;
   border: 1px solid var(--z-border);
-  border-radius: var(--z-radius-sm);
+  border-radius: var(--z-r-sm);
   width: 32px;
   height: 32px;
   cursor: pointer;
   color: var(--z-lavender);
-  font-size: var(--z-fs-md);
+  font-size: 0.875rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all var(--z-t-fast);
-  flex-shrink: 0;
+  transition: all 0.15s;
 }
-
 .admin-code-copy:hover {
   background: rgba(107, 63, 160, 0.3);
   color: var(--z-gold);
@@ -466,222 +376,172 @@
 }
 
 /* ============================================================
-   11. USER CARD (detail dalam modal)
+   USER CARD
    ============================================================ */
 .admin-user-card {
-  padding: var(--z-space-3) var(--z-space-4);
+  padding: 14px;
   background: rgba(74, 44, 90, 0.3);
   border: 1px solid var(--z-border);
-  border-radius: var(--z-radius-md);
-  margin-bottom: var(--z-space-4);
+  border-radius: var(--z-r-md);
+  margin-bottom: 16px;
 }
-
 .admin-user-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--z-space-2) 0;
-  font-size: var(--z-fs-base);
+  padding: 6px 0;
+  font-size: 0.8125rem;
   border-bottom: 1px solid var(--z-border);
-  gap: var(--z-space-3);
 }
-
-.admin-user-row:last-child {
-  border-bottom: none;
-}
-
-.admin-user-row span:first-child {
-  color: var(--z-text-muted);
-  flex-shrink: 0;
-}
-
-.admin-user-row strong {
-  text-align: right;
-  word-break: break-word;
-}
-
+.admin-user-row:last-child { border-bottom: none; }
+.admin-user-row span:first-child { color: var(--z-text-muted); }
 .admin-user-row code {
   font-family: 'JetBrains Mono', monospace;
-  font-size: var(--z-fs-sm);
+  font-size: 0.75rem;
   background: var(--z-night);
   padding: 3px 8px;
-  border-radius: var(--z-radius-sm);
+  border-radius: 4px;
   color: var(--z-gold);
-  word-break: break-all;
-  text-align: right;
 }
 
 /* ============================================================
-   12. BADGES
+   BADGE
    ============================================================ */
 .admin-badge {
-  font-size: var(--z-fs-xs);
+  font-size: 0.625rem;
   font-weight: 700;
   padding: 3px 8px;
-  border-radius: var(--z-radius-full);
+  border-radius: var(--z-r-full);
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  white-space: nowrap;
 }
-
 .admin-badge-used {
   background: rgba(74, 222, 128, 0.15);
   color: var(--z-success);
 }
-
 .admin-badge-unused {
   background: rgba(96, 165, 250, 0.15);
   color: var(--z-info);
 }
-
 .admin-badge-revoked {
   background: rgba(248, 113, 113, 0.15);
   color: var(--z-error);
 }
 
 /* ============================================================
-   13. USERS TOOLBAR
+   USERS TOOLBAR
    ============================================================ */
 .admin-users-toolbar {
   display: flex;
-  gap: var(--z-space-3);
+  gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: var(--z-space-4);
+  margin-bottom: 16px;
 }
-
 .admin-search-input {
   flex: 1;
   min-width: 200px;
 }
-
 .admin-filter-group {
   display: flex;
-  gap: var(--z-space-1);
+  gap: 4px;
   padding: 2px;
   background: rgba(74, 44, 90, 0.3);
   border: 1px solid var(--z-border);
-  border-radius: var(--z-radius-sm);
-  overflow-x: auto;
-  scrollbar-width: none;
+  border-radius: var(--z-r-sm);
 }
-
-.admin-filter-group::-webkit-scrollbar {
-  height: 0;
-}
-
 .admin-filter-btn {
-  padding: var(--z-space-2) var(--z-space-3);
+  padding: 8px 14px;
   background: transparent;
   border: none;
-  border-radius: var(--z-radius-sm);
-  font-size: var(--z-fs-xs);
+  border-radius: var(--z-r-sm);
+  font-size: 0.6875rem;
   font-weight: 600;
   color: var(--z-text-muted);
   cursor: pointer;
-  transition: all var(--z-t-fast);
+  transition: all 0.15s;
   font-family: inherit;
   white-space: nowrap;
-  flex-shrink: 0;
 }
-
-.admin-filter-btn:hover {
-  color: var(--z-gold);
-}
-
+.admin-filter-btn:hover { color: var(--z-gold); }
 .admin-filter-btn.active {
   background: var(--z-grad-primary);
   color: white;
 }
 
 /* ============================================================
-   14. USERS LIST
+   USERS LIST
    ============================================================ */
 .admin-users-list {
   display: flex;
   flex-direction: column;
-  gap: var(--z-space-2);
+  gap: 8px;
 }
-
 .admin-user-item {
   display: flex;
   align-items: center;
-  gap: var(--z-space-3);
-  padding: var(--z-space-4);
+  gap: 12px;
+  padding: 14px;
   background: rgba(74, 44, 90, 0.2);
   border: 1px solid var(--z-border);
-  border-radius: var(--z-radius-md);
+  border-radius: var(--z-r-md);
   cursor: pointer;
-  transition: all var(--z-t-fast);
+  transition: all 0.15s;
 }
-
 .admin-user-item:hover {
   background: rgba(74, 44, 90, 0.35);
   border-color: var(--z-border-strong);
 }
-
 .admin-user-item-main {
   flex: 1;
   min-width: 0;
 }
 
 .admin-user-item-header {
-  margin-bottom: var(--z-space-1);
+  margin-bottom: 6px;
 }
 
 .admin-user-item-username {
-  font-size: var(--z-fs-md);
+  font-size: 0.875rem;
   font-weight: 600;
   color: var(--z-lavender);
   margin-bottom: 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
-
 .admin-user-item-username.empty {
   color: var(--z-text-dim);
   font-style: italic;
   font-weight: 400;
-  font-size: var(--z-fs-sm);
+  font-size: 0.75rem;
 }
 
 .admin-user-item-code {
   font-family: 'JetBrains Mono', monospace;
-  font-size: var(--z-fs-sm);
-  color: var(--z-gold);
+  font-size: 0.75rem;
+  color: var(--z-text-muted);
   letter-spacing: 0.5px;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .admin-user-item-meta {
   display: flex;
-  gap: var(--z-space-3);
+  gap: 10px;
   flex-wrap: wrap;
-  font-size: var(--z-fs-xs);
+  font-size: 0.6875rem;
   color: var(--z-text-muted);
   align-items: center;
-  margin-top: var(--z-space-1);
 }
-
 .admin-user-item-menu {
   width: 36px;
   height: 36px;
-  border-radius: var(--z-radius-sm);
+  border-radius: var(--z-r-sm);
   background: transparent;
   border: 1px solid transparent;
   color: var(--z-text-muted);
-  font-size: var(--z-fs-3xl);
+  font-size: 1.125rem;
   cursor: pointer;
-  transition: all var(--z-t-fast);
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  transition: all 0.15s;
 }
-
 .admin-user-item-menu:hover {
   background: rgba(107, 63, 160, 0.3);
   color: var(--z-gold);
@@ -689,333 +549,126 @@
 }
 
 /* ============================================================
-   15. PAGINATION
+   PAGINATION
    ============================================================ */
 .admin-pagination {
   display: flex;
   justify-content: center;
-  padding: var(--z-space-4) 0;
+  padding: 16px 0;
 }
-
 .admin-pagination-buttons {
   display: flex;
   align-items: center;
-  gap: var(--z-space-3);
-  flex-wrap: wrap;
-  justify-content: center;
+  gap: 12px;
 }
-
 .admin-pagination-info {
-  font-size: var(--z-fs-sm);
+  font-size: 0.75rem;
   color: var(--z-text-muted);
   font-family: 'JetBrains Mono', monospace;
-  white-space: nowrap;
 }
 
 /* ============================================================
-   16. MODAL (user actions)
+   USER ACTION MODAL
    ============================================================ */
 .admin-modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(15, 11, 26, 0.85);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  display: none;  /* ⚠️ FIXED */
+  backdrop-filter: blur(4px);
+  display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--z-space-5);
+  padding: 20px;
   z-index: 9999;
-  overflow-y: auto;
-  pointer-events: none;
-  visibility: hidden;
-  opacity: 0;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
 }
-
-.admin-modal-overlay.show {
-  display: flex;
-  pointer-events: auto;
-  visibility: visible;
-  opacity: 1;
-}
-
 .admin-modal {
   background: var(--z-deep);
   border: 1px solid var(--z-border-strong);
-  border-radius: var(--z-radius-lg);
+  border-radius: var(--z-r-lg);
   max-width: 480px;
   width: 100%;
-  box-shadow: var(--z-shadow-xl);
-  animation: z-modal-in 0.2s var(--z-t-slow);
-  margin: auto;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  animation: z-modal-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
-
 .admin-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--z-space-3);
-  padding: var(--z-space-4);
+  padding: 16px 20px;
   border-bottom: 1px solid var(--z-border);
-  flex-shrink: 0;
 }
-
 .admin-modal-header h3 {
   font-family: 'JetBrains Mono', monospace;
-  font-size: var(--z-fs-md);
+  font-size: 0.875rem;
   color: var(--z-gold);
   font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
+.admin-modal-body { padding: 20px; }
 
-.admin-modal-body {
-  padding: var(--z-space-5);
-  overflow-y: auto;
-  flex: 1;
-}
-
-.admin-user-detail {
-  margin-bottom: var(--z-space-5);
-}
-
+.admin-user-detail { margin-bottom: 20px; }
 .admin-action-buttons {
   display: flex;
   flex-direction: column;
-  gap: var(--z-space-2);
+  gap: 8px;
 }
 
 /* ============================================================
-   17. PRICING EDITOR
+   PRICING LIST
    ============================================================ */
 .admin-pricing-item {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr 1.2fr auto;
-  gap: var(--z-space-2);
-  padding: var(--z-space-3);
+  gap: 8px;
+  padding: 10px;
   background: rgba(74, 44, 90, 0.2);
   border: 1px solid var(--z-border);
-  border-radius: var(--z-radius-sm);
-  margin-bottom: var(--z-space-2);
+  border-radius: var(--z-r-sm);
+  margin-bottom: 8px;
   align-items: center;
 }
-
 .admin-pricing-actions {
   display: flex;
-  gap: var(--z-space-2);
-  margin-top: var(--z-space-3);
+  gap: 8px;
+  margin-top: 12px;
   justify-content: flex-end;
-  flex-wrap: wrap;
 }
 
-/* ============================================================
-   18. EMPTY / ERROR / LOADING STATES
-   ============================================================ */
-.admin-empty,
-.admin-loading-placeholder {
-  padding: var(--z-space-8) var(--z-space-5);
-  text-align: center;
-  font-size: var(--z-fs-md);
-  color: var(--z-text-muted);
-}
-
-.admin-error {
-  padding: var(--z-space-8) var(--z-space-5);
-  text-align: center;
-  font-size: var(--z-fs-md);
-  color: var(--z-error);
-  background: rgba(248, 113, 113, 0.05);
-  border: 1px solid rgba(248, 113, 113, 0.2);
-  border-radius: var(--z-radius-md);
-}
-
-/* ============================================================
-   19. RESPONSIVE: TABLET
-   ============================================================ */
-@media (max-width: 1024px) {
-  .admin-main {
-    padding: var(--z-space-4);
-  }
-
-  .admin-section {
-    padding: var(--z-space-4);
-  }
-
-  .admin-stats-grid {
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  }
-}
-
-/* ============================================================
-   20. RESPONSIVE: MOBILE
-   ============================================================ */
 @media (max-width: 768px) {
-  .admin-header {
-    padding: var(--z-space-3) var(--z-space-4);
-  }
-
-  .admin-nav {
-    padding: var(--z-space-2) var(--z-space-4);
-  }
-
-  .admin-nav-btn {
-    padding: var(--z-space-2) var(--z-space-3);
-    font-size: var(--z-fs-xs);
-  }
-
-  .admin-main {
-    padding: var(--z-space-3);
-  }
-
-  .admin-section {
-    padding: var(--z-space-4);
-    border-radius: var(--z-radius-sm);
-  }
-
-  .admin-section-title {
-    font-size: var(--z-fs-lg);
-  }
-
-  .admin-stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--z-space-2);
-  }
-
-  .admin-stat-card {
-    padding: var(--z-space-3);
-  }
-
-  .admin-stat-value {
-    font-size: var(--z-fs-4xl);
-  }
-
-  .admin-stat-icon {
-    font-size: var(--z-fs-3xl);
-  }
-
-  .admin-quick-actions {
-    grid-template-columns: 1fr;
-  }
-
   .admin-pricing-item {
     grid-template-columns: 1fr 1fr;
   }
-
   .admin-pricing-item button {
     grid-column: 1 / -1;
   }
-
-  .admin-users-toolbar {
-    flex-direction: column;
-  }
-
-  .admin-filter-group {
-    width: 100%;
-  }
-
-  .admin-user-item {
-    padding: var(--z-space-3);
-  }
-
-  .admin-user-item-meta {
-    gap: var(--z-space-2);
-    font-size: 0.625rem;
-  }
 }
 
 /* ============================================================
-   21. RESPONSIVE: SMALL MOBILE
+   EMPTY / ERROR / LOADING
    ============================================================ */
-@media (max-width: 480px) {
-  .admin-header-left {
-    gap: var(--z-space-2);
-  }
-
-  .admin-title {
-    font-size: var(--z-fs-sm);
-    letter-spacing: 1px;
-  }
-
-  .admin-subtitle {
-    font-size: 0.5625rem;
-  }
-
-  .admin-logo {
-    width: 36px;
-    height: 36px;
-    font-size: var(--z-fs-xl);
-  }
-
-  .admin-code-item {
-    gap: var(--z-space-2);
-    padding: var(--z-space-2);
-  }
-
-  .admin-code-text {
-    font-size: var(--z-fs-sm);
-  }
-
-  .admin-user-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--z-space-1);
-  }
-
-  .admin-user-row code,
-  .admin-user-row strong {
-    text-align: left;
-    align-self: stretch;
-  }
+.admin-empty,
+.admin-error,
+.admin-loading-placeholder {
+  padding: 40px 20px;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--z-text-muted);
 }
+.admin-error { color: var(--z-error); }
 
 /* ============================================================
-   22. LANDSCAPE MOBILE
+   RESPONSIVE
    ============================================================ */
-@media (orientation: landscape) and (max-height: 500px) {
-  .admin-header {
-    padding: var(--z-space-2) var(--z-space-4);
-  }
-
-  .admin-logo {
-    width: 32px;
-    height: 32px;
-  }
-
-  .admin-nav {
-    padding: var(--z-space-1) var(--z-space-4);
-  }
-
+@media (max-width: 600px) {
+  .admin-main { padding: 12px; }
+  .admin-section { padding: 14px; }
+  .admin-header { padding: 12px 14px; }
+  .admin-nav { padding: 6px 14px; }
   .admin-nav-btn {
-    padding: var(--z-space-1) var(--z-space-3);
-    font-size: var(--z-fs-xs);
+    padding: 8px 12px;
+    font-size: 0.6875rem;
   }
-
-  .admin-main {
-    padding: var(--z-space-3) var(--z-space-4);
-  }
-
-  .admin-section {
-    padding: var(--z-space-3);
-    margin-bottom: var(--z-space-3);
-  }
-
-  .admin-login-card {
-    padding: var(--z-space-6) var(--z-space-5);
-  }
-
-  .admin-login-logo {
-    width: 56px;
-    height: 56px;
-    margin-bottom: var(--z-space-3);
-  }
-
-  .admin-login-title {
-    font-size: var(--z-fs-4xl);
+  .admin-login-card { padding: 32px 24px; }
+  .admin-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
