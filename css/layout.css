@@ -1,15 +1,10 @@
 /* ============================================================
-   ZHENIN - Layout (v2.7.3)
-   App shell, screens, header, navigation
-   
-   CHANGELOG v2.7.3:
-   - FIX: Loading screen tidak centered (terlalu ke bawah)
-   - Loading screen di-unset dari grid, jadi absolute full screen
-   - Konsisten: splash, login, admin, loading = full screen
+   ZHENIN — Layout CSS (v2.7.0)
+   App Shell + Screens + Grid Responsive
    ============================================================ */
 
 /* ============================================================
-   1. APP SHELL
+   1. APP SHELL — MOBILE FIRST
    ============================================================ */
 .app {
   position: fixed;
@@ -18,6 +13,7 @@
   flex-direction: column;
   overflow: hidden;
   background: var(--z-bg);
+  isolation: isolate;
 }
 
 /* ============================================================
@@ -32,35 +28,17 @@
   background: var(--z-bg);
   visibility: hidden;
   opacity: 0;
-  transition: opacity 0.2s ease, visibility 0s linear 0.2s;
   pointer-events: none;
+  transition: opacity 0.2s ease, visibility 0s linear 0.2s;
+  z-index: 1;
 }
 
 .screen.active {
   visibility: visible;
   opacity: 1;
-  transition: opacity 0.2s ease, visibility 0s linear 0s;
   pointer-events: auto;
-}
-
-/* Hide bottom-nav di screen yang tidak butuh */
-.screen-splash .bottom-nav,
-.screen-login .bottom-nav,
-.screen-admin .bottom-nav,
-.screen-loading .bottom-nav {
-  display: none !important;
-}
-
-.screen-scroll {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: var(--z-space-4);
-}
-
-.screen-bottom-spacer {
-  height: calc(var(--z-nav-h) + var(--z-safe-bottom) + var(--z-space-4));
+  transition: opacity 0.2s ease, visibility 0s linear 0s;
+  z-index: 2;
 }
 
 /* ============================================================
@@ -78,8 +56,7 @@
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--z-border);
   flex-shrink: 0;
-  position: relative;
-  z-index: 50;
+  z-index: var(--z-z-header);
 }
 
 .app-header-left,
@@ -87,6 +64,7 @@
   display: flex;
   align-items: center;
   gap: var(--z-space-2);
+  flex-shrink: 0;
 }
 
 .app-header-center {
@@ -96,9 +74,9 @@
 }
 
 .app-header-title {
-  font-family: 'Cinzel', serif;
-  font-size: var(--z-fs-xl);
-  font-weight: 600;
+  font-family: var(--z-font-display);
+  font-size: var(--z-text-lg);
+  font-weight: var(--z-font-semibold);
   color: var(--z-gold);
   letter-spacing: 1px;
   overflow: hidden;
@@ -106,7 +84,7 @@
   white-space: nowrap;
 }
 
-/* User avatar */
+/* User Avatar + Info */
 .user-avatar {
   width: 40px;
   height: 40px;
@@ -115,9 +93,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Cinzel', serif;
-  font-weight: 700;
-  font-size: var(--z-fs-lg);
+  font-family: var(--z-font-display);
+  font-weight: var(--z-font-bold);
+  font-size: var(--z-text-md);
   color: var(--z-gold);
   border: 1px solid var(--z-border-strong);
   box-shadow: var(--z-shadow-glow);
@@ -126,19 +104,18 @@
 
 .user-info {
   min-width: 0;
+  flex: 1;
 }
-
 .user-greeting {
-  font-size: var(--z-fs-xs);
+  font-size: var(--z-text-xs);
   color: var(--z-text-dim);
   line-height: 1.2;
 }
-
 .user-name {
-  font-size: var(--z-fs-lg);
-  font-weight: 700;
+  font-size: var(--z-text-md);
+  font-weight: var(--z-font-bold);
   color: var(--z-text);
-  font-family: 'Cinzel', serif;
+  font-family: var(--z-font-display);
   letter-spacing: 0.5px;
   line-height: 1.2;
   overflow: hidden;
@@ -147,7 +124,7 @@
   max-width: 160px;
 }
 
-/* Icon button */
+/* Icon Button */
 .icon-btn {
   width: 40px;
   height: 40px;
@@ -161,21 +138,22 @@
   transition: all var(--z-t-fast);
   flex-shrink: 0;
   position: relative;
+  font-size: var(--z-text-lg);
 }
-
 .icon-btn:hover,
 .icon-btn:active {
-  background: rgba(107, 63, 160, 0.2);
+  background: var(--z-surface-2);
   border-color: var(--z-border);
   color: var(--z-gold);
 }
-
 .icon-btn svg {
   pointer-events: none;
+  width: 18px;
+  height: 18px;
 }
 
 /* ============================================================
-   4. BOTTOM NAV (MOBILE — default)
+   4. BOTTOM NAVIGATION
    ============================================================ */
 .bottom-nav {
   position: absolute;
@@ -190,7 +168,8 @@
   border-top: 1px solid var(--z-border);
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  z-index: 40;
+  z-index: var(--z-z-nav);
+  flex-shrink: 0;
 }
 
 .nav-item {
@@ -202,30 +181,30 @@
   color: var(--z-text-dim);
   transition: color var(--z-t-fast);
   position: relative;
-  padding: var(--z-space-2) var(--z-space-1);
+  padding: var(--z-space-1) var(--z-space-1);
+  cursor: pointer;
+  font-family: inherit;
 }
 
 .nav-item .nav-icon {
-  font-size: var(--z-fs-3xl);
+  font-size: var(--z-text-lg);
   line-height: 1;
   transition: transform var(--z-t-base);
 }
-
 .nav-item .nav-label {
-  font-size: var(--z-fs-xs);
-  font-weight: 600;
+  font-size: var(--z-text-xs);
+  font-weight: var(--z-font-semibold);
   letter-spacing: 0.5px;
+  line-height: 1;
 }
 
 .nav-item.active {
   color: var(--z-gold);
 }
-
 .nav-item.active .nav-icon {
   transform: translateY(-2px);
   filter: drop-shadow(0 0 8px rgba(201, 169, 97, 0.7));
 }
-
 .nav-item.active::before {
   content: '';
   position: absolute;
@@ -240,7 +219,25 @@
 }
 
 /* ============================================================
-   5. SPLASH SCREEN
+   5. SCREEN SCROLL
+   ============================================================ */
+.screen-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: var(--z-space-4);
+  padding-left: var(--z-safe-left);
+  padding-right: var(--z-safe-right);
+  scroll-behavior: smooth;
+}
+
+.screen-bottom-spacer {
+  height: calc(var(--z-nav-h) + var(--z-safe-bottom) + var(--z-space-4));
+}
+
+/* ============================================================
+   6. SPLASH SCREEN
    ============================================================ */
 .screen-splash {
   align-items: center;
@@ -248,7 +245,7 @@
   background: radial-gradient(circle at center, var(--z-plum) 0%, var(--z-night) 70%);
   padding: var(--z-space-8);
   text-align: center;
-  z-index: 100;
+  position: relative;
 }
 
 .splash-logo {
@@ -257,7 +254,6 @@
   margin-bottom: var(--z-space-6);
   animation: z-float 4s ease-in-out infinite;
 }
-
 .splash-logo svg {
   width: 100%;
   height: 100%;
@@ -265,24 +261,25 @@
 }
 
 .splash-title {
-  font-family: 'Cinzel', serif;
-  font-size: var(--z-fs-7xl);
-  font-weight: 700;
+  font-family: var(--z-font-display);
+  font-size: 2.75rem;
+  font-weight: var(--z-font-bold);
   color: var(--z-gold);
   letter-spacing: 8px;
   margin-bottom: var(--z-space-2);
   text-shadow: 0 0 30px rgba(201, 169, 97, 0.5);
   padding-left: 8px;
+  line-height: 1;
 }
 
 .splash-subtitle {
-  font-family: 'Cinzel', serif;
-  font-size: var(--z-fs-xs);
+  font-family: var(--z-font-display);
+  font-size: var(--z-text-xs);
   color: var(--z-lavender);
   letter-spacing: 6px;
   text-transform: uppercase;
   opacity: 0.85;
-  margin-bottom: var(--z-space-8);
+  margin-bottom: var(--z-space-10);
   padding-left: 6px;
 }
 
@@ -294,7 +291,6 @@
   overflow: hidden;
   margin: 0 auto var(--z-space-4);
 }
-
 .splash-loader-fill {
   height: 100%;
   background: var(--z-grad-gold);
@@ -303,26 +299,20 @@
   box-shadow: 0 0 12px var(--z-gold);
 }
 
-@keyframes z-splash-load {
-  0% { width: 0; }
-  60% { width: 70%; }
-  100% { width: 100%; }
-}
-
 .splash-version {
   position: absolute;
   bottom: var(--z-space-6);
   left: 0;
   right: 0;
   text-align: center;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: var(--z-fs-xs);
+  font-family: var(--z-font-mono);
+  font-size: var(--z-text-xs);
   color: rgba(166, 123, 200, 0.35);
   letter-spacing: 1px;
 }
 
 /* ============================================================
-   6. LOGIN SCREEN
+   7. LOGIN SCREEN
    ============================================================ */
 .screen-login {
   background:
@@ -331,7 +321,6 @@
     var(--z-deep);
   overflow-y: auto;
   padding: calc(var(--z-safe-top) + var(--z-space-6)) var(--z-space-5) calc(var(--z-safe-bottom) + var(--z-space-6));
-  z-index: 90;
 }
 
 .login-container {
@@ -354,7 +343,6 @@
   height: 72px;
   margin: 0 auto var(--z-space-4);
 }
-
 .login-logo svg {
   width: 100%;
   height: 100%;
@@ -362,16 +350,17 @@
 }
 
 .login-title {
-  font-family: 'Cinzel', serif;
-  font-size: var(--z-fs-5xl);
-  font-weight: 700;
+  font-family: var(--z-font-display);
+  font-size: 1.75rem;
+  font-weight: var(--z-font-bold);
   color: var(--z-gold);
   letter-spacing: 5px;
   margin-bottom: var(--z-space-1);
+  line-height: 1;
 }
 
 .login-subtitle {
-  font-size: var(--z-fs-base);
+  font-size: var(--z-text-base);
   color: var(--z-text-muted);
   letter-spacing: 0.5px;
 }
@@ -384,7 +373,7 @@
 
 .login-help {
   text-align: center;
-  font-size: var(--z-fs-base);
+  font-size: var(--z-text-base);
   color: var(--z-text-muted);
   margin-top: var(--z-space-2);
 }
@@ -394,63 +383,509 @@
   padding-top: var(--z-space-6);
   text-align: center;
 }
-
 .login-version {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: var(--z-fs-xs);
+  font-family: var(--z-font-mono);
+  font-size: var(--z-text-xs);
   color: var(--z-text-dim);
   letter-spacing: 1px;
   margin-bottom: var(--z-space-2);
 }
-
 .login-legal {
-  font-size: var(--z-fs-xs);
+  font-size: var(--z-text-xs);
   color: var(--z-text-dim);
 }
 
 /* ============================================================
-   7. HOME SCREEN
+   8. HOME SCREEN
    ============================================================ */
 .screen-home .screen-scroll {
   padding-top: var(--z-space-3);
 }
 
 /* ============================================================
-   8. LOADING SCREEN — ALWAYS FULL SCREEN CENTERED
+   9. LOADING SCREEN
    ============================================================ */
 .screen-loading {
-  position: absolute;
-  inset: 0;
-  display: flex;
   align-items: center;
   justify-content: center;
   background: radial-gradient(circle at center, rgba(107, 63, 160, 0.15) 0%, var(--z-deep) 70%);
   padding: var(--z-space-8);
   text-align: center;
-  z-index: 100;
-  overflow: hidden;
 }
 
-/* Override grid positioning untuk loading — selalu full screen */
-.screen-loading.active {
-  position: absolute !important;
-  inset: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  grid-column: unset !important;
-  grid-row: unset !important;
+.loading-fullscreen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--z-space-4);
+  max-width: 340px;
+  width: 100%;
+}
+
+.loading-orb-large {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin-bottom: var(--z-space-4);
+}
+
+.loading-orb-ring {
+  position: absolute;
+  inset: 0;
+  border: 2px solid transparent;
+  border-top-color: var(--z-gold);
+  border-right-color: var(--z-violet);
+  border-radius: 50%;
+  animation: z-spin 2s linear infinite;
+}
+
+.loading-orb-inner {
+  position: absolute;
+  inset: 32px;
+  background: var(--z-grad-primary);
+  border-radius: 50%;
+  animation: z-pulse 2s ease-in-out infinite;
+  box-shadow: 0 0 40px rgba(107, 63, 160, 0.6);
+}
+
+.loading-orb-pulse {
+  position: absolute;
+  inset: -8px;
+  border: 2px solid rgba(201, 169, 97, 0.3);
+  border-radius: 50%;
+  animation: z-orb-pulse 2s ease-out infinite;
+}
+
+.loading-title {
+  font-family: var(--z-font-display);
+  font-size: var(--z-text-xl);
+  font-weight: var(--z-font-bold);
+  color: var(--z-gold);
+  letter-spacing: 3px;
+  margin-bottom: var(--z-space-1);
+  line-height: 1.2;
+}
+
+.loading-message {
+  font-size: var(--z-text-base);
+  color: var(--z-text-muted);
+  min-height: 1.4em;
+  margin-bottom: var(--z-space-4);
+  line-height: 1.4;
+}
+
+.loading-bar {
+  width: 100%;
+  max-width: 280px;
+  height: 3px;
+  background: rgba(201, 169, 97, 0.15);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: var(--z-space-3);
+}
+.loading-bar-fill {
+  height: 100%;
+  background: var(--z-grad-gold);
+  border-radius: 2px;
+  box-shadow: 0 0 12px var(--z-gold);
+  width: 0%;
+  transition: width 1s ease;
+}
+
+.loading-timer {
+  font-family: var(--z-font-mono);
+  font-size: var(--z-text-xl);
+  color: var(--z-gold);
+  letter-spacing: 2px;
+  text-shadow: 0 0 12px rgba(201, 169, 97, 0.4);
+  line-height: 1;
+}
+
+.loading-hint {
+  font-size: var(--z-text-xs);
+  color: var(--z-text-dim);
+  line-height: 1.4;
+  max-width: 260px;
 }
 
 /* ============================================================
-   9. RESPONSIVE: LANDSCAPE MOBILE
+   10. RESULT SCREEN
    ============================================================ */
-@media (orientation: landscape) and (max-height: 500px) {
-  .app-header {
-    height: var(--z-header-h-compact);
+.screen-result {
+  background: #2A2A38;
+}
+
+.result-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--z-space-4);
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.result-actions {
+  display: flex;
+  gap: var(--z-space-2);
+  padding: var(--z-space-3) var(--z-space-4);
+  padding-bottom: calc(var(--z-space-3) + var(--z-safe-bottom));
+  background: rgba(15, 11, 26, 0.96);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--z-border);
+  flex-shrink: 0;
+}
+.result-actions .btn {
+  flex: 1;
+}
+
+/* ============================================================
+   11. PROFILE SCREEN
+   ============================================================ */
+.profile-hero {
+  padding: var(--z-space-6) var(--z-space-4) var(--z-space-5);
+  text-align: center;
+  background: linear-gradient(180deg, var(--z-surface-2), transparent);
+}
+.profile-avatar-large {
+  width: 88px;
+  height: 88px;
+  border-radius: var(--z-radius-lg);
+  background: var(--z-grad-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--z-font-display);
+  font-size: 2rem;
+  font-weight: var(--z-font-bold);
+  color: var(--z-gold);
+  margin: 0 auto var(--z-space-4);
+  border: 2px solid var(--z-border-strong);
+  box-shadow: var(--z-shadow-glow);
+}
+.profile-name {
+  font-family: var(--z-font-display);
+  font-size: var(--z-text-xl);
+  font-weight: var(--z-font-bold);
+  color: var(--z-text);
+  letter-spacing: 1px;
+  margin-bottom: var(--z-space-1);
+}
+.profile-code {
+  display: inline-block;
+  font-family: var(--z-font-mono);
+  font-size: var(--z-text-xs);
+  color: var(--z-gold);
+  letter-spacing: 1px;
+  padding: var(--z-space-1) var(--z-space-3);
+  background: rgba(201, 169, 97, 0.1);
+  border: 1px solid rgba(201, 169, 97, 0.25);
+  border-radius: var(--z-radius-sm);
+}
+
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--z-space-2);
+  margin: 0 var(--z-space-4) var(--z-space-5);
+}
+.profile-stat {
+  padding: var(--z-space-3);
+  background: var(--z-surface-1);
+  border: 1px solid var(--z-border);
+  border-radius: var(--z-radius-md);
+  text-align: center;
+}
+.profile-stat-value {
+  font-family: var(--z-font-display);
+  font-size: var(--z-text-2xl);
+  font-weight: var(--z-font-bold);
+  color: var(--z-gold);
+  line-height: 1;
+  margin-bottom: var(--z-space-1);
+}
+.profile-stat-label {
+  font-size: var(--z-text-xs);
+  font-weight: var(--z-font-semibold);
+  color: var(--z-text-muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* ============================================================
+   12. FILES SCREEN
+   ============================================================ */
+.files-filter {
+  display: flex;
+  gap: var(--z-space-1);
+  padding: var(--z-space-2) var(--z-space-4);
+  background: rgba(15, 11, 26, 0.6);
+  border-bottom: 1px solid var(--z-border);
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+.files-filter::-webkit-scrollbar { height: 0; }
+
+.files-filter-btn {
+  padding: var(--z-space-2) var(--z-space-3);
+  background: var(--z-surface-2);
+  border: 1px solid transparent;
+  border-radius: var(--z-radius-full);
+  font-size: var(--z-text-sm);
+  font-weight: var(--z-font-semibold);
+  color: var(--z-text-muted);
+  cursor: pointer;
+  transition: all var(--z-t-fast);
+  font-family: inherit;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.files-filter-btn:hover {
+  background: var(--z-surface-3);
+  color: var(--z-gold);
+}
+.files-filter-btn.active {
+  background: var(--z-grad-primary);
+  color: var(--z-white);
+  border-color: var(--z-border-strong);
+}
+
+/* ============================================================
+   13. RESPONSIVE — TABLET (768-1023)
+   ============================================================ */
+@media (min-width: 768px) and (max-width: 1023px) {
+  html { font-size: 16px; }
+
+  /* Grid layout dengan sidebar */
+  .app {
+    display: grid;
+    grid-template-columns: var(--z-sidebar-w-tablet) 1fr;
+    grid-template-rows: 1fr;
   }
 
+  /* Nav jadi sidebar kiri */
   .bottom-nav {
-    height: calc(var(--z-nav-h-compact) + var(--z-safe-bottom));
+    position: relative;
+    grid-column: 1;
+    grid-row: 1;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: var(--z-space-4) 0;
+    padding-top: calc(var(--z-safe-top) + var(--z-space-4));
+    padding-bottom: calc(var(--z-safe-bottom) + var(--z-space-4));
+    gap: var(--z-space-2);
+    border-top: none;
+    border-right: 1px solid var(--z-border);
+    grid-template-columns: none;
+  }
+
+  .nav-item {
+    flex-direction: column;
+    gap: 3px;
+    padding: var(--z-space-2) var(--z-space-1);
+  }
+  .nav-item .nav-icon { font-size: var(--z-text-lg); }
+  .nav-item .nav-label { font-size: var(--z-text-xs); }
+
+  .nav-item.active::before {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 3px;
+    height: 100%;
+    transform: none;
+    border-radius: 0 3px 3px 0;
+  }
+
+  /* Screen di kolom kanan */
+  .screen {
+    grid-column: 2;
+    grid-row: 1;
+    position: relative;
+    inset: auto;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Content padding */
+  .screen-scroll {
+    padding-left: var(--z-space-6);
+    padding-right: var(--z-space-6);
+    padding-top: var(--z-space-4);
+    padding-bottom: var(--z-space-4);
+  }
+
+  .app-header {
+    padding: 0 var(--z-space-6);
+  }
+
+  /* Bottom spacer tidak perlu */
+  .screen-bottom-spacer {
+    height: var(--z-space-4);
+  }
+
+  /* Quick actions grid 2 col */
+  .quick-actions {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--z-space-3);
+  }
+
+  /* Doc list 2 col */
+  .doc-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--z-space-3);
+  }
+}
+
+/* ============================================================
+   14. RESPONSIVE — DESKTOP (1024+)
+   ============================================================ */
+@media (min-width: 1024px) {
+  html { font-size: 16px; }
+
+  .app {
+    display: grid;
+    grid-template-columns: var(--z-sidebar-w) 1fr;
+    grid-template-rows: 1fr;
+  }
+
+  /* Nav jadi sidebar lebar */
+  .bottom-nav {
+    position: relative;
+    grid-column: 1;
+    grid-row: 1;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: var(--z-space-6) 0;
+    padding-top: calc(var(--z-safe-top) + var(--z-space-6));
+    padding-bottom: calc(var(--z-safe-bottom) + var(--z-space-6));
+    gap: var(--z-space-1);
+    border-top: none;
+    border-right: 1px solid var(--z-border);
+    background: rgba(15, 11, 26, 0.98);
+    grid-template-columns: none;
+  }
+
+  .nav-item {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--z-space-3);
+    padding: var(--z-space-3) var(--z-space-5);
+    border-radius: 0;
+    min-height: 48px;
+    margin: 0 var(--z-space-3);
+    border-radius: var(--z-radius-sm);
+  }
+  .nav-item .nav-icon { font-size: var(--z-text-xl); }
+  .nav-item .nav-label {
+    font-size: var(--z-text-base);
+    font-weight: var(--z-font-semibold);
+    letter-spacing: 0.5px;
+  }
+  .nav-item:hover {
+    background: var(--z-surface-1);
+  }
+  .nav-item.active {
+    background: var(--z-surface-2);
+  }
+  .nav-item.active::before {
+    top: 50%;
+    bottom: auto;
+    left: 0;
+    width: 3px;
+    height: 24px;
+    transform: translateY(-50%);
+    border-radius: 0 3px 3px 0;
+  }
+  .nav-item.active .nav-icon {
+    transform: none;
+  }
+
+  /* Screen di kolom kanan */
+  .screen {
+    grid-column: 2;
+    grid-row: 1;
+    position: relative;
+    inset: auto;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Content max-width + center */
+  .screen-scroll {
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+    padding: var(--z-space-6);
+    padding-top: var(--z-space-5);
+  }
+
+  .app-header {
+    padding: 0 var(--z-space-8);
+  }
+
+  /* Bottom spacer tidak perlu */
+  .screen-bottom-spacer {
+    height: var(--z-space-6);
+  }
+
+  /* Quick actions */
+  .quick-actions {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--z-space-4);
+  }
+
+  /* Doc list 2 col */
+  .doc-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--z-space-3);
+  }
+
+  /* Splash bigger */
+  .splash-logo {
+    width: 180px;
+    height: 180px;
+  }
+  .splash-title { font-size: 3.5rem; letter-spacing: 10px; }
+}
+
+/* ============================================================
+   15. RESPONSIVE — LARGE DESKTOP (1440+)
+   ============================================================ */
+@media (min-width: 1440px) {
+  .screen-scroll {
+    max-width: 1100px;
+  }
+
+  .doc-list {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ============================================================
+   16. LANDSCAPE MOBILE
+   ============================================================ */
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 767px) {
+  /* Nav jadi horizontal tipis */
+  .bottom-nav {
+    height: var(--z-nav-h-compact);
+    padding-bottom: 0;
   }
 
   .nav-item {
@@ -458,14 +893,8 @@
     gap: var(--z-space-1);
     padding: var(--z-space-1) var(--z-space-2);
   }
-
-  .nav-item .nav-icon {
-    font-size: var(--z-fs-xl);
-  }
-
-  .nav-item .nav-label {
-    font-size: 0.5625rem;
-  }
+  .nav-item .nav-icon { font-size: var(--z-text-base); }
+  .nav-item .nav-label { font-size: 0.5625rem; }
 
   .nav-item.active::before {
     top: auto;
@@ -476,274 +905,76 @@
     height: 2px;
     border-radius: 2px 2px 0 0;
   }
+  .nav-item.active .nav-icon {
+    transform: none;
+    filter: none;
+  }
 
+  /* Header kompak */
+  .app-header {
+    height: var(--z-header-h-compact);
+    padding: 0 var(--z-space-4);
+  }
+
+  /* Bottom spacer */
   .screen-bottom-spacer {
     height: calc(var(--z-nav-h-compact) + var(--z-safe-bottom) + var(--z-space-2));
   }
 
+  /* Splash kompak */
   .splash-logo {
     width: 80px;
     height: 80px;
-    margin-bottom: var(--z-space-4);
+    margin-bottom: var(--z-space-3);
   }
-
   .splash-title {
-    font-size: var(--z-fs-5xl);
+    font-size: 1.75rem;
     letter-spacing: 5px;
   }
-
   .splash-subtitle {
-    font-size: 0.625rem;
-    letter-spacing: 4px;
-  }
-}
-
-/* ============================================================
-   10. RESPONSIVE: TABLET (768px - 1023px)
-   ============================================================ */
-@media (min-width: 768px) and (max-width: 1023px) {
-  .app {
-    display: grid;
-    grid-template-columns: var(--z-sidebar-w-compact) 1fr;
-    grid-template-rows: 1fr;
-    position: relative;
-  }
-
-  /* Splash, Login, Admin, Loading — absolute full screen, tidak ikut grid */
-  .screen-splash,
-  .screen-login,
-  .screen-admin,
-  .screen-loading {
-    position: absolute !important;
-    inset: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    grid-column: unset !important;
-    grid-row: unset !important;
-    z-index: 100 !important;
-  }
-
-  /* Screen normal — masuk grid */
-  .screen-home,
-  .screen-ai,
-  .screen-result,
-  .screen-profile,
-  .screen-files {
-    grid-column: 2;
-    grid-row: 1;
-    position: relative;
-    inset: auto;
-    width: 100%;
-    height: 100%;
-  }
-
-  /* Bottom nav di kolom 1 */
-  .bottom-nav {
-    position: relative;
-    grid-column: 1;
-    grid-row: 1;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    padding: var(--z-space-4) 0;
-    gap: var(--z-space-2);
-    border-top: none;
-    border-right: 1px solid var(--z-border);
-  }
-
-  .nav-item {
-    flex-direction: column;
-    gap: 2px;
-    padding: var(--z-space-2) var(--z-space-1);
-  }
-
-  .nav-item .nav-icon {
-    font-size: var(--z-fs-3xl);
-  }
-
-  .nav-item .nav-label {
     font-size: 0.5625rem;
+    letter-spacing: 4px;
+    margin-bottom: var(--z-space-5);
+  }
+  .splash-loader {
+    width: 160px;
   }
 
-  .nav-item.active::before {
-    top: 50%;
-    bottom: auto;
-    left: 0;
-    width: 3px;
-    height: 32px;
-    transform: translateY(-50%);
-    border-radius: 0 3px 3px 0;
+  /* Loading compact */
+  .loading-orb-large {
+    width: 80px;
+    height: 80px;
+    margin-bottom: var(--z-space-3);
   }
+  .loading-orb-inner { inset: 22px; }
+  .loading-title { font-size: var(--z-text-lg); letter-spacing: 2px; }
 
-  .screen-scroll {
-    padding: var(--z-space-5);
+  /* Login compact */
+  .login-header {
+    margin-bottom: var(--z-space-5);
+    padding-top: var(--z-space-3);
   }
-
-  .app-header {
-    padding: 0 var(--z-space-5);
+  .login-logo {
+    width: 56px;
+    height: 56px;
+    margin-bottom: var(--z-space-3);
   }
-
-  .screen-bottom-spacer {
-    height: var(--z-space-6);
-  }
-
-  .quick-actions {
-    grid-template-columns: 1fr 1fr;
-    gap: var(--z-space-3);
-  }
+  .login-title { font-size: 1.375rem; letter-spacing: 3px; }
 }
 
 /* ============================================================
-   ZHENIN - Layout (v2.7.5 Fixed Sidebar)
+   17. LANDSCAPE TABLET (768-1023, max-height 600)
    ============================================================ */
+@media (orientation: landscape) and (max-height: 600px) and (min-width: 768px) {
+  .splash-logo {
+    width: 100px;
+    height: 100px;
+    margin-bottom: var(--z-space-3);
+  }
+  .splash-title { font-size: 2rem; letter-spacing: 6px; }
+  .splash-subtitle { margin-bottom: var(--z-space-6); }
 
-/* 1. APP SHELL — Menggunakan CSS Grid yang Konsisten */
-.app {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--z-bg);
-}
-
-/* 2. SCREEN BASE */
-.screen {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--z-bg);
-  visibility: hidden;
-  opacity: 0;
-  transition: opacity 0.2s ease, visibility 0s linear 0.2s;
-  pointer-events: none;
-}
-
-.screen.active {
-  visibility: visible;
-  opacity: 1;
-  transition: opacity 0.2s ease, visibility 0s linear 0s;
-  pointer-events: auto;
-}
-
-/* ============================================================
-   RESPONSIVE: DESKTOP (>= 1024px) — Proper Sidebar Layout
-   ============================================================ */
-@media (min-width: 1024px) {
-  .app {
-    display: grid;
-    grid-template-columns: var(--z-sidebar-w) 1fr;
-    grid-template-rows: 100vh;
-    width: 100vw;
-    height: 100vh;
-    overflow: hidden;
-  }
-  
-  /* Screen overlay / khusus (Splash, Login, dll) mengambil seluruh grid */
-  .screen-splash,
-  .screen-login,
-  .screen-admin,
-  .screen-loading {
-    position: absolute !important;
-    inset: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    grid-column: 1 / -1 !important;
-    grid-row: 1 !important;
-    z-index: 100 !important;
-  }
-  
-  /* Screen aplikasi utama wajib dikunci di kolom ke-2 (di sebelah kanan sidebar) */
-  .screen-home,
-  .screen-ai,
-  .screen-result,
-  .screen-profile,
-  .screen-files {
-    grid-column: 2;
-    grid-row: 1;
-    position: relative;
-    inset: auto;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  /* Transformasi Sidebar Kiri yang Proper */
-  .bottom-nav {
-    position: relative;
-    grid-column: 1;
-    grid-row: 1;
-    width: var(--z-sidebar-w);
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    padding: var(--z-space-6) var(--z-space-3);
-    gap: var(--z-space-2);
-    background: rgba(15, 11, 26, 0.98);
-    border-top: none;
-    border-right: 1px solid var(--z-border);
-    z-index: 40;
-    box-shadow: var(--z-shadow-md);
-  }
-  
-  .nav-item {
-    flex-direction: row;
-    justify-content: flex-start;
-    gap: var(--z-space-3);
-    padding: var(--z-space-3) var(--z-space-4);
-    border-radius: var(--z-radius-md);
-    width: 100%;
-    background: transparent;
-  }
-  
-  .nav-item:hover {
-    background: rgba(107, 63, 160, 0.15);
-    color: var(--z-gold);
-  }
-  
-  .nav-item .nav-icon {
-    font-size: var(--z-fs-2xl);
-  }
-  
-  .nav-item .nav-label {
-    font-size: var(--z-fs-sm);
-    display: inline-block;
-  }
-  
-  /* Indikator aktif di sisi kiri sidebar */
-  .nav-item.active {
-    background: rgba(107, 63, 160, 0.25);
-    color: var(--z-gold);
-  }
-
-  .nav-item.active::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 4px;
-    height: 100%;
-    transform: none;
-    border-radius: 0 2px 2px 0;
-    background: var(--z-gold);
-  }
-  
-  .screen-scroll {
-    flex: 1;
-    overflow-y: auto;
-    padding: var(--z-space-6);
-    max-width: 100%;
-  }
-  
-  .screen-bottom-spacer {
-    display: none;
+  .login-header {
+    margin-bottom: var(--z-space-5);
   }
 }
