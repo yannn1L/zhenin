@@ -1,6 +1,10 @@
 /* ============================================================
-   ZHENIN - Editor Controller (v2.6.0)
-   FIX: doc switch race condition, stale content, timer leak
+   ZHENIN - Editor Controller (v2.6.3)
+   FIX:
+   - Hapus mode 'edit' terpisah, gabung dengan 'preview' (WYSIWYG)
+   - Hapus table actions (edit/copy MD)
+   - Prevent paste berformat aneh
+   - Bug check: timer race condition, stale content
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -16,21 +20,20 @@ export const Editor = {
   _currentContent: '',
   _currentMode: 'preview',
   _saveTimer: null,
-  _saveTimerDocId: null,    // ⚠️ Capture docId saat timer dibuat
+  _saveTimerDocId: null,
   _lastSavedContent: '',
   _editableBound: false,
 
   /**
-   * Load document — CLEAR TIMER DULU untuk prevent race condition
+   * Load document — clear timer dulu
    */
   load(docId, docType) {
-    // ⚠️ FIX: Save pending dulu jika ada
     if (this._saveTimer) {
       clearTimeout(this._saveTimer);
       this._saveTimer = null;
+      this._saveTimerDocId = null;
     }
 
-    // ⚠️ FIX: Save dokumen lama sebelum switch (jika beda doc)
     if (this._currentDocId && this._currentDocId !== docId) {
       this.saveNow();
     }
@@ -40,11 +43,7 @@ export const Editor = {
       throw new Error('Dokumen tidak ditemukan');
     }
 
-    // ⚠️ Verify content tidak kosong
     const content = doc.content || '';
-    if (!content || content.trim().length === 0) {
-      console.warn('[Editor] Dokumen kosong:', docId);
-    }
 
     this._currentDocId = docId;
     this._currentDocType = docType;
@@ -69,6 +68,9 @@ export const Editor = {
     return this._currentContent;
   },
 
+  /**
+   * Render ke container
+   */
   render() {
     const paper = document.getElementById('resultPaper');
     const editor = document.getElementById('resultEditor');
@@ -80,7 +82,6 @@ export const Editor = {
     try {
       const blocks = Parser.parse(content);
       paper.innerHTML = Renderer.render(blocks);
-      this.bindTableActions();
     } catch (err) {
       console.error('Render error:', err);
       paper.innerHTML = `<p style="color:red;padding:20px;">Error render: ${err.message}</p>`;
@@ -89,12 +90,18 @@ export const Editor = {
     this.setMode(this._currentMode);
   },
 
+  /**
+   * Set view mode (hanya 2 mode: preview/unified & markdown)
+   * ⚠️ FIX: Mode 'edit' auto-convert ke 'preview'
+   */
   setMode(mode) {
+    if (mode === 'edit') mode = 'preview';
     this._currentMode = mode;
 
     const paper = document.getElementById('resultPaper');
     const editor = document.getElementById('resultEditor');
 
+    // Update button states
     document.querySelectorAll('[data-view-mode]').forEach(b => {
       b.classList.toggle('active', b.dataset.viewMode === mode);
     });
@@ -102,29 +109,22 @@ export const Editor = {
     if (mode === 'preview') {
       if (paper) {
         paper.classList.remove('hidden');
-        paper.removeAttribute('contenteditable');
-        paper.classList.remove('paper-editing');
-      }
-      if (editor) editor.classList.add('hidden');
-
-      if (paper && editor) {
-        try {
-          // ⚠️ Save dulu sebelum re-render
-          this._currentContent = editor.value;
-          const blocks = Parser.parse(this._currentContent);
-          paper.innerHTML = Renderer.render(blocks);
-          this.bindTableActions();
-        } catch (err) {
-          console.error('Render error:', err);
-        }
-      }
-    } else if (mode === 'edit') {
-      if (paper) {
-        paper.classList.remove('hidden');
         paper.setAttribute('contenteditable', 'true');
         paper.classList.add('paper-editing');
       }
       if (editor) editor.classList.add('hidden');
+
+      // Re-render dari editor content
+      if (paper && editor) {
+        try {
+          this._currentContent = editor.value;
+          const blocks = Parser.parse(this._currentContent);
+          paper.innerHTML = Renderer.render(blocks);
+        } catch (err) {
+          console.error('Render error:', err);
+        }
+      }
+
       this.bindEditableListeners();
     } else if (mode === 'markdown') {
       if (paper) {
@@ -139,6 +139,9 @@ export const Editor = {
     }
   },
 
+  /**
+   * Bind listener untuk contenteditable
+   */
   bindEditableListeners() {
     const paper = document.getElementById('resultPaper');
     if (!paper || this._editableBound) return;
@@ -151,52 +154,20 @@ export const Editor = {
     paper.addEventListener('blur', () => {
       this.saveNow();
     });
-  },
 
-  bindTableActions() {
-    const paper = document.getElementById('resultPaper');
-    if (!paper) return;
-
-    paper.querySelectorAll('[data-action="edit-table"]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.onTableEdit(parseInt(btn.dataset.tableIdx));
-      });
-    });
-
-    paper.querySelectorAll('[data-action="copy-table"]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.onTableCopy(parseInt(btn.dataset.tableIdx));
-      });
-    });
-  },
-
-  onTableEdit(tableIdx) {
-    if (window.UI) {
-      window.UI.toast('Table editor akan tersedia di update berikutnya', 'info');
-    }
-  },
-
-  async onTableCopy(tableIdx) {
-    try {
-      const blocks = Parser.parse(this._currentContent);
-      const table = blocks[tableIdx];
-      if (!table || table.type !== 'table') return;
-
-      const md = Parser.serialize([table]);
-
-      if (navigator.clipboard) {
-        await navigator.clipboard.writeText(md);
-        if (window.UI) window.UI.toast('📋 Markdown tabel disalin', 'success');
-      } else {
-        if (window.UI) window.UI.toast('Clipboard tidak didukung', 'warning');
+    // Prevent paste dengan format aneh (dari Word/web)
+    paper.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+      if (text) {
+        document.execCommand('insertText', false, text);
       }
-    } catch (err) {
-      if (window.UI) window.UI.toast('Gagal copy: ' + err.message, 'error');
-    }
+    });
   },
 
+  /**
+   * Update content dari editor textarea
+   */
   updateFromEditor() {
     const editor = document.getElementById('resultEditor');
     if (!editor) return;
@@ -204,6 +175,9 @@ export const Editor = {
     this.scheduleSave();
   },
 
+  /**
+   * Update content dari contenteditable
+   */
   updateFromPaper() {
     const paper = document.getElementById('resultPaper');
     if (!paper) return;
@@ -211,6 +185,9 @@ export const Editor = {
     this._currentContent = markdown;
   },
 
+  /**
+   * Convert HTML contenteditable back ke markdown
+   */
   htmlToMarkdown(container) {
     if (!container) return '';
     const output = [];
@@ -223,7 +200,7 @@ export const Editor = {
       const tag = el.tagName.toLowerCase();
       const cls = el.className || '';
 
-      // Skip action buttons
+      // Skip action buttons (legacy)
       if (el.classList && el.classList.contains('pv-table-actions')) continue;
 
       if (el.classList && el.classList.contains('pv-pagebreak')) {
@@ -287,12 +264,21 @@ export const Editor = {
     return output.join('\n\n');
   },
 
+  /**
+   * Extract table HTML → markdown
+   * ⚠️ FIX: Handle <br> dalam cell sebagai newline markdown (pakai <br> literal)
+   */
   tableToMarkdown(table) {
     const rows = [];
     table.querySelectorAll('tr').forEach(tr => {
       const cells = [];
       tr.querySelectorAll('th, td').forEach(cell => {
-        let text = cell.textContent.trim().replace(/\|/g, '\\|');
+        // ⚠️ FIX: Konversi <br> jadi literal <br> dalam cell
+        let html = cell.innerHTML;
+        html = html.replace(/<br\s*\/?>/gi, '|||BR|||');
+        let text = html.replace(/<[^>]+>/g, ''); // strip tags
+        text = text.replace(/\|\|\|BR\|\|\|/g, '<br>');
+        text = text.trim().replace(/\|/g, '\\|');
         cells.push(text);
       });
       rows.push('| ' + cells.join(' | ') + ' |');
@@ -307,10 +293,9 @@ export const Editor = {
   },
 
   /**
-   * ⚠️ CRITICAL: Schedule save dengan capture docId
+   * Schedule save (debounce 2s) dengan capture docId
    */
   scheduleSave() {
-    // Capture current docId
     const targetDocId = this._currentDocId;
     const targetDocType = this._currentDocType;
 
@@ -318,7 +303,6 @@ export const Editor = {
 
     this._saveTimerDocId = targetDocId;
     this._saveTimer = setTimeout(() => {
-      // ⚠️ Verify docId masih sama saat timer fire
       if (this._currentDocId !== targetDocId) {
         console.warn('[Editor] Timer skipped: doc changed');
         return;
@@ -328,7 +312,7 @@ export const Editor = {
   },
 
   /**
-   * Save now — dengan explicit docId untuk prevent race
+   * Save now
    */
   saveNow(explicitDocId, explicitDocType) {
     if (this._saveTimer) {
@@ -346,24 +330,20 @@ export const Editor = {
       return;
     }
 
-    // Get latest content dari active mode
     if (this._currentMode === 'markdown') {
       const editor = document.getElementById('resultEditor');
       if (editor) this._currentContent = editor.value;
-    } else if (this._currentMode === 'edit') {
+    } else if (this._currentMode === 'preview') {
       this.updateFromPaper();
     }
 
-    // Skip jika sama
     if (this._currentContent === this._lastSavedContent) return;
 
-    // Verify content valid (tidak kosong)
     if (!this._currentContent || this._currentContent.trim().length === 0) {
       console.warn('[Editor] Skip save: konten kosong');
       return;
     }
 
-    // Save ke storage
     const saved = AI.updateDocument(targetDocId, targetDocType, {
       content: this._currentContent
     });
@@ -379,17 +359,15 @@ export const Editor = {
   },
 
   /**
-   * Export DOCX — baca langsung dari document object
+   * Export DOCX
    */
   async exportDocx() {
     if (!this._currentDocId) {
       throw new Error('Tidak ada dokumen aktif');
     }
 
-    // ⚠️ Save dulu
     this.saveNow();
 
-    // ⚠️ Verify docId masih sama
     if (!this._currentDocId) {
       throw new Error('Dokumen berubah saat export');
     }
@@ -397,17 +375,14 @@ export const Editor = {
     const targetDocId = this._currentDocId;
     const targetDocType = this._currentDocType;
 
-    // Read langsung dari storage (source of truth)
     const doc = AI.getDocument(targetDocId, targetDocType);
     if (!doc) throw new Error('Dokumen tidak ditemukan');
 
-    // ⚠️ Verify content tidak kosong
     const content = (doc.content || '').trim();
     if (!content || content.length < 50) {
       throw new Error('Konten dokumen kosong atau terlalu pendek');
     }
 
-    // Get fresh content
     const exportContent = this._currentContent || content;
 
     const result = await Exporter.exportDocx(exportContent, {
@@ -419,6 +394,9 @@ export const Editor = {
     return result;
   },
 
+  /**
+   * Cleanup saat pindah screen
+   */
   cleanup() {
     if (this._saveTimer) {
       clearTimeout(this._saveTimer);

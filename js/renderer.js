@@ -1,6 +1,9 @@
 /* ============================================================
-   ZHENIN - HTML Renderer (v2.6.0)
-   FIX: empty content, placeholder edge cases, table index
+   ZHENIN - HTML Renderer (v2.6.3)
+   FIX:
+   - Hapus table actions (edit/copy MD)
+   - Support <br> di table cell
+   - Bug check: escape safe, placeholder safe
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -8,6 +11,9 @@ import { Data } from './storage.js';
 import Parser from './parser.js';
 
 export const Renderer = {
+  /**
+   * Main render: blocks → HTML
+   */
   render(blocks) {
     if (!Array.isArray(blocks) || blocks.length === 0) {
       return '<p style="color:#94a3b8;text-align:center;padding:40px;font-family:-apple-system,sans-serif;">Dokumen kosong</p>';
@@ -15,6 +21,9 @@ export const Renderer = {
     return blocks.map((block, idx) => this.renderBlock(block, idx)).join('\n');
   },
 
+  /**
+   * Render single block
+   */
   renderBlock(block, idx) {
     if (!block) return '';
 
@@ -49,23 +58,36 @@ export const Renderer = {
     }
   },
 
+  /**
+   * Render inline markdown
+   * ⚠️ FIX: Support <br> dalam cell
+   */
   renderInline(text) {
     if (!text) return '';
     const withPlaceholders = this.replacePlaceholders(text);
     const runs = Parser.parseInline(withPlaceholders);
 
-    return runs.map(run => {
-      let html = this.escapeHtml(run.text);
-      if (run.bold) html = `<strong>${html}</strong>`;
-      if (run.italic) html = `<em>${html}</em>`;
-      if (run.underline) html = `<u>${html}</u>`;
-      if (run.strike) html = `<s>${html}</s>`;
-      if (run.code) html = `<code>${html}</code>`;
-      if (run.highlight) html = `<mark>${html}</mark>`;
-      return html;
+    let html = runs.map(run => {
+      let part = this.escapeHtml(run.text);
+      if (run.bold) part = `<strong>${part}</strong>`;
+      if (run.italic) part = `<em>${part}</em>`;
+      if (run.underline) part = `<u>${part}</u>`;
+      if (run.strike) part = `<s>${part}</s>`;
+      if (run.code) part = `<code>${part}</code>`;
+      if (run.highlight) part = `<mark>${part}</mark>`;
+      return part;
     }).join('');
+
+    // ⚠️ FIX: Restore <br> yang ter-escape jadi line break
+    html = html.replace(/&lt;br\s*\/?&gt;/gi, '<br>');
+
+    return html;
   },
 
+  /**
+   * Render table
+   * ⚠️ FIX: Hapus wrapper .pv-table-wrap dan .pv-table-actions
+   */
   renderTable(block, tableIdx) {
     if (!block || !block.headers) return '';
 
@@ -90,19 +112,17 @@ export const Renderer = {
     if (style) styleCls = ` ${style}`;
     if (fontSize) inlineStyle = ` style="font-size:${fontSize}pt"`;
 
-    return `<div class="pv-table-wrap" data-table-idx="${tableIdx}">
-      <div class="pv-table-actions">
-        <button data-action="edit-table" data-table-idx="${tableIdx}">✏️ Edit</button>
-        <button data-action="copy-table" data-table-idx="${tableIdx}">📋 Copy MD</button>
-      </div>
-      <table class="pv-table${styleCls}"${inlineStyle}>
-        <colgroup>${colgroup}</colgroup>
-        <thead>${thead}</thead>
-        <tbody>${tbody}</tbody>
-      </table>
-    </div>`;
+    // ⚠️ FIX: Tidak ada wrapper / action buttons
+    return `<table class="pv-table${styleCls}"${inlineStyle}>
+      <colgroup>${colgroup}</colgroup>
+      <thead>${thead}</thead>
+      <tbody>${tbody}</tbody>
+    </table>`;
   },
 
+  /**
+   * Render signature table
+   */
   renderSignature() {
     return `<table class="pv-ttd">
       <tr>
@@ -116,6 +136,9 @@ export const Renderer = {
     </table>`;
   },
 
+  /**
+   * Replace placeholders dengan nilai actual
+   */
   replacePlaceholders(text) {
     if (!text) return '';
     const profile = Data.getProfile();
@@ -131,6 +154,9 @@ export const Renderer = {
       .replace(/\[IDENTITAS_MHS\]/g, '__IDENTITAS_MHS_MARKER__');
   },
 
+  /**
+   * Format tanggal Indonesia
+   */
   formatTanggalIndo() {
     const bulan = ['Januari','Februari','Maret','April','Mei','Juni',
                    'Juli','Agustus','September','Oktober','November','Desember'];
@@ -138,6 +164,9 @@ export const Renderer = {
     return `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
   },
 
+  /**
+   * Escape HTML
+   */
   escapeHtml(str) {
     return String(str == null ? '' : str)
       .replace(/&/g, '&amp;')

@@ -1,6 +1,6 @@
 /* ============================================================
-   ZHENIN - App.js (v2.6.2 FINAL)
-   Full double-check + username integration
+   ZHENIN - App.js (v2.6.3 FINAL)
+   FIX: username display priority, unified editor, bug check
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -121,40 +121,43 @@ const UI = {
   },
 
   goTo(screenId) {
-  const screens = $$('.screen');
-  const currentScreen = State.currentScreen;
-  if (currentScreen === screenId) return;
-  
-  // Save editor content sebelum pindah dari result
-  if (currentScreen === 'result' && screenId !== 'result') {
-    try { if (window.Editor) Editor.saveNow(); } catch (e) {}
-  }
-  
-  screens.forEach(s => {
-    s.classList.toggle('active', s.dataset.screen === screenId);
-  });
-  State.currentScreen = screenId;
-  document.body.setAttribute('data-page', screenId);
-  
-  $$('.bottom-nav .nav-item').forEach(item => {
-    const nav = item.dataset.nav;
-    const screenMap = { home: 'home', generate: 'ai', files: 'files', profile: 'profile' };
-    item.classList.toggle('active', screenMap[nav] === screenId);
-  });
-  
-  // ⚠️ FIXED: Hide bottom-nav di splash, login, admin
-  const nav = document.querySelector('.screen.active .bottom-nav');
-  if (nav) {
-    const hideNavScreens = ['splash', 'login', 'admin'];
-    nav.style.display = hideNavScreens.includes(screenId) ? 'none' : '';
-  }
-  
-  const scroll = $(`.screen[data-screen="${screenId}"] .screen-scroll`);
-  if (scroll) scroll.scrollTop = 0;
+    const screens = $$('.screen');
+    const currentScreen = State.currentScreen;
+    if (currentScreen === screenId) return;
+
+    if (currentScreen === 'result' && screenId !== 'result') {
+      try { if (window.Editor) Editor.saveNow(); } catch (e) {}
+    }
+
+    screens.forEach(s => {
+      s.classList.toggle('active', s.dataset.screen === screenId);
+    });
+    State.currentScreen = screenId;
+    document.body.setAttribute('data-page', screenId);
+
+    $$('.bottom-nav .nav-item').forEach(item => {
+      const nav = item.dataset.nav;
+      const screenMap = { home: 'home', generate: 'ai', files: 'files', profile: 'profile' };
+      item.classList.toggle('active', screenMap[nav] === screenId);
+    });
+
+    const scroll = $(`.screen[data-screen="${screenId}"] .screen-scroll`);
+    if (scroll) scroll.scrollTop = 0;
 
     if (screenId === 'profile') {
       Profile.init();
       StorageWidget.refresh();
+
+      // ⚠️ FIX: Refresh user UI (nama dari username)
+      updateUserUI();
+
+      // Sync username dari backend
+      Username.checkHasUsername().then(({ username }) => {
+        if (username) {
+          Username.saveLocalCache(username);
+          Username.updateUI(username);
+        }
+      }).catch(() => {});
     }
     if (screenId === 'files') renderFilesList();
     if (screenId === 'home') renderDocList();
@@ -170,26 +173,22 @@ const UI = {
     const modal = document.getElementById(modalId);
     if (modal) {
       modal.hidden = false;
-      modal.classList.add('show');
       document.body.style.overflow = 'hidden';
     }
   },
-  
+
   closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
-      modal.classList.remove('show');
       modal.hidden = true;
       document.body.style.overflow = '';
     }
   },
-  
+
   closeAllModals() {
     $$('.modal-overlay').forEach(m => {
-      // Skip session expired + username required kalau aktif
-      if (m.id === 'modalSessionExpired' && m.classList.contains('show')) return;
-      if (m.id === 'modalUsernameRequired' && m.classList.contains('show')) return;
-      m.classList.remove('show');
+      if (m.id === 'modalSessionExpired' && !m.hidden) return;
+      if (m.id === 'modalUsernameRequired' && !m.hidden) return;
       m.hidden = true;
     });
     document.body.style.overflow = '';
@@ -465,6 +464,19 @@ async function initUserApp() {
   window.Profile = Profile;
   window.Username = Username;
 
+  // ⚠️ FIX: Load username dulu dari backend sebelum render UI
+  try {
+    const usernameCheck = await Username.checkHasUsername();
+    if (usernameCheck.username) {
+      Username.saveLocalCache(usernameCheck.username);
+    }
+  } catch (e) {
+    console.warn('[initUserApp] Username load failed:', e.message);
+  }
+
+  // Render UI dengan username yang sudah ada
+  updateUserUI();
+
   Profile.init();
   TokenManager.refreshAllUI();
   initHome();
@@ -484,16 +496,97 @@ async function initUserApp() {
     showSessionExpiredDialog(title, message, icon);
   });
 
-  // Load username async
-  Username.checkHasUsername().then(({ username }) => {
-    if (username) {
-      Username.saveLocalCache(username);
-      Username.updateUI(username);
-    }
-  }).catch(() => {});
-
   Promo.load().catch(() => {});
   setTimeout(() => SessionManager.refresh(true), 2000);
+}
+
+/* ============================================================
+   UPDATE USER UI
+   ============================================================ */
+function updateUserUI() {
+  const session = Data.getSession();
+  if (!session) return;
+
+  // ⚠️ FIX: Prioritas username > nama mahasiswa > "User"
+  const username = Username.getLocalCache();
+  const profile = Data.getProfile();
+  const displayName = username || profile.nama || 'User';
+
+  const initial = displayName.charAt(0).toUpperCase();
+
+  // Avatar
+  const avatars = ['userAvatar', 'profileAvatar'];
+  avatars.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = initial;
+  });
+
+  // Name display
+  const nameEls = ['userNameDisplay', 'profileName'];
+  nameEls.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = displayName;
+  });
+
+  // Profile code
+  const codeEl = $('#profileCode');
+  if (codeEl) codeEl.textContent = session.password || '';
+
+  updateTokenUI();
+
+  const hoursEls = ['contactHours'];
+  hoursEls.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = CONFIG.CONTACT.hoursShort;
+  });
+}
+
+function updateTokenUI() {
+  const session = Data.getSession();
+  const token = session?.token || 0;
+
+  const tokenCount = $('#tokenCount');
+  if (tokenCount) {
+    animateNumber(tokenCount, token);
+  }
+
+  const costRemaining = $('#costRemaining');
+  if (costRemaining) costRemaining.textContent = token;
+
+  const statToken = $('#statToken');
+  if (statToken) statToken.textContent = token;
+
+  const warning = $('#tokenWarning');
+  if (warning) {
+    warning.hidden = token >= CONFIG.LIMITS.TOKEN_WARNING_THRESHOLD;
+  }
+}
+
+function animateNumber(el, target) {
+  const current = parseInt(el.textContent) || 0;
+  if (current === target) return;
+  const diff = target - current;
+  const steps = Math.min(Math.abs(diff), 10);
+  if (steps === 0) {
+    el.textContent = target;
+    return;
+  }
+  let step = 0;
+  const interval = setInterval(() => {
+    step++;
+    el.textContent = Math.round(current + (diff * step / steps));
+    if (step >= steps) {
+      el.textContent = target;
+      clearInterval(interval);
+    }
+  }, 30);
+}
+
+function getInitials(name) {
+  if (!name) return 'U';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 /* ============================================================
@@ -502,41 +595,27 @@ async function initUserApp() {
 function showSessionExpiredDialog(title, message, icon = '⚠️') {
   if (window._sessionExpiredShown) return;
   window._sessionExpiredShown = true;
-  
+
   try { Profile.saveNow(); } catch (e) {}
-  
-  // ⚠️ Close semua modal lain dulu
-  UI.closeAllModals();
-  
+
   const modal = document.getElementById('modalSessionExpired');
   if (modal) {
     const titleEl = document.getElementById('sessionExpiredTitle');
     const descEl = document.getElementById('sessionExpiredDesc');
     const iconEl = document.getElementById('sessionExpiredIcon');
-    
+
     if (titleEl) titleEl.textContent = title;
     if (descEl) descEl.textContent = message;
     if (iconEl) iconEl.textContent = icon;
-    
-    // ⚠️ FIXED: gunakan .show class + hapus hidden attribute
+
     modal.hidden = false;
-    modal.classList.add('show');
     document.body.style.overflow = 'hidden';
-    
+
     const okBtn = document.getElementById('sessionExpiredOk');
     if (okBtn && !okBtn.dataset.bound) {
       okBtn.dataset.bound = '1';
-      okBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        performForceLogout();
-      });
+      okBtn.addEventListener('click', () => performForceLogout());
     }
-    
-    // ⚠️ FIXED: force focus ke tombol
-    setTimeout(() => {
-      if (okBtn) okBtn.focus();
-    }, 100);
   } else {
     performForceLogout();
   }
@@ -696,10 +775,8 @@ function openDocument(docId, docType) {
    AI SCREEN
    ============================================================ */
 function initAIScreen() {
-  // AI module handles semua (event delegation)
   AI.initAIScreen();
 
-  // Additional binding
   $('#btnTopicSuggest')?.addEventListener('click', (e) => {
     e.preventDefault();
     showTopicSuggestions();
@@ -930,7 +1007,6 @@ function initProfile() {
     const cached = Username.getLocalCache();
     usernameInput.value = cached || '';
 
-    // Load dari backend
     Username.checkHasUsername().then(({ username }) => {
       if (username && !usernameInput.value) {
         usernameInput.value = username;
@@ -1235,7 +1311,6 @@ function initBottomNav() {
 function initModals() {
   $$('[data-close]').forEach(btn => {
     btn.addEventListener('click', () => {
-      // Skip close kalau username required
       if (btn.dataset.close === 'modalUsernameRequired') return;
       UI.closeModal(btn.dataset.close);
     });
