@@ -89,7 +89,3 @@ Dengan integrasi **Google Gemini AI**, mahasiswa dapat membuat dokumen lengkap d
 - 🚫 **Prompt Blacklist** — Cegah prompt off-topic
 - 💾 **Auto Backup** — Setiap 10 menit
 - 📱 **Responsive Layout** — Mobile, tablet, desktop
-
----
-
-## 🏗️ ARSITEKTUR SISTEM
