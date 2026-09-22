@@ -1,16 +1,19 @@
 /* ============================================================
-   ZHENIN - Markdown Parser (v2.8.0 MAJOR FIX)
+   ZHENIN - Markdown Parser (v2.8.2 FIXED)
    
-   FIX LIST:
-   - CB1: Autonumber FORCE replace (1,2,3,4 proper)
-   - CB6: Nested list structure (parse jadi nested items)
-   - CB10: Case-insensitive special tokens ([TABEL_TTD], [GAMBAR:...])
-   - CB11: Case-insensitive \page
-   - CB13: Bold/italic edge case (***text***)
-   - CB16: ColWidths normalize ke 100%
-   - CB23: Table tanpa body tetap valid
-   - CB27: Numbered list auto-increment (1,2,3 bukan 1,1,1)
-   - CB28: Guard empty rows
+   FIX v2.8.2 (CRITICAL):
+   - Reset numbered counter HANYA setelah non-list block
+   - Baris kosong TIDAK reset counter (list multi-baris tetap lanjut)
+   - Setiap heading/paragraph/table/quote reset counter
+   - Ini fix bug "1,1,1,1" di DOCX saat list di-break baris kosong
+   
+   FIX v2.8.1:
+   - CB1: Autonumber FORCE replace
+   - CB6: Nested list structure
+   - CB10/CB11: Case-insensitive tokens
+   - CB13: Bold/italic edge case
+   - CB16: ColWidths normalize
+   - CB27: Numbered list auto-increment
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -25,24 +28,23 @@ export const Parser = {
     let pendingStyle = null;
     let pendingFontSize = null;
 
-    // ⚠️ CB27: Track counter per indent level untuk numbered list
+    // ⚠️ Numbered list counter per indent level
     const numberedCounters = {};
-    let lastBlockWasNumbered = false;
+
+    // Helper: reset semua counter
+    const resetNumberedCounters = () => {
+      for (const key in numberedCounters) delete numberedCounters[key];
+    };
 
     while (i < lines.length) {
       const rawLine = lines[i];
       const trimmed = rawLine.trim();
-      if (!trimmed) {
-        i++;
-        // Reset numbered counters saat ada baris kosong
-        if (lastBlockWasNumbered) {
-          for (const key in numberedCounters) delete numberedCounters[key];
-          lastBlockWasNumbered = false;
-        }
-        continue;
-      }
 
-      // ===== HTML Comments (modifiers) =====
+      // ⚠️ FIX v2.8.2: Baris kosong TIDAK reset counter
+      // Counter akan di-reset saat ada block non-list
+      if (!trimmed) { i++; continue; }
+
+      // ===== HTML Comments (modifiers) — TIDAK reset =====
       if (/^<!--\s*width:\s*[\d\s,.]+\s*-->$/i.test(trimmed)) {
         const m = trimmed.match(/width:\s*([\d\s,.]+)/i);
         if (m) {
@@ -65,36 +67,32 @@ export const Parser = {
         i++; continue;
       }
 
-      // ===== CB11: Case-insensitive special tokens =====
       const lowerTrimmed = trimmed.toLowerCase();
 
+      // ===== Special tokens — RESET counter =====
       if (lowerTrimmed === '\\page' || lowerTrimmed === '[page_break]') {
         blocks.push({ type: 'pagebreak' });
-        i++;
-        lastBlockWasNumbered = false;
-        continue;
+        resetNumberedCounters();
+        i++; continue;
       }
       if (/^-{3,}$/.test(trimmed)) {
         blocks.push({ type: 'hr' });
-        i++;
-        lastBlockWasNumbered = false;
-        continue;
+        resetNumberedCounters();
+        i++; continue;
       }
       if (lowerTrimmed === '[tabel_ttd]') {
         blocks.push({ type: 'signature' });
-        i++;
-        lastBlockWasNumbered = false;
-        continue;
+        resetNumberedCounters();
+        i++; continue;
       }
       const imgMatch = trimmed.match(/^\[gambar:\s*(.+?)\]$/i);
       if (imgMatch) {
         blocks.push({ type: 'image', caption: imgMatch[1].trim() });
-        i++;
-        lastBlockWasNumbered = false;
-        continue;
+        resetNumberedCounters();
+        i++; continue;
       }
 
-      // ===== Table =====
+      // ===== Table — RESET counter =====
       if (trimmed.startsWith('|')) {
         const tStart = i;
         const tLines = [];
@@ -117,35 +115,40 @@ export const Parser = {
         pendingAutonumber = false;
         pendingStyle = null;
         pendingFontSize = null;
-        lastBlockWasNumbered = false;
+        resetNumberedCounters();
         continue;
       }
 
-      // ===== Headings =====
+      // ===== Headings — RESET counter =====
       if (trimmed.startsWith('#### ')) {
         blocks.push({ type: 'h4', text: trimmed.slice(5).trim() });
-        i++; lastBlockWasNumbered = false; continue;
+        resetNumberedCounters();
+        i++; continue;
       }
       if (trimmed.startsWith('### ')) {
         blocks.push({ type: 'h3', text: trimmed.slice(4).trim() });
-        i++; lastBlockWasNumbered = false; continue;
+        resetNumberedCounters();
+        i++; continue;
       }
       if (trimmed.startsWith('## ')) {
         blocks.push({ type: 'h2', text: trimmed.slice(3).trim() });
-        i++; lastBlockWasNumbered = false; continue;
+        resetNumberedCounters();
+        i++; continue;
       }
       if (trimmed.startsWith('# ')) {
         blocks.push({ type: 'h1', text: trimmed.slice(2).trim() });
-        i++; lastBlockWasNumbered = false; continue;
+        resetNumberedCounters();
+        i++; continue;
       }
 
-      // ===== Quote =====
+      // ===== Quote — RESET counter =====
       if (trimmed.startsWith('> ')) {
         blocks.push({ type: 'quote', text: trimmed.slice(2).trim() });
-        i++; lastBlockWasNumbered = false; continue;
+        resetNumberedCounters();
+        i++; continue;
       }
 
-      // ===== Numbered list (CB27: auto-increment) =====
+      // ===== Numbered list — TIDAK reset, increment counter =====
       if (/^\d+\.\s/.test(trimmed)) {
         const indent = this.getIndentLevel(rawLine);
 
@@ -163,12 +166,10 @@ export const Parser = {
           text: trimmed.replace(/^\d+\.\s*/, ''),
           number: numberedCounters[indent]
         });
-        i++;
-        lastBlockWasNumbered = true;
-        continue;
+        i++; continue;
       }
 
-      // ===== Bullet list =====
+      // ===== Bullet list — TIDAK reset =====
       if (/^[-*•]\s/.test(trimmed)) {
         const indent = this.getIndentLevel(rawLine);
         blocks.push({
@@ -176,16 +177,14 @@ export const Parser = {
           indent,
           text: trimmed.replace(/^[-*•]\s*/, '')
         });
-        i++;
-        lastBlockWasNumbered = false;
-        continue;
+        i++; continue;
       }
 
-      // ===== Paragraph =====
+      // ===== Paragraph — RESET counter =====
       const indent = this.getIndentLevel(rawLine);
       blocks.push({ type: 'paragraph', indent, text: trimmed });
+      resetNumberedCounters();
       i++;
-      lastBlockWasNumbered = false;
     }
 
     return blocks;
@@ -235,25 +234,49 @@ export const Parser = {
       return cells.slice(0, headers.length);
     });
 
-    const firstHeader = (headers[0] || '').toLowerCase().trim().replace(/[.:#]/g, '');
-    const isNoColumn = firstHeader === 'no' ||
-                       firstHeader === 'nomor' ||
-                       firstHeader === 'no urut' ||
-                       firstHeader === 'nomor urut' ||
-                       firstHeader === '#' ||
-                       firstHeader === 'num';
+    const normalizeHeader = (h) => String(h || '')
+      .toLowerCase()
+      .trim()
+      .replace(/[.:#*_\-]/g, '')
+      .replace(/\s+/g, ' ');
 
-    // ⚠️ CB1: FORCE renumber kalau ada explicit autonumber ATAU header = No
-    const shouldAutonumber = opts.autonumber || isNoColumn;
+    const firstHeaderNormalized = normalizeHeader(headers[0]);
+    const isNoColumn = [
+      'no', 'nomor', 'nomer', 'no urut', 'nomor urut',
+      'num', 'number', 'index', '#', 'urutan'
+    ].includes(firstHeaderNormalized);
+
+    // Detect kalau semua rows kolom 1 punya pola increment
+    const allRowsHaveIncrementPattern = rows.length > 0 && rows.every((row) => {
+      const val = String(row[0] || '').trim();
+      if (!val) return true;
+      return /^\d+[.)]?$/.test(val);
+    });
+
+    // Detect kalau kolom 1 isinya angka berulang (1,1,1,1)
+    const hasRepeatingNumbers = (() => {
+      if (rows.length < 2) return false;
+      const vals = rows.map(r => String(r[0] || '').trim().replace(/[.)]/g, '')).filter(Boolean);
+      if (vals.length < 2) return false;
+      const uniqueVals = new Set(vals);
+      return uniqueVals.size < vals.length;
+    })();
+
+    // FORCE autonumber kalau:
+    // 1. Explicit <!-- autonumber -->
+    // 2. Header = No/Nomor/dll
+    // 3. AI generate pola increment tapi ada duplikat
+    const shouldAutonumber = opts.autonumber ||
+                              isNoColumn ||
+                              (allRowsHaveIncrementPattern && hasRepeatingNumbers);
 
     if (shouldAutonumber) {
       rows.forEach((row, i) => {
-        // ⚠️ FORCE replace — jangan cek apakah sudah ada isinya
+        // FORCE replace
         row[0] = String(i + 1);
       });
     }
 
-    // Compute column widths
     let colWidths;
     if (opts.width && opts.width.length === headers.length) {
       const total = opts.width.reduce((a, b) => a + b, 0);
@@ -262,7 +285,7 @@ export const Parser = {
       colWidths = this.computeColumnWidths(headers, rows);
     }
 
-    // ⚠️ CB16: Normalize total ke 100%
+    // Normalize total ke 100%
     const totalWidth = colWidths.reduce((a, b) => a + b, 0);
     if (totalWidth > 0 && Math.abs(totalWidth - 100) > 0.01) {
       colWidths = colWidths.map(w => (w / totalWidth) * 100);
@@ -350,10 +373,6 @@ export const Parser = {
     return Math.floor(level);
   },
 
-  /**
-   * Parse inline markdown
-   * ⚠️ CB13: Handle ***text*** (bold italic) properly
-   */
   parseInline(text) {
     const runs = [];
     let i = 0;
@@ -369,7 +388,6 @@ export const Parser = {
     }
 
     while (i < text.length) {
-      // <br> handling
       const remaining = text.substr(i).toLowerCase();
       if (remaining.startsWith('<br>')) {
         flush();
@@ -390,10 +408,9 @@ export const Parser = {
         continue;
       }
 
-      // ⚠️ CB13: Cek *** dulu (bold italic)
+      // *** dulu (bold italic)
       if (text.substr(i, 3) === '***') {
         flush();
-        // Toggle bold & italic bersamaan
         bold = !bold;
         italic = !italic;
         i += 3;
@@ -421,7 +438,6 @@ export const Parser = {
   serialize(blocks) {
     if (!Array.isArray(blocks)) return '';
 
-    // ⚠️ CB27: Reset numbered counter saat serialize
     const numCounters = {};
 
     return blocks.map(block => {
@@ -438,7 +454,6 @@ export const Parser = {
           const indent = '\t'.repeat(block.indent || 0);
           const indentLevel = block.indent || 0;
           numCounters[indentLevel] = (numCounters[indentLevel] || 0) + 1;
-          // Reset counter untuk level lebih dalam
           for (const key in numCounters) {
             if (parseInt(key) > indentLevel) delete numCounters[key];
           }

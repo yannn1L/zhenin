@@ -1,6 +1,11 @@
 /* ============================================================
-   ZHENIN - Components CSS (v2.6.2)
-   Buttons, Forms, Cards, Modals, Tables, dll
+   ZHENIN - Components CSS (v2.8.1 FIXED)
+   Buttons, Forms, Cards, Modals, Tables, Lists, dll
+   
+   FIX v2.8.1:
+   - .paper ul/ol restore list-style (override main.css reset)
+   - Multi-level list marker (disc/circle/square, decimal/alpha/roman)
+   - Nested list padding
    ============================================================ */
 
 /* ============================================================
@@ -111,7 +116,6 @@
   flex-shrink: 0;
 }
 
-/* Link button */
 .link-btn {
   color: var(--z-gold);
   font-size: inherit;
@@ -225,7 +229,6 @@ select.form-input {
   margin-top: var(--z-s-xl);
 }
 
-/* Input wrapper with icon */
 .input-wrap {
   position: relative;
 }
@@ -398,7 +401,7 @@ select.form-input {
 }
 
 /* ============================================================
-   QUOTA CARD (v2.6.2)
+   QUOTA CARD
    ============================================================ */
 .quota-wrapper {
   margin: 0 var(--z-s-lg) var(--z-s-lg);
@@ -1165,17 +1168,52 @@ select.form-input {
 .paper p.indent-1 { text-indent: 0; padding-left: 0.5in; }
 .paper p.indent-2 { text-indent: 0; padding-left: 1in; }
 .paper p.indent-3 { text-indent: 0; padding-left: 1.5in; }
-.paper ul, .paper ol {
+
+/* ============================================================
+   PAPER LIST (v2.8.1 FIX)
+   Restore list marker di preview dokumen (override main.css reset)
+   Konsisten dengan DOCX
+   ============================================================ */
+.paper ul,
+.paper ol {
   padding-left: 0.75in;
   margin: 0 0 6pt;
+  list-style-position: outside !important;
 }
-.paper li { margin-bottom: 2pt; }
-/* ============================================================
-   PAPER TABLE (v2.7.2 FIXED)
-   - Font size konsisten dengan DOCX (10pt)
-   - Border 1px = 0.75pt (konsisten dengan DOCX size 6)
-   - Padding konsisten
-   ============================================================ */
+
+.paper ul {
+  list-style-type: disc !important;
+}
+.paper ul ul {
+  list-style-type: circle !important;
+}
+.paper ul ul ul {
+  list-style-type: square !important;
+}
+
+.paper ol {
+  list-style-type: decimal !important;
+}
+.paper ol ol {
+  list-style-type: lower-alpha !important;
+}
+.paper ol ol ol {
+  list-style-type: lower-roman !important;
+}
+
+.paper li {
+  margin-bottom: 2pt;
+  padding-left: 4pt;
+  text-align: justify;
+}
+
+.paper li > ul,
+.paper li > ol {
+  margin-top: 2pt;
+  margin-bottom: 2pt;
+  padding-left: 0.4in;
+}
+
 .paper table {
   width: 100%;
   border-collapse: collapse;
@@ -1200,7 +1238,6 @@ select.form-input {
 .paper table td {
   vertical-align: middle;
 }
-
 .paper .align-center { text-align: center; }
 .paper .align-right { text-align: right; }
 .paper .pv-quote {
@@ -1258,7 +1295,7 @@ select.form-input {
 }
 
 /* ============================================================
-   PAPER EDIT MODE (v2.6.3)
+   PAPER EDIT MODE
    ============================================================ */
 .paper.hidden { display: none; }
 
@@ -1287,8 +1324,6 @@ select.form-input {
   line-height: 1.5;
 }
 
-/* Table wrap actions */
-/* Table wrap legacy (hidden) */
 .pv-table-wrap {
   position: relative;
 }
@@ -1296,7 +1331,6 @@ select.form-input {
   display: none !important;
 }
 
-/* Result toolbar */
 .result-toolbar {
   display: flex;
   gap: 4px;
@@ -1443,7 +1477,6 @@ select.form-input {
   text-transform: uppercase;
 }
 
-/* Profile fields */
 .profile-fields {
   padding: 12px 16px;
   display: flex;
@@ -1750,7 +1783,6 @@ select.form-input {
 }
 .modal-footer-row .btn { flex: 1; }
 
-/* Username Required Modal */
 #modalUsernameRequired .modal {
   max-width: 420px;
 }
@@ -1764,7 +1796,6 @@ select.form-input {
   color: var(--z-gold);
 }
 
-/* Contact card */
 .contact-card {
   background: var(--z-surface);
   border: 1px solid var(--z-border);
@@ -1808,7 +1839,6 @@ select.form-input {
   font-style: italic;
 }
 
-/* Help content */
 .help-section {
   margin-bottom: var(--z-s-xl);
 }
@@ -1850,7 +1880,6 @@ select.form-input {
 }
 .help-list strong { color: var(--z-gold); }
 
-/* Topic grid */
 .topic-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1874,7 +1903,6 @@ select.form-input {
   transform: translateY(-1px);
 }
 
-/* Confirm modal */
 .confirm-icon {
   font-size: 2.5rem;
   margin-bottom: var(--z-s-md);
@@ -1891,7 +1919,6 @@ select.form-input {
   line-height: 1.5;
 }
 
-/* Session expired */
 #modalSessionExpired {
   z-index: 9999;
 }
@@ -2086,7 +2113,7 @@ select.form-input {
 }
 
 /* ============================================================
-   QUOTA CARD POLISH (v2.6.3)
+   QUOTA CARD POLISH
    ============================================================ */
 .quota-card {
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
