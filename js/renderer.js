@@ -1,10 +1,12 @@
 /* ============================================================
-   ZHENIN - HTML Renderer (v2.7.2 FIXED)
-   FIX:
-   - Konsistensi font size tabel dengan DOCX (10pt)
-   - <br> di table cell & list di-render proper
-   - Guard block null
-   - renderInline handle br di paragraph
+   ZHENIN - HTML Renderer (v2.8.0 MAJOR FIX)
+   
+   FIX LIST:
+   - CB6: Nested list render proper (wrap <ol>/<ul> dalam <li>)
+   - CB24: H1 dengan : render konsisten (1 baris)
+   - CB25: ol start attribute
+   - br marker handling
+   - Font size tabel konsisten DOCX (10pt)
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -16,14 +18,131 @@ export const Renderer = {
     if (!Array.isArray(blocks) || blocks.length === 0) {
       return '<p style="color:#94a3b8;text-align:center;padding:40px;font-family:-apple-system,sans-serif;">Dokumen kosong</p>';
     }
-    return blocks.map((block, idx) => this.renderBlock(block, idx)).join('\n');
+
+    // ⚠️ CB6: Group consecutive list items
+    const grouped = this.groupListBlocks(blocks);
+
+    return grouped.map((item, idx) => {
+      if (item._grouped) {
+        return this.renderListGroup(item.blocks, idx);
+      }
+      return this.renderBlock(item, idx);
+    }).join('\n');
+  },
+
+  /**
+   * Group consecutive numbered/bullet blocks jadi nested structure
+   */
+  groupListBlocks(blocks) {
+    const result = [];
+    let i = 0;
+
+    while (i < blocks.length) {
+      const block = blocks[i];
+
+      if (block.type === 'numbered' || block.type === 'bullet') {
+        const group = [];
+        while (i < blocks.length &&
+               (blocks[i].type === 'numbered' || blocks[i].type === 'bullet')) {
+          group.push(blocks[i]);
+          i++;
+        }
+        result.push({ _grouped: true, blocks: group });
+      } else {
+        result.push(block);
+        i++;
+      }
+    }
+
+    return result;
+  },
+
+  /**
+   * Render list group dengan nested structure
+   */
+  renderListGroup(listBlocks, groupIdx) {
+    if (!listBlocks.length) return '';
+
+    // Build nested tree
+    const tree = this.buildListTree(listBlocks);
+
+    // Render root level
+    return this.renderListLevel(tree);
+  },
+
+  /**
+   * Build nested list tree dari flat list blocks
+   */
+  buildListTree(blocks) {
+    const root = [];
+    const stack = [{ children: root, indent: -1 }];
+
+    for (const block of blocks) {
+      const indent = block.indent || 0;
+
+      // Pop stack sampai ketemu parent yang indent < block.indent
+      while (stack.length > 1 && stack[stack.length - 1].indent >= indent) {
+        stack.pop();
+      }
+
+      const node = {
+        type: block.type,
+        text: block.text,
+        number: block.number,
+        indent: indent,
+        children: []
+      };
+
+      stack[stack.length - 1].children.push(node);
+      stack.push(node);
+    }
+
+    return root;
+  },
+
+  /**
+   * Render satu level list
+   */
+  renderListLevel(nodes) {
+    if (!nodes.length) return '';
+
+    // Group by type (numbered vs bullet)
+    const groups = [];
+    let currentGroup = null;
+
+    for (const node of nodes) {
+      if (!currentGroup || currentGroup.type !== node.type) {
+        currentGroup = { type: node.type, items: [] };
+        groups.push(currentGroup);
+      }
+      currentGroup.items.push(node);
+    }
+
+    return groups.map(group => {
+      const tag = group.type === 'numbered' ? 'ol' : 'ul';
+      const startAttr = group.type === 'numbered' && group.items[0].number
+        ? ` start="${group.items[0].number}"`
+        : '';
+
+      const items = group.items.map(node => {
+        const childrenHtml = node.children.length > 0
+          ? this.renderListLevel(node.children)
+          : '';
+        return `<li>${this.renderInline(node.text)}${childrenHtml}</li>`;
+      }).join('');
+
+      return `<${tag} class="pv-list"${startAttr}>${items}</${tag}>`;
+    }).join('');
   },
 
   renderBlock(block, idx) {
     if (!block || !block.type) return '';
 
     switch (block.type) {
-      case 'h1': return `<h1 class="pv-h1">${this.renderInline(block.text)}</h1>`;
+      case 'h1': {
+        // ⚠️ CB24: Konsisten 1 baris (jangan split dengan :)
+        return `<h1 class="pv-h1">${this.renderInline(block.text)}</h1>`;
+      }
       case 'h2': return `<h2 class="pv-h2">${this.renderInline(block.text)}</h2>`;
       case 'h3': return `<h3 class="pv-h3">${this.renderInline(block.text)}</h3>`;
       case 'h4': return `<h4 class="pv-h4">${this.renderInline(block.text)}</h4>`;
@@ -32,14 +151,10 @@ export const Renderer = {
         const content = this.renderInline(block.text) || '&nbsp;';
         return `<p class="pv-p ${cls}">${content}</p>`;
       }
-      case 'numbered': {
-        const indent = block.indent || 0;
-        return `<ol class="pv-list indent-${Math.min(indent, 3)}" start="${block.number || 1}"><li>${this.renderInline(block.text)}</li></ol>`;
-      }
-      case 'bullet': {
-        const indent = block.indent || 0;
-        return `<ul class="pv-list indent-${Math.min(indent, 3)}"><li>${this.renderInline(block.text)}</li></ul>`;
-      }
+      // Numbered & bullet di-handle oleh renderListGroup
+      case 'numbered':
+      case 'bullet':
+        return '';  // Shouldn't reach here
       case 'quote': return `<div class="pv-quote">${this.renderInline(block.text)}</div>`;
       case 'hr': return `<hr class="pv-hr">`;
       case 'pagebreak': return `<div class="pv-pagebreak"></div>`;
@@ -53,18 +168,12 @@ export const Renderer = {
     }
   },
 
-  /**
-   * Render inline markdown
-   * FIX: Handle <br> di paragraph → <br> tag
-   * FIX: Handle br marker dari parseInline
-   */
   renderInline(text) {
     if (!text) return '';
     const withPlaceholders = this.replacePlaceholders(text);
     const runs = Parser.parseInline(withPlaceholders);
 
     let html = runs.map(run => {
-      // Handle br marker dari parseInline
       if (run.type === 'br') return '<br>';
 
       let part = this.escapeHtml(run.text);
@@ -77,7 +186,6 @@ export const Renderer = {
       return part;
     }).join('');
 
-    // Legacy: restore &lt;br&gt; yang ter-escape jadi line break
     html = html.replace(/&lt;br\s*\/?&gt;/gi, '<br>');
 
     return html;

@@ -1,15 +1,17 @@
 /* ============================================================
-   ZHENIN - DOCX Exporter (v2.7.2 FIXED)
-   FIX:
-   - <br> di table cell → multiple paragraph (line break proper)
-   - Font size tabel konsisten dengan preview (10pt)
-   - Indent professional: firstLine 0.5in untuk paragraph normal
-   - Border size konsisten (6 = 0.75pt = 1px)
-   - Min cell height lebih kecil (240 twips)
+   ZHENIN - DOCX Exporter (v2.8.0 MAJOR FIX)
+   
+   FIX LIST:
+   - CB5: List hanging dynamic (support nomor 2 digit+)
+   - CB6: Nested list di DOCX proper
+   - CB7: <br> di paragraph → break: 1 (line break proper)
+   - CB24: H1 dengan : tetap 1 baris (konsisten preview)
+   - CB25: ol start attribute
+   - CB27: Numbered list pakai block.number (sudah auto-increment di parser)
+   - Border size 6 (0.75pt = 1px)
+   - Font size 20 (10pt) konsisten preview
    - Typo "Instructure" → "Instructor"
-   - [TANGGAL] di identity table di-replace
-   - Sanitize control characters
-   - Guard empty content
+   - Sanitize control chars
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -35,7 +37,7 @@ export const Exporter = {
 
     const FONT = 'Times New Roman';
     const FONT_SIZE = 24;           // 12pt body
-    const FONT_SIZE_TABLE = 20;      // ⚠️ FIX: 10pt (sebelumnya 22 = 11pt)
+    const FONT_SIZE_TABLE = 20;      // 10pt (konsisten preview)
     const LINE_SPACING = 360;        // 1.5 line spacing
 
     const PAGE_WIDTH = convertMillimetersToTwip(210);
@@ -53,7 +55,8 @@ export const Exporter = {
       FONT, FONT_SIZE, FONT_SIZE_TABLE, LINE_SPACING, CONTENT_WIDTH,
       Paragraph, TextRun, Table, TableRow, TableCell,
       WidthType, AlignmentType, BorderStyle, VerticalAlign, HeightRule,
-      TableLayoutType, PageBreak
+      TableLayoutType, PageBreak,
+      _self: this
     };
 
     const children = [];
@@ -69,8 +72,15 @@ export const Exporter = {
       }));
     }
 
-    for (const block of blocks) {
-      this.renderBlock(block, children, ctx);
+    // ⚠️ CB6: Group consecutive list blocks untuk nested handling
+    const grouped = this.groupListBlocks(blocks);
+
+    for (const item of grouped) {
+      if (item._grouped) {
+        this.renderListGroup(item.blocks, children, ctx, 0);
+      } else {
+        this.renderBlock(item, children, ctx);
+      }
     }
 
     const doc = new Document({
@@ -118,95 +128,221 @@ export const Exporter = {
   },
 
   /**
-   * Sanitize control characters yang bisa corrupt DOCX
+   * Group consecutive list blocks
    */
+  groupListBlocks(blocks) {
+    const result = [];
+    let i = 0;
+
+    while (i < blocks.length) {
+      const block = blocks[i];
+
+      if (block.type === 'numbered' || block.type === 'bullet') {
+        const group = [];
+        while (i < blocks.length &&
+               (blocks[i].type === 'numbered' || blocks[i].type === 'bullet')) {
+          group.push(blocks[i]);
+          i++;
+        }
+        result.push({ _grouped: true, blocks: group });
+      } else {
+        result.push(block);
+        i++;
+      }
+    }
+
+    return result;
+  },
+
+  /**
+   * Render list group dengan nested handling
+   * ⚠️ CB6: Nested list di-render dengan indent + bullet style berbeda
+   */
+  renderListGroup(listBlocks, out, ctx, baseLevel) {
+    const tree = this.buildListTree(listBlocks);
+    this.renderListLevel(tree, out, ctx, baseLevel);
+  },
+
+  buildListTree(blocks) {
+    const root = [];
+    const stack = [{ children: root, indent: -1 }];
+
+    for (const block of blocks) {
+      const indent = block.indent || 0;
+
+      while (stack.length > 1 && stack[stack.length - 1].indent >= indent) {
+        stack.pop();
+      }
+
+      const node = {
+        type: block.type,
+        text: block.text,
+        number: block.number,
+        indent: indent,
+        children: []
+      };
+
+      stack[stack.length - 1].children.push(node);
+      stack.push(node);
+    }
+
+    return root;
+  },
+
+  renderListLevel(nodes, out, ctx, baseLevel) {
+    const { FONT, FONT_SIZE, LINE_SPACING } = ctx;
+    const self = ctx._self;
+
+    // Group by type
+    const groups = [];
+    let currentGroup = null;
+
+    for (const node of nodes) {
+      if (!currentGroup || currentGroup.type !== node.type) {
+        currentGroup = { type: node.type, items: [] };
+        groups.push(currentGroup);
+      }
+      currentGroup.items.push(node);
+    }
+
+    for (const group of groups) {
+      for (const node of group.items) {
+        const depth = baseLevel + node.indent;
+
+        // ⚠️ CB5: Dynamic hanging berdasarkan panjang nomor
+        let bulletText;
+        if (group.type === 'bullet') {
+          const bulletChar = depth === 0 ? '•  ' :
+                            depth === 1 ? '○  ' :
+                            depth === 2 ? '▪  ' :
+                            '·  ';
+          bulletText = bulletChar;
+        } else {
+          bulletText = `${node.number || 1}.  `;
+        }
+
+        // Dynamic hanging: minimum 360 twips (0.25in), atau sesuai panjang bullet
+        const hanging = Math.max(360, bulletText.length * 130);
+
+        // Indent berdasarkan depth
+        const indentLeft = 720 + (depth * 360);
+
+        const children = [
+          new ctx.TextRun({ text: bulletText, font: FONT, size: FONT_SIZE }),
+          ...self.buildRunsWithBr(node.text, ctx, {})
+        ];
+
+        out.push(new ctx.Paragraph({
+          alignment: ctx.AlignmentType.JUSTIFIED,
+          indent: { left: indentLeft, hanging: hanging },
+          spacing: { line: LINE_SPACING, after: 60 },
+          children
+        }));
+
+        // Render nested children
+        if (node.children.length > 0) {
+          this.renderListLevel(node.children, out, ctx, baseLevel);
+        }
+      }
+    }
+  },
+
   sanitizeText(str) {
     return String(str == null ? '' : str)
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
   },
 
-  renderBlock(block, out, ctx) {
-    const { FONT, FONT_SIZE, LINE_SPACING } = ctx;
+  /**
+   * ⚠️ CB7: Build runs dengan <br> → break: 1
+   * <br> di paragraph jadi line break, bukan multiple paragraph
+   */
+  buildRunsWithBr(text, ctx, opts = {}) {
+    const { FONT, FONT_SIZE } = ctx;
     const repl = (t) => Renderer.replacePlaceholders(t);
     const sanitize = (t) => this.sanitizeText(t);
 
-    const buildRuns = (text, opts = {}) => {
-      const runs = Parser.parseInline(sanitize(repl(text)));
-      // Filter out br markers di paragraph (tidak dipakai di sini)
-      return runs.filter(r => r.type !== 'br').map(r => {
-        const o = {
-          text: r.text || ' ',
-          bold: r.bold || opts.bold || false,
-          italics: r.italic || opts.italic || false,
-          underline: r.underline ? {} : undefined,
-          strike: r.strike || false,
-          font: FONT,
-          size: opts.size || FONT_SIZE
-        };
-        if (r.highlight) o.highlight = 'yellow';
-        return new ctx.TextRun(o);
-      });
-    };
+    const sanitized = sanitize(repl(text));
+    const runs = Parser.parseInline(sanitized);
+
+    const textRuns = [];
+    let pendingBreak = false;
+
+    for (const r of runs) {
+      if (r.type === 'br') {
+        pendingBreak = true;
+        continue;
+      }
+
+      const o = {
+        text: r.text || ' ',
+        bold: r.bold || opts.bold || false,
+        italics: r.italic || opts.italic || false,
+        underline: r.underline ? {} : undefined,
+        strike: r.strike || false,
+        font: FONT,
+        size: opts.size || FONT_SIZE
+      };
+
+      if (pendingBreak) {
+        o.break = 1;
+        pendingBreak = false;
+      }
+
+      if (r.highlight) o.highlight = 'yellow';
+      textRuns.push(new ctx.TextRun(o));
+    }
+
+    return textRuns.length > 0
+      ? textRuns
+      : [new ctx.TextRun({ text: ' ', font: FONT, size: opts.size || FONT_SIZE })];
+  },
+
+  renderBlock(block, out, ctx) {
+    const { FONT, FONT_SIZE, LINE_SPACING } = ctx;
+    const self = this;
 
     switch (block.type) {
       case 'h1': {
-        const txt = sanitize(repl(block.text));
-        const idx = txt.indexOf(':');
-        const babLine = idx > -1 ? txt.slice(0, idx).trim() : txt;
-        const titleLine = idx > -1 ? txt.slice(idx + 1).trim() : '';
-
+        // ⚠️ CB24: Konsisten 1 baris (tidak split dengan :)
+        const txt = self.sanitizeText(Renderer.replacePlaceholders(block.text));
         out.push(new ctx.Paragraph({
           alignment: ctx.AlignmentType.CENTER,
-          spacing: { line: LINE_SPACING, before: 0, after: 0 },
+          spacing: { line: LINE_SPACING, before: 0, after: 240 },
           children: [new ctx.TextRun({
-            text: babLine.toUpperCase(),
+            text: txt.toUpperCase(),
             bold: true, font: FONT, size: FONT_SIZE
           })]
         }));
-
-        if (titleLine) {
-          out.push(new ctx.Paragraph({
-            alignment: ctx.AlignmentType.CENTER,
-            spacing: { line: LINE_SPACING, before: 0, after: 240 },
-            children: [new ctx.TextRun({
-              text: titleLine.toUpperCase(),
-              bold: true, font: FONT, size: FONT_SIZE
-            })]
-          }));
-        }
         break;
       }
       case 'h2':
         out.push(new ctx.Paragraph({
           spacing: { line: LINE_SPACING, before: 240, after: 120 },
-          children: buildRuns(block.text, { bold: true })
+          children: self.buildRunsWithBr(block.text, ctx, { bold: true })
         }));
         break;
       case 'h3':
         out.push(new ctx.Paragraph({
           spacing: { line: LINE_SPACING, before: 200, after: 100 },
-          children: buildRuns(block.text, { bold: true })
+          children: self.buildRunsWithBr(block.text, ctx, { bold: true })
         }));
         break;
       case 'h4':
         out.push(new ctx.Paragraph({
           indent: { left: 360 },
           spacing: { line: LINE_SPACING, before: 160, after: 80 },
-          children: buildRuns(block.text, { bold: true, italic: true })
+          children: self.buildRunsWithBr(block.text, ctx, { bold: true, italic: true })
         }));
         break;
 
       case 'paragraph': {
-        const txt = sanitize(repl(block.text));
+        const txt = self.sanitizeText(Renderer.replacePlaceholders(block.text));
         if (txt.trim() === '__IDENTITAS_MHS_MARKER__') {
           out.push(this.buildIdentityTable(ctx));
           out.push(new ctx.Paragraph({ spacing: { after: 120 }, children: [] }));
           break;
         }
 
-        // ⚠️ FIX: Indent professional
-        // - indent 0: firstLine 0.5in (paragraf normal skripsi)
-        // - indent 1+: left indent (sub-item)
         const indentLevel = block.indent || 0;
         let indentConfig;
         if (indentLevel === 0) {
@@ -219,35 +355,21 @@ export const Exporter = {
           alignment: ctx.AlignmentType.JUSTIFIED,
           indent: indentConfig,
           spacing: { line: LINE_SPACING, after: 120 },
-          children: buildRuns(block.text)
+          children: self.buildRunsWithBr(block.text, ctx, {})
         }));
         break;
       }
 
+      // Numbered & bullet di-handle oleh renderListGroup
       case 'numbered':
-      case 'bullet': {
-        const indent = (block.indent || 0) * 720;
-        const bullet = block.type === 'bullet'
-          ? (block.indent === 0 ? '•  ' : block.indent === 1 ? '○  ' : '■  ')
-          : `${block.number || 1}.  `;
-
-        out.push(new ctx.Paragraph({
-          alignment: ctx.AlignmentType.JUSTIFIED,
-          indent: { left: 720 + indent, hanging: 360 },
-          spacing: { line: LINE_SPACING, after: 60 },
-          children: [
-            new ctx.TextRun({ text: bullet, font: FONT, size: FONT_SIZE }),
-            ...buildRuns(block.text)
-          ]
-        }));
+      case 'bullet':
         break;
-      }
 
       case 'quote':
         out.push(new ctx.Paragraph({
           indent: { left: 720 },
           spacing: { line: LINE_SPACING, after: 120 },
-          children: buildRuns(block.text, { italic: true })
+          children: self.buildRunsWithBr(block.text, ctx, { italic: true })
         }));
         break;
 
@@ -281,9 +403,6 @@ export const Exporter = {
     }
   },
 
-  /**
-   * Build table dengan handling <br> → multiple paragraph
-   */
   buildTable(block, ctx) {
     const {
       FONT, FONT_SIZE_TABLE, CONTENT_WIDTH,
@@ -292,7 +411,6 @@ export const Exporter = {
       TableLayoutType
     } = ctx;
 
-    // ⚠️ FIX: Border size 6 = 0.75pt = 1px (konsisten dengan preview)
     const BRD = { style: BorderStyle.SINGLE, size: 6, color: '000000' };
     const cb = { top: BRD, bottom: BRD, left: BRD, right: BRD };
 
@@ -311,7 +429,7 @@ export const Exporter = {
                        : align === 'right' ? AlignmentType.RIGHT
                        : AlignmentType.LEFT;
 
-      // ⚠️ FIX: Split by <br> → multiple Paragraph (proper line break)
+      // Split by <br> → multiple Paragraph
       const rawText = String(text == null ? '' : text);
       const parts = rawText.split(/<br\s*\/?>/i);
 
@@ -320,7 +438,6 @@ export const Exporter = {
         const sanitized = self.sanitizeText(replaced);
         const runs = Parser.parseInline(sanitized).filter(r => r.type !== 'br');
 
-        // Kalau kosong, biarkan paragraph kosong
         const children = runs.length > 0
           ? runs.map(r => {
               const o = {
@@ -398,7 +515,6 @@ export const Exporter = {
     const p = Data.getProfile();
     const self = this;
 
-    // ⚠️ FIX: Replace placeholder di values
     const replaceValue = (val) => {
       if (!val || val === '-') return '-';
       const replaced = Renderer.replacePlaceholders(val);
@@ -441,7 +557,8 @@ export const Exporter = {
           makeCell(value, { width: RIGHT_W })
         ]
       })),
-      borders: cb    });
+      borders: cb
+    });
   },
 
   buildSignatureTable(ctx) {
@@ -480,7 +597,6 @@ export const Exporter = {
           height: { value: 1400, rule: HeightRule.ATLEAST },
           children: [
             makeCell('Yang Membuat/Mahasiswa', { vAlign: VerticalAlign.TOP }),
-            // ⚠️ FIX: Typo "Instructure" → "Instructor"
             makeCell('Yang Memverifikasi/Clinical Instructor (CI)', { vAlign: VerticalAlign.TOP })
           ]
         }),

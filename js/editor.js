@@ -1,11 +1,12 @@
 /* ============================================================
-   ZHENIN - Editor Controller (v2.7.2 FIXED)
-   FIX:
-   - tableToMarkdown() guard empty (data loss prevention)
-   - Nested list handling proper
-   - <br> di cell jadi literal <br> (konsisten parser)
-   - htmlToMarkdown() handle table kosong
-   - cleanup race condition
+   ZHENIN - Editor Controller (v2.8.0 MAJOR FIX)
+   
+   FIX LIST:
+   - CB2: <br> nested tags handling better
+   - CB6: Nested list to markdown proper
+   - CB27: Numbered list re-number saat save
+   - Data loss prevention
+   - Cleanup race condition
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -58,13 +59,8 @@ export const Editor = {
     return AI.getDocument(this._currentDocId, this._currentDocType);
   },
 
-  getCurrentDocId() {
-    return this._currentDocId;
-  },
-
-  getCurrentContent() {
-    return this._currentContent;
-  },
+  getCurrentDocId() { return this._currentDocId; },
+  getCurrentContent() { return this._currentContent; },
 
   render() {
     const paper = document.getElementById('resultPaper');
@@ -164,10 +160,6 @@ export const Editor = {
     this._currentContent = markdown;
   },
 
-  /**
-   * Convert HTML contenteditable back ke markdown
-   * FIX: Handle nested list, table kosong
-   */
   htmlToMarkdown(container) {
     if (!container) return '';
     const output = [];
@@ -209,11 +201,9 @@ export const Editor = {
           continue;
         }
         const tableMd = this.tableToMarkdown(el);
-        // ⚠️ FIX: Guard empty table (data loss prevention)
         if (tableMd && tableMd.trim()) {
           output.push(tableMd);
         } else {
-          // Fallback: extract text content minimal
           const text = el.textContent.trim();
           if (text) output.push(text);
         }
@@ -225,7 +215,7 @@ export const Editor = {
       if (tag === 'h3') { output.push('### ' + el.textContent.trim()); continue; }
       if (tag === 'h4') { output.push('#### ' + el.textContent.trim()); continue; }
 
-      // ⚠️ FIX: Nested list handling proper
+      // ⚠️ CB6: Nested list proper
       if (tag === 'ol') {
         this.listToMarkdown(el, output, 'ol', 0);
         continue;
@@ -252,6 +242,7 @@ export const Editor = {
 
   /**
    * Convert list element ke markdown dengan nested handling
+   * ⚠️ CB6: Recursive, reset counter per level
    */
   listToMarkdown(listEl, output, listType, level) {
     const items = Array.from(listEl.children).filter(c => c.tagName.toLowerCase() === 'li');
@@ -264,14 +255,14 @@ export const Editor = {
 
       Array.from(li.childNodes).forEach(node => {
         if (node.nodeType === 3) {
-          // Text node
           text += node.textContent;
         } else if (node.nodeType === 1) {
           const childTag = node.tagName.toLowerCase();
           if (childTag === 'ul' || childTag === 'ol') {
             nestedLists.push({ el: node, type: childTag });
+          } else if (childTag === 'br') {
+            text += '<br>';
           } else {
-            // Element lain (strong, em, dll)
             text += node.textContent;
           }
         }
@@ -292,25 +283,18 @@ export const Editor = {
     });
   },
 
-  /**
-   * Extract table HTML → markdown
-   * FIX: <br> jadi literal <br>
-   * FIX: Guard empty table
-   */
   tableToMarkdown(table) {
     const rows = [];
     table.querySelectorAll('tr').forEach(tr => {
       const cells = [];
       tr.querySelectorAll('th, td').forEach(cell => {
-        // FIX: Konversi <br> jadi literal <br> dalam cell
         let html = cell.innerHTML;
         html = html.replace(/<br\s*\/?>/gi, '|||BR|||');
-        let text = html.replace(/<[^>]+>/g, ''); // strip tags
+        let text = html.replace(/<[^>]+>/g, '');
         text = text.replace(/\|\|\|BR\|\|\|/g, '<br>');
         text = text.trim().replace(/\|/g, '\\|');
         cells.push(text);
       });
-      // ⚠️ FIX: Skip row kosong
       if (cells.length > 0) {
         rows.push('| ' + cells.join(' | ') + ' |');
       }

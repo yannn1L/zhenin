@@ -1,12 +1,16 @@
 /* ============================================================
-   ZHENIN - Markdown Parser (v2.7.2 FIXED)
-   FIX:
-   - <br> handling di parseInline (untuk DOCX line break)
-   - escape \| di table cell splitRow
-   - nested list indent presisi (0.25 spasi, max 4)
-   - autonumber force option
-   - guard empty table rows
-   - computeColumnWidths lebih proporsional
+   ZHENIN - Markdown Parser (v2.8.0 MAJOR FIX)
+   
+   FIX LIST:
+   - CB1: Autonumber FORCE replace (1,2,3,4 proper)
+   - CB6: Nested list structure (parse jadi nested items)
+   - CB10: Case-insensitive special tokens ([TABEL_TTD], [GAMBAR:...])
+   - CB11: Case-insensitive \page
+   - CB13: Bold/italic edge case (***text***)
+   - CB16: ColWidths normalize ke 100%
+   - CB23: Table tanpa body tetap valid
+   - CB27: Numbered list auto-increment (1,2,3 bukan 1,1,1)
+   - CB28: Guard empty rows
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -21,10 +25,22 @@ export const Parser = {
     let pendingStyle = null;
     let pendingFontSize = null;
 
+    // ⚠️ CB27: Track counter per indent level untuk numbered list
+    const numberedCounters = {};
+    let lastBlockWasNumbered = false;
+
     while (i < lines.length) {
       const rawLine = lines[i];
       const trimmed = rawLine.trim();
-      if (!trimmed) { i++; continue; }
+      if (!trimmed) {
+        i++;
+        // Reset numbered counters saat ada baris kosong
+        if (lastBlockWasNumbered) {
+          for (const key in numberedCounters) delete numberedCounters[key];
+          lastBlockWasNumbered = false;
+        }
+        continue;
+      }
 
       // ===== HTML Comments (modifiers) =====
       if (/^<!--\s*width:\s*[\d\s,.]+\s*-->$/i.test(trimmed)) {
@@ -49,20 +65,33 @@ export const Parser = {
         i++; continue;
       }
 
-      // ===== Special tokens =====
-      if (trimmed === '\\page' || trimmed === '[PAGE_BREAK]') {
-        blocks.push({ type: 'pagebreak' }); i++; continue;
+      // ===== CB11: Case-insensitive special tokens =====
+      const lowerTrimmed = trimmed.toLowerCase();
+
+      if (lowerTrimmed === '\\page' || lowerTrimmed === '[page_break]') {
+        blocks.push({ type: 'pagebreak' });
+        i++;
+        lastBlockWasNumbered = false;
+        continue;
       }
       if (/^-{3,}$/.test(trimmed)) {
-        blocks.push({ type: 'hr' }); i++; continue;
+        blocks.push({ type: 'hr' });
+        i++;
+        lastBlockWasNumbered = false;
+        continue;
       }
-      if (trimmed === '[TABEL_TTD]') {
-        blocks.push({ type: 'signature' }); i++; continue;
+      if (lowerTrimmed === '[tabel_ttd]') {
+        blocks.push({ type: 'signature' });
+        i++;
+        lastBlockWasNumbered = false;
+        continue;
       }
-      const imgMatch = trimmed.match(/^\[GAMBAR:\s*(.+?)\]$/i);
+      const imgMatch = trimmed.match(/^\[gambar:\s*(.+?)\]$/i);
       if (imgMatch) {
         blocks.push({ type: 'image', caption: imgMatch[1].trim() });
-        i++; continue;
+        i++;
+        lastBlockWasNumbered = false;
+        continue;
       }
 
       // ===== Table =====
@@ -88,39 +117,55 @@ export const Parser = {
         pendingAutonumber = false;
         pendingStyle = null;
         pendingFontSize = null;
+        lastBlockWasNumbered = false;
         continue;
       }
 
       // ===== Headings =====
       if (trimmed.startsWith('#### ')) {
-        blocks.push({ type: 'h4', text: trimmed.slice(5).trim() }); i++; continue;
+        blocks.push({ type: 'h4', text: trimmed.slice(5).trim() });
+        i++; lastBlockWasNumbered = false; continue;
       }
       if (trimmed.startsWith('### ')) {
-        blocks.push({ type: 'h3', text: trimmed.slice(4).trim() }); i++; continue;
+        blocks.push({ type: 'h3', text: trimmed.slice(4).trim() });
+        i++; lastBlockWasNumbered = false; continue;
       }
       if (trimmed.startsWith('## ')) {
-        blocks.push({ type: 'h2', text: trimmed.slice(3).trim() }); i++; continue;
+        blocks.push({ type: 'h2', text: trimmed.slice(3).trim() });
+        i++; lastBlockWasNumbered = false; continue;
       }
       if (trimmed.startsWith('# ')) {
-        blocks.push({ type: 'h1', text: trimmed.slice(2).trim() }); i++; continue;
+        blocks.push({ type: 'h1', text: trimmed.slice(2).trim() });
+        i++; lastBlockWasNumbered = false; continue;
       }
 
       // ===== Quote =====
       if (trimmed.startsWith('> ')) {
-        blocks.push({ type: 'quote', text: trimmed.slice(2).trim() }); i++; continue;
+        blocks.push({ type: 'quote', text: trimmed.slice(2).trim() });
+        i++; lastBlockWasNumbered = false; continue;
       }
 
-      // ===== Numbered list =====
+      // ===== Numbered list (CB27: auto-increment) =====
       if (/^\d+\.\s/.test(trimmed)) {
         const indent = this.getIndentLevel(rawLine);
-        const numMatch = trimmed.match(/^(\d+)/);
+
+        // Reset counter untuk level yang lebih dalam
+        for (const key in numberedCounters) {
+          if (parseInt(key) > indent) delete numberedCounters[key];
+        }
+
+        // Increment counter di level ini
+        numberedCounters[indent] = (numberedCounters[indent] || 0) + 1;
+
         blocks.push({
           type: 'numbered',
           indent,
           text: trimmed.replace(/^\d+\.\s*/, ''),
-          number: numMatch ? parseInt(numMatch[1]) : 1
+          number: numberedCounters[indent]
         });
-        i++; continue;
+        i++;
+        lastBlockWasNumbered = true;
+        continue;
       }
 
       // ===== Bullet list =====
@@ -131,13 +176,16 @@ export const Parser = {
           indent,
           text: trimmed.replace(/^[-*•]\s*/, '')
         });
-        i++; continue;
+        i++;
+        lastBlockWasNumbered = false;
+        continue;
       }
 
       // ===== Paragraph =====
       const indent = this.getIndentLevel(rawLine);
       blocks.push({ type: 'paragraph', indent, text: trimmed });
       i++;
+      lastBlockWasNumbered = false;
     }
 
     return blocks;
@@ -145,7 +193,7 @@ export const Parser = {
 
   parseTable(lines, opts = {}) {
     const valid = lines.filter(l => l.trim().startsWith('|'));
-    if (valid.length < 2) return null;
+    if (valid.length < 1) return null;
 
     const headers = this.splitRow(valid[0]);
     if (!headers.length) return null;
@@ -167,36 +215,57 @@ export const Parser = {
       dataStart = 1;
     }
 
+    // Kalau hanya header tanpa rows
+    if (valid.length <= dataStart) {
+      return {
+        type: 'table',
+        headers,
+        rows: [],
+        colWidths: this.computeColumnWidths(headers, []),
+        aligns,
+        style: opts.style || null,
+        fontSize: opts.fontSize || null,
+        autonumber: false
+      };
+    }
+
     const rows = valid.slice(dataStart).map(line => {
       const cells = this.splitRow(line);
       while (cells.length < headers.length) cells.push('');
       return cells.slice(0, headers.length);
     });
 
-    const firstHeader = (headers[0] || '').toLowerCase().trim();
-    const isNoColumn = firstHeader === 'no' || firstHeader === 'no.' || firstHeader === '#';
+    const firstHeader = (headers[0] || '').toLowerCase().trim().replace(/[.:#]/g, '');
+    const isNoColumn = firstHeader === 'no' ||
+                       firstHeader === 'nomor' ||
+                       firstHeader === 'no urut' ||
+                       firstHeader === 'nomor urut' ||
+                       firstHeader === '#' ||
+                       firstHeader === 'num';
 
-    // Force autonumber jika header "No" atau explicit autonumber
-    const autonumber = opts.autonumber || isNoColumn;
+    // ⚠️ CB1: FORCE renumber kalau ada explicit autonumber ATAU header = No
+    const shouldAutonumber = opts.autonumber || isNoColumn;
 
-    if (autonumber) {
+    if (shouldAutonumber) {
       rows.forEach((row, i) => {
-        // Force replace kalau header "No" atau explicit autonumber
-        // Kalau tidak ada explicit, hanya fill yang kosong
-        if (opts.autonumber && isNoColumn) {
-          row[0] = String(i + 1);
-        } else if (!row[0] || !row[0].trim()) {
-          row[0] = String(i + 1);
-        }
+        // ⚠️ FORCE replace — jangan cek apakah sudah ada isinya
+        row[0] = String(i + 1);
       });
     }
 
+    // Compute column widths
     let colWidths;
     if (opts.width && opts.width.length === headers.length) {
       const total = opts.width.reduce((a, b) => a + b, 0);
       colWidths = opts.width.map(w => (w / total) * 100);
     } else {
       colWidths = this.computeColumnWidths(headers, rows);
+    }
+
+    // ⚠️ CB16: Normalize total ke 100%
+    const totalWidth = colWidths.reduce((a, b) => a + b, 0);
+    if (totalWidth > 0 && Math.abs(totalWidth - 100) > 0.01) {
+      colWidths = colWidths.map(w => (w / totalWidth) * 100);
     }
 
     return {
@@ -207,19 +276,15 @@ export const Parser = {
       aligns,
       style: opts.style || null,
       fontSize: opts.fontSize || null,
-      autonumber
+      autonumber: shouldAutonumber
     };
   },
 
-  /**
-   * Split row dengan handle escape \|
-   */
   splitRow(line) {
     let s = line.trim();
     if (s.startsWith('|')) s = s.slice(1);
     if (s.endsWith('|')) s = s.slice(0, -1);
 
-    // Split dengan respect escaped \|
     const cells = [];
     let current = '';
     let i = 0;
@@ -240,11 +305,6 @@ export const Parser = {
     return cells;
   },
 
-  /**
-   * Compute column widths lebih proporsional
-   * - Minimum 8%, maximum 55%
-   * - Weighted average antara header dan max content
-   */
   computeColumnWidths(headers, rows) {
     const colCount = headers.length;
     const MIN_PCT = 8;
@@ -252,7 +312,6 @@ export const Parser = {
 
     const lengths = new Array(colCount).fill(0);
     for (let c = 0; c < colCount; c++) {
-      // Header weight 2x (header biasanya pendek tapi penting)
       let headerLen = (headers[c] || '').length * 2;
       let maxContentLen = 0;
       let totalContentLen = 0;
@@ -267,7 +326,6 @@ export const Parser = {
 
       const avgContentLen = contentCount > 0 ? totalContentLen / contentCount : 0;
 
-      // Weighted: 60% max, 40% avg, tapi header punya boost
       lengths[c] = Math.max(
         headerLen,
         maxContentLen * 0.6 + avgContentLen * 0.4,
@@ -281,11 +339,6 @@ export const Parser = {
     return pcts.map(p => Math.min(MAX_PCT, (p / newTotal) * 100));
   },
 
-  /**
-   * Get indent level — presisi
-   * tab = 1 level, spasi = 0.25 level
-   * Cap di 4 level
-   */
   getIndentLevel(line) {
     let level = 0;
     for (const ch of line) {
@@ -298,7 +351,8 @@ export const Parser = {
   },
 
   /**
-   * Parse inline markdown dengan special handling <br>
+   * Parse inline markdown
+   * ⚠️ CB13: Handle ***text*** (bold italic) properly
    */
   parseInline(text) {
     const runs = [];
@@ -315,23 +369,34 @@ export const Parser = {
     }
 
     while (i < text.length) {
-      // <br> handling → flush current + push break marker
-      if (text.substr(i, 4).toLowerCase() === '<br>') {
+      // <br> handling
+      const remaining = text.substr(i).toLowerCase();
+      if (remaining.startsWith('<br>')) {
         flush();
         runs.push({ type: 'br' });
         i += 4;
         continue;
       }
-      if (text.substr(i, 5).toLowerCase() === '<br/>') {
+      if (remaining.startsWith('<br/>')) {
         flush();
         runs.push({ type: 'br' });
         i += 5;
         continue;
       }
-      if (text.substr(i, 6).toLowerCase() === '<br />') {
+      if (remaining.startsWith('<br />')) {
         flush();
         runs.push({ type: 'br' });
         i += 6;
+        continue;
+      }
+
+      // ⚠️ CB13: Cek *** dulu (bold italic)
+      if (text.substr(i, 3) === '***') {
+        flush();
+        // Toggle bold & italic bersamaan
+        bold = !bold;
+        italic = !italic;
+        i += 3;
         continue;
       }
 
@@ -356,6 +421,9 @@ export const Parser = {
   serialize(blocks) {
     if (!Array.isArray(blocks)) return '';
 
+    // ⚠️ CB27: Reset numbered counter saat serialize
+    const numCounters = {};
+
     return blocks.map(block => {
       switch (block.type) {
         case 'h1': return '# ' + block.text;
@@ -368,7 +436,13 @@ export const Parser = {
         }
         case 'numbered': {
           const indent = '\t'.repeat(block.indent || 0);
-          return indent + (block.number || 1) + '. ' + block.text;
+          const indentLevel = block.indent || 0;
+          numCounters[indentLevel] = (numCounters[indentLevel] || 0) + 1;
+          // Reset counter untuk level lebih dalam
+          for (const key in numCounters) {
+            if (parseInt(key) > indentLevel) delete numCounters[key];
+          }
+          return indent + numCounters[indentLevel] + '. ' + block.text;
         }
         case 'bullet': {
           const indent = '\t'.repeat(block.indent || 0);
