@@ -264,13 +264,14 @@ const LayoutManager = {
 /* ============================================================
    SESSION MANAGER
    ============================================================ */
+// ===== GANTI FUNGSI SessionManager.refresh() =====
 const SessionManager = {
   refreshTimer: null,
   isRefreshing: false,
 
   async refresh(silent = true) {
-    if (this.isRefreshing) return { success: false };
-    if (!Auth.isLoggedIn()) return { success: false };
+    if (this.isRefreshing) return { success: false, reason: 'busy' };
+    if (!Auth.isLoggedIn()) return { success: false, reason: 'no_session' };
 
     this.isRefreshing = true;
     try {
@@ -925,6 +926,7 @@ function renderResultScreen() {
   Editor.render();
 }
 
+// ===== GANTI FUNGSI handleRegenerate() =====
 async function handleRegenerate() {
   const request = AI.getCurrentRequest();
   if (!request) {
@@ -944,7 +946,15 @@ async function handleRegenerate() {
     return;
   }
 
-  $('#aiForm').dispatchEvent(new Event('submit'));
+  // ⚠️ FIX: Clear request lama + force rebuild
+  AI.clearCurrentRequest();
+
+  // Reset form state ke dokumen aktif
+  const form = $('#aiForm');
+  if (form) {
+    // Trigger submit baru
+    form.dispatchEvent(new Event('submit'));
+  }
 }
 
 async function handleExportDocx() {

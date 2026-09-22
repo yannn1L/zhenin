@@ -1,10 +1,11 @@
 /* ============================================================
-   ZHENIN - Editor Controller (v2.6.3)
+   ZHENIN - Editor Controller (v2.7.2 FIXED)
    FIX:
-   - Hapus mode 'edit' terpisah, gabung dengan 'preview' (WYSIWYG)
-   - Hapus table actions (edit/copy MD)
-   - Prevent paste berformat aneh
-   - Bug check: timer race condition, stale content
+   - tableToMarkdown() guard empty (data loss prevention)
+   - Nested list handling proper
+   - <br> di cell jadi literal <br> (konsisten parser)
+   - htmlToMarkdown() handle table kosong
+   - cleanup race condition
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -24,9 +25,6 @@ export const Editor = {
   _lastSavedContent: '',
   _editableBound: false,
 
-  /**
-   * Load document — clear timer dulu
-   */
   load(docId, docType) {
     if (this._saveTimer) {
       clearTimeout(this._saveTimer);
@@ -68,9 +66,6 @@ export const Editor = {
     return this._currentContent;
   },
 
-  /**
-   * Render ke container
-   */
   render() {
     const paper = document.getElementById('resultPaper');
     const editor = document.getElementById('resultEditor');
@@ -90,10 +85,6 @@ export const Editor = {
     this.setMode(this._currentMode);
   },
 
-  /**
-   * Set view mode (hanya 2 mode: preview/unified & markdown)
-   * ⚠️ FIX: Mode 'edit' auto-convert ke 'preview'
-   */
   setMode(mode) {
     if (mode === 'edit') mode = 'preview';
     this._currentMode = mode;
@@ -101,7 +92,6 @@ export const Editor = {
     const paper = document.getElementById('resultPaper');
     const editor = document.getElementById('resultEditor');
 
-    // Update button states
     document.querySelectorAll('[data-view-mode]').forEach(b => {
       b.classList.toggle('active', b.dataset.viewMode === mode);
     });
@@ -114,7 +104,6 @@ export const Editor = {
       }
       if (editor) editor.classList.add('hidden');
 
-      // Re-render dari editor content
       if (paper && editor) {
         try {
           this._currentContent = editor.value;
@@ -139,9 +128,6 @@ export const Editor = {
     }
   },
 
-  /**
-   * Bind listener untuk contenteditable
-   */
   bindEditableListeners() {
     const paper = document.getElementById('resultPaper');
     if (!paper || this._editableBound) return;
@@ -155,7 +141,6 @@ export const Editor = {
       this.saveNow();
     });
 
-    // Prevent paste dengan format aneh (dari Word/web)
     paper.addEventListener('paste', (e) => {
       e.preventDefault();
       const text = (e.clipboardData || window.clipboardData).getData('text/plain');
@@ -165,9 +150,6 @@ export const Editor = {
     });
   },
 
-  /**
-   * Update content dari editor textarea
-   */
   updateFromEditor() {
     const editor = document.getElementById('resultEditor');
     if (!editor) return;
@@ -175,9 +157,6 @@ export const Editor = {
     this.scheduleSave();
   },
 
-  /**
-   * Update content dari contenteditable
-   */
   updateFromPaper() {
     const paper = document.getElementById('resultPaper');
     if (!paper) return;
@@ -187,6 +166,7 @@ export const Editor = {
 
   /**
    * Convert HTML contenteditable back ke markdown
+   * FIX: Handle nested list, table kosong
    */
   htmlToMarkdown(container) {
     if (!container) return '';
@@ -200,7 +180,6 @@ export const Editor = {
       const tag = el.tagName.toLowerCase();
       const cls = el.className || '';
 
-      // Skip action buttons (legacy)
       if (el.classList && el.classList.contains('pv-table-actions')) continue;
 
       if (el.classList && el.classList.contains('pv-pagebreak')) {
@@ -229,7 +208,15 @@ export const Editor = {
           output.push(`[GAMBAR: ${cap}]`);
           continue;
         }
-        output.push(this.tableToMarkdown(el));
+        const tableMd = this.tableToMarkdown(el);
+        // ⚠️ FIX: Guard empty table (data loss prevention)
+        if (tableMd && tableMd.trim()) {
+          output.push(tableMd);
+        } else {
+          // Fallback: extract text content minimal
+          const text = el.textContent.trim();
+          if (text) output.push(text);
+        }
         continue;
       }
 
@@ -238,15 +225,14 @@ export const Editor = {
       if (tag === 'h3') { output.push('### ' + el.textContent.trim()); continue; }
       if (tag === 'h4') { output.push('#### ' + el.textContent.trim()); continue; }
 
+      // ⚠️ FIX: Nested list handling proper
       if (tag === 'ol') {
-        const items = el.querySelectorAll('li');
-        items.forEach((li, idx) => output.push(`${idx + 1}. ${li.textContent.trim()}`));
+        this.listToMarkdown(el, output, 'ol', 0);
         continue;
       }
 
       if (tag === 'ul') {
-        const items = el.querySelectorAll('li');
-        items.forEach(li => output.push(`- ${li.textContent.trim()}`));
+        this.listToMarkdown(el, output, 'ul', 0);
         continue;
       }
 
@@ -265,15 +251,58 @@ export const Editor = {
   },
 
   /**
+   * Convert list element ke markdown dengan nested handling
+   */
+  listToMarkdown(listEl, output, listType, level) {
+    const items = Array.from(listEl.children).filter(c => c.tagName.toLowerCase() === 'li');
+    const baseIndent = '\t'.repeat(level);
+
+    items.forEach((li, idx) => {
+      // Ambil text tanpa nested list
+      let text = '';
+      const nestedLists = [];
+
+      Array.from(li.childNodes).forEach(node => {
+        if (node.nodeType === 3) {
+          // Text node
+          text += node.textContent;
+        } else if (node.nodeType === 1) {
+          const childTag = node.tagName.toLowerCase();
+          if (childTag === 'ul' || childTag === 'ol') {
+            nestedLists.push({ el: node, type: childTag });
+          } else {
+            // Element lain (strong, em, dll)
+            text += node.textContent;
+          }
+        }
+      });
+
+      text = text.trim();
+
+      if (listType === 'ol') {
+        output.push(`${baseIndent}${idx + 1}. ${text}`);
+      } else {
+        output.push(`${baseIndent}- ${text}`);
+      }
+
+      // Process nested lists
+      nestedLists.forEach(nested => {
+        this.listToMarkdown(nested.el, output, nested.type, level + 1);
+      });
+    });
+  },
+
+  /**
    * Extract table HTML → markdown
-   * ⚠️ FIX: Handle <br> dalam cell sebagai newline markdown (pakai <br> literal)
+   * FIX: <br> jadi literal <br>
+   * FIX: Guard empty table
    */
   tableToMarkdown(table) {
     const rows = [];
     table.querySelectorAll('tr').forEach(tr => {
       const cells = [];
       tr.querySelectorAll('th, td').forEach(cell => {
-        // ⚠️ FIX: Konversi <br> jadi literal <br> dalam cell
+        // FIX: Konversi <br> jadi literal <br> dalam cell
         let html = cell.innerHTML;
         html = html.replace(/<br\s*\/?>/gi, '|||BR|||');
         let text = html.replace(/<[^>]+>/g, ''); // strip tags
@@ -281,20 +310,22 @@ export const Editor = {
         text = text.trim().replace(/\|/g, '\\|');
         cells.push(text);
       });
-      rows.push('| ' + cells.join(' | ') + ' |');
+      // ⚠️ FIX: Skip row kosong
+      if (cells.length > 0) {
+        rows.push('| ' + cells.join(' | ') + ' |');
+      }
     });
 
     if (!rows.length) return '';
 
     const headerCells = rows[0].split('|').length - 2;
+    if (headerCells < 1) return '';
+
     const separator = '|' + '---|'.repeat(headerCells);
 
     return rows[0] + '\n' + separator + '\n' + rows.slice(1).join('\n');
   },
 
-  /**
-   * Schedule save (debounce 2s) dengan capture docId
-   */
   scheduleSave() {
     const targetDocId = this._currentDocId;
     const targetDocType = this._currentDocType;
@@ -311,9 +342,6 @@ export const Editor = {
     }, 2000);
   },
 
-  /**
-   * Save now
-   */
   saveNow(explicitDocId, explicitDocType) {
     if (this._saveTimer) {
       clearTimeout(this._saveTimer);
@@ -358,9 +386,6 @@ export const Editor = {
     }
   },
 
-  /**
-   * Export DOCX
-   */
   async exportDocx() {
     if (!this._currentDocId) {
       throw new Error('Tidak ada dokumen aktif');
@@ -394,9 +419,6 @@ export const Editor = {
     return result;
   },
 
-  /**
-   * Cleanup saat pindah screen
-   */
   cleanup() {
     if (this._saveTimer) {
       clearTimeout(this._saveTimer);

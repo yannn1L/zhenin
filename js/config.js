@@ -25,7 +25,7 @@ export const CONFIG = {
 
   // ===== PROFILE FIELDS (untuk Askep) =====
   PROFILE_FIELDS: [
-    { key: 'nama', label: 'Nama Mahasiswa', placeholder: 'Sumual', required: true, maxLength: 80 },
+    { key: 'nama', label: 'Nama Mahasiswa', placeholder: 'dio', required: true, maxLength: 80 },
     { key: 'nim', label: 'NIM', placeholder: '-', required: false, maxLength: 30 },
     { key: 'kelompok', label: 'Kelompok', placeholder: '6', required: false, maxLength: 20 },
     { key: 'tempatPraktik', label: 'Tempat Praktik', placeholder: 'C5 - Ruang Infeksius', required: false, maxLength: 100 },

@@ -1170,6 +1170,12 @@ select.form-input {
   margin: 0 0 6pt;
 }
 .paper li { margin-bottom: 2pt; }
+/* ============================================================
+   PAPER TABLE (v2.7.2 FIXED)
+   - Font size konsisten dengan DOCX (10pt)
+   - Border 1px = 0.75pt (konsisten dengan DOCX size 6)
+   - Padding konsisten
+   ============================================================ */
 .paper table {
   width: 100%;
   border-collapse: collapse;
@@ -1183,12 +1189,18 @@ select.form-input {
   padding: 4pt 6pt;
   vertical-align: middle;
   word-wrap: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.4;
 }
 .paper table th {
   background: #d9d9d9;
   font-weight: 700;
   text-align: center;
 }
+.paper table td {
+  vertical-align: middle;
+}
+
 .paper .align-center { text-align: center; }
 .paper .align-right { text-align: right; }
 .paper .pv-quote {

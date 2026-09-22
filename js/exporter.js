@@ -1,6 +1,15 @@
 /* ============================================================
-   ZHENIN - DOCX Exporter (v2.6.0)
-   FIX: empty content guard, filename unique per doc
+   ZHENIN - DOCX Exporter (v2.7.2 FIXED)
+   FIX:
+   - <br> di table cell → multiple paragraph (line break proper)
+   - Font size tabel konsisten dengan preview (10pt)
+   - Indent professional: firstLine 0.5in untuk paragraph normal
+   - Border size konsisten (6 = 0.75pt = 1px)
+   - Min cell height lebih kecil (240 twips)
+   - Typo "Instructure" → "Instructor"
+   - [TANGGAL] di identity table di-replace
+   - Sanitize control characters
+   - Guard empty content
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -13,7 +22,6 @@ export const Exporter = {
     const d = window.docx;
     if (!d) throw new Error('Library docx tidak ditemukan');
 
-    // ⚠️ Verify content
     const content = String(markdown || '').trim();
     if (!content || content.length < 50) {
       throw new Error('Konten dokumen kosong atau terlalu pendek (min 50 char)');
@@ -26,9 +34,9 @@ export const Exporter = {
     } = d;
 
     const FONT = 'Times New Roman';
-    const FONT_SIZE = 24;
-    const FONT_SIZE_TABLE = 22;
-    const LINE_SPACING = 360;
+    const FONT_SIZE = 24;           // 12pt body
+    const FONT_SIZE_TABLE = 20;      // ⚠️ FIX: 10pt (sebelumnya 22 = 11pt)
+    const LINE_SPACING = 360;        // 1.5 line spacing
 
     const PAGE_WIDTH = convertMillimetersToTwip(210);
     const PAGE_HEIGHT = convertMillimetersToTwip(297);
@@ -38,7 +46,6 @@ export const Exporter = {
     const MARGIN_BOTTOM = convertMillimetersToTwip(30);
     const CONTENT_WIDTH = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT;
 
-    // Parse
     const blocks = Parser.parse(content);
     if (!blocks.length) throw new Error('Tidak ada konten valid');
 
@@ -56,7 +63,7 @@ export const Exporter = {
         alignment: AlignmentType.CENTER,
         spacing: { line: LINE_SPACING, after: 240 },
         children: [new TextRun({
-          text: options.title,
+          text: this.sanitizeText(options.title),
           bold: true, font: FONT, size: 28
         })]
       }));
@@ -88,7 +95,6 @@ export const Exporter = {
 
     const blob = await Packer.toBlob(doc);
 
-    // ⚠️ FIX: Unique filename dengan docId untuk prevent cache
     const safeName = this.sanitizeFilename(options.filename || 'Dokumen');
     const datePart = new Date().toISOString().slice(0, 10);
     const timePart = Date.now().toString(36).slice(-4);
@@ -111,13 +117,23 @@ export const Exporter = {
     return { success: true, filename: finalName };
   },
 
+  /**
+   * Sanitize control characters yang bisa corrupt DOCX
+   */
+  sanitizeText(str) {
+    return String(str == null ? '' : str)
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+  },
+
   renderBlock(block, out, ctx) {
     const { FONT, FONT_SIZE, LINE_SPACING } = ctx;
     const repl = (t) => Renderer.replacePlaceholders(t);
+    const sanitize = (t) => this.sanitizeText(t);
 
     const buildRuns = (text, opts = {}) => {
-      const runs = Parser.parseInline(repl(text));
-      return runs.map(r => {
+      const runs = Parser.parseInline(sanitize(repl(text)));
+      // Filter out br markers di paragraph (tidak dipakai di sini)
+      return runs.filter(r => r.type !== 'br').map(r => {
         const o = {
           text: r.text || ' ',
           bold: r.bold || opts.bold || false,
@@ -134,7 +150,7 @@ export const Exporter = {
 
     switch (block.type) {
       case 'h1': {
-        const txt = repl(block.text);
+        const txt = sanitize(repl(block.text));
         const idx = txt.indexOf(':');
         const babLine = idx > -1 ? txt.slice(0, idx).trim() : txt;
         const titleLine = idx > -1 ? txt.slice(idx + 1).trim() : '';
@@ -179,26 +195,35 @@ export const Exporter = {
           children: buildRuns(block.text, { bold: true, italic: true })
         }));
         break;
+
       case 'paragraph': {
-        const txt = repl(block.text);
+        const txt = sanitize(repl(block.text));
         if (txt.trim() === '__IDENTITAS_MHS_MARKER__') {
           out.push(this.buildIdentityTable(ctx));
           out.push(new ctx.Paragraph({ spacing: { after: 120 }, children: [] }));
           break;
         }
 
-        const isL0 = block.indent === 0;
+        // ⚠️ FIX: Indent professional
+        // - indent 0: firstLine 0.5in (paragraf normal skripsi)
+        // - indent 1+: left indent (sub-item)
+        const indentLevel = block.indent || 0;
+        let indentConfig;
+        if (indentLevel === 0) {
+          indentConfig = { firstLine: 720 };
+        } else {
+          indentConfig = { left: indentLevel * 720, firstLine: 0 };
+        }
+
         out.push(new ctx.Paragraph({
           alignment: ctx.AlignmentType.JUSTIFIED,
-          indent: {
-            left: isL0 ? 0 : block.indent * 720,
-            firstLine: isL0 ? 720 : 0
-          },
+          indent: indentConfig,
           spacing: { line: LINE_SPACING, after: 120 },
           children: buildRuns(block.text)
         }));
         break;
       }
+
       case 'numbered':
       case 'bullet': {
         const indent = (block.indent || 0) * 720;
@@ -217,6 +242,7 @@ export const Exporter = {
         }));
         break;
       }
+
       case 'quote':
         out.push(new ctx.Paragraph({
           indent: { left: 720 },
@@ -224,6 +250,7 @@ export const Exporter = {
           children: buildRuns(block.text, { italic: true })
         }));
         break;
+
       case 'hr':
         out.push(new ctx.Paragraph({
           border: {
@@ -233,16 +260,20 @@ export const Exporter = {
           children: []
         }));
         break;
+
       case 'pagebreak':
         out.push(new ctx.Paragraph({ children: [new ctx.PageBreak()] }));
         break;
+
       case 'signature':
         out.push(this.buildSignatureTable(ctx));
         break;
+
       case 'image':
         out.push(this.buildImagePlaceholder(block, ctx));
         out.push(new ctx.Paragraph({ spacing: { after: 120 }, children: [] }));
         break;
+
       case 'table':
         out.push(this.buildTable(block, ctx));
         out.push(new ctx.Paragraph({ spacing: { after: 120 }, children: [] }));
@@ -250,6 +281,9 @@ export const Exporter = {
     }
   },
 
+  /**
+   * Build table dengan handling <br> → multiple paragraph
+   */
   buildTable(block, ctx) {
     const {
       FONT, FONT_SIZE_TABLE, CONTENT_WIDTH,
@@ -258,14 +292,18 @@ export const Exporter = {
       TableLayoutType
     } = ctx;
 
-    const BRD = { style: BorderStyle.SINGLE, size: 4, color: '000000' };
+    // ⚠️ FIX: Border size 6 = 0.75pt = 1px (konsisten dengan preview)
+    const BRD = { style: BorderStyle.SINGLE, size: 6, color: '000000' };
     const cb = { top: BRD, bottom: BRD, left: BRD, right: BRD };
+
     const colW = block.colWidths.map(p => Math.round((p / 100) * CONTENT_WIDTH));
 
     let tableFontSize = FONT_SIZE_TABLE;
     if (block.fontSize) tableFontSize = Math.round(block.fontSize * 2);
     else if (block.style === 'small') tableFontSize = 18;
-    else if (block.style === 'large') tableFontSize = 24;
+    else if (block.style === 'large') tableFontSize = 22;
+
+    const self = this;
 
     function makeCell(text, opts = {}) {
       const { bold = false, align = 'left', shade = null } = opts;
@@ -273,30 +311,48 @@ export const Exporter = {
                        : align === 'right' ? AlignmentType.RIGHT
                        : AlignmentType.LEFT;
 
-      const runs = Parser.parseInline(Renderer.replacePlaceholders(text || ' '));
-      const children = [new Paragraph({
-        alignment: docxAlign,
-        spacing: { line: 280, before: 40, after: 40 },
-        children: runs.map(r => {
-          const o = {
-            text: r.text || ' ',
-            bold: r.bold || bold,
-            italics: r.italic || false,
-            underline: r.underline ? {} : undefined,
-            strike: r.strike || false,
-            font: FONT,
-            size: tableFontSize
-          };
-          if (r.highlight) o.highlight = 'yellow';
-          return new TextRun(o);
-        })
-      })];
+      // ⚠️ FIX: Split by <br> → multiple Paragraph (proper line break)
+      const rawText = String(text == null ? '' : text);
+      const parts = rawText.split(/<br\s*\/?>/i);
+
+      const paragraphs = parts.map((part, idx) => {
+        const replaced = Renderer.replacePlaceholders(part);
+        const sanitized = self.sanitizeText(replaced);
+        const runs = Parser.parseInline(sanitized).filter(r => r.type !== 'br');
+
+        // Kalau kosong, biarkan paragraph kosong
+        const children = runs.length > 0
+          ? runs.map(r => {
+              const o = {
+                text: r.text || ' ',
+                bold: r.bold || bold,
+                italics: r.italic || false,
+                underline: r.underline ? {} : undefined,
+                strike: r.strike || false,
+                font: FONT,
+                size: tableFontSize
+              };
+              if (r.highlight) o.highlight = 'yellow';
+              return new TextRun(o);
+            })
+          : [new TextRun({ text: ' ', font: FONT, size: tableFontSize })];
+
+        return new Paragraph({
+          alignment: docxAlign,
+          spacing: {
+            line: 280,
+            before: idx === 0 ? 40 : 0,
+            after: idx === parts.length - 1 ? 40 : 0
+          },
+          children
+        });
+      });
 
       const o = {
         borders: cb,
-        margins: { top: 100, bottom: 100, left: 120, right: 120 },
+        margins: { top: 80, bottom: 80, left: 120, right: 120 },
         verticalAlign: VerticalAlign.CENTER,
-        children
+        children: paragraphs
       };
       if (shade) o.shading = { fill: shade, type: 'clear', color: 'auto' };
       return new TableCell(o);
@@ -309,7 +365,7 @@ export const Exporter = {
       rows: [
         new TableRow({
           tableHeader: true,
-          height: { value: 400, rule: HeightRule.ATLEAST },
+          height: { value: 300, rule: HeightRule.ATLEAST },
           children: block.headers.map((h, i) => makeCell(h, {
             bold: true,
             align: block.aligns?.[i] || 'center',
@@ -317,7 +373,7 @@ export const Exporter = {
           }))
         }),
         ...block.rows.map(row => new TableRow({
-          height: { value: 360, rule: HeightRule.ATLEAST },
+          height: { value: 240, rule: HeightRule.ATLEAST },
           children: row.map((c, i) => makeCell(c, {
             align: block.aligns?.[i] || 'left'
           }))
@@ -334,19 +390,28 @@ export const Exporter = {
       WidthType, VerticalAlign, BorderStyle, TableLayoutType
     } = ctx;
 
-    const BRD = { style: BorderStyle.SINGLE, size: 4, color: '000000' };
+    const BRD = { style: BorderStyle.SINGLE, size: 6, color: '000000' };
     const cb = { top: BRD, bottom: BRD, left: BRD, right: BRD };
     const LEFT_W = Math.floor(CONTENT_WIDTH * 0.35);
     const RIGHT_W = CONTENT_WIDTH - LEFT_W;
 
     const p = Data.getProfile();
+    const self = this;
+
+    // ⚠️ FIX: Replace placeholder di values
+    const replaceValue = (val) => {
+      if (!val || val === '-') return '-';
+      const replaced = Renderer.replacePlaceholders(val);
+      return self.sanitizeText(replaced);
+    };
+
     const rows = [
-      ['Nama', p.nama || '-'],
-      ['NIM', p.nim || '-'],
-      ['Kelompok', p.kelompok || '-'],
-      ['Tempat Praktik', p.tempatPraktik || '-'],
-      ['Periode Praktik', p.periodePraktik || '-'],
-      ['Clinical Instruktur', p.ci || '-']
+      ['Nama', replaceValue(p.nama) || '-'],
+      ['NIM', replaceValue(p.nim) || '-'],
+      ['Kelompok', replaceValue(p.kelompok) || '-'],
+      ['Tempat Praktik', replaceValue(p.tempatPraktik) || '-'],
+      ['Periode Praktik', replaceValue(p.periodePraktik) || '-'],
+      ['Clinical Instruktur', replaceValue(p.ci) || '-']
     ];
 
     function makeCell(text, opts = {}) {
@@ -376,8 +441,7 @@ export const Exporter = {
           makeCell(value, { width: RIGHT_W })
         ]
       })),
-      borders: cb
-    });
+      borders: cb    });
   },
 
   buildSignatureTable(ctx) {
@@ -388,7 +452,7 @@ export const Exporter = {
       TableLayoutType
     } = ctx;
 
-    const BRD = { style: BorderStyle.SINGLE, size: 4, color: '000000' };
+    const BRD = { style: BorderStyle.SINGLE, size: 6, color: '000000' };
     const cb = { top: BRD, bottom: BRD, left: BRD, right: BRD };
     const HALF = Math.floor(CONTENT_WIDTH / 2);
     const HALF2 = CONTENT_WIDTH - HALF;
@@ -416,7 +480,8 @@ export const Exporter = {
           height: { value: 1400, rule: HeightRule.ATLEAST },
           children: [
             makeCell('Yang Membuat/Mahasiswa', { vAlign: VerticalAlign.TOP }),
-            makeCell('Yang Memverifikasi/Clinical Instructure(CI)', { vAlign: VerticalAlign.TOP })
+            // ⚠️ FIX: Typo "Instructure" → "Instructor"
+            makeCell('Yang Memverifikasi/Clinical Instructor (CI)', { vAlign: VerticalAlign.TOP })
           ]
         }),
         new TableRow({
@@ -440,7 +505,7 @@ export const Exporter = {
 
     const BRD = { style: BorderStyle.DASHED, size: 6, color: '999999' };
     const cb = { top: BRD, bottom: BRD, left: BRD, right: BRD };
-    const cap = Renderer.replacePlaceholders(block.caption);
+    const cap = this.sanitizeText(Renderer.replacePlaceholders(block.caption));
 
     return new Table({
       width: { size: CONTENT_WIDTH, type: WidthType.DXA },

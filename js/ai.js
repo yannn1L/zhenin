@@ -1,6 +1,10 @@
 /* ============================================================
-   ZHENIN - AI Module (v2.6.1)
-   FIX: patient toggle, kuota display, AI busy cooldown
+   ZHENIN - AI Module (v2.7.2 FIXED)
+   FIX:
+   - Race condition status cache (pakai request ID)
+   - Regenerate pakai request lama → force rebuild
+   - _statusCache reset lebih konsisten
+   - setBusyCooldown cleanup timer
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -15,17 +19,19 @@ export const AI = {
   _loadingStartTime: null,
   _currentDocId: null,
   _busyCooldownUntil: 0,
+  _busyCooldownTimer: null,
   _resultCache: new Map(),
   _statusCache: null,
   _statusCacheTime: 0,
   _statusInterval: null,
+  _statusRequestId: 0,
   STATUS_CACHE_TTL: 30000,
 
   LOADING_MESSAGES: [
     'Menganalisis topik...',
     'Menghubungkan ke AI...',
     'Menyusun struktur dokumen...',
-    'Menulis BAB I...',
+    'Menulis BAB...',
     'Menyusun konsep penyakit...',
     'Membuat patofisiologi...',
     'Menyusun pemeriksaan...',
@@ -131,6 +137,9 @@ export const AI = {
     if (customSection) customSection.hidden = mode !== 'custom';
   },
 
+  /**
+   * Refresh user status dengan race condition guard
+   */
   async refreshUserStatus(silent = true) {
     const now = Date.now();
     if (this._statusCache && (now - this._statusCacheTime) < this.STATUS_CACHE_TTL) {
@@ -140,6 +149,9 @@ export const AI = {
 
     const session = Data.getSession();
     if (!session) return null;
+
+    // ⚠️ FIX: Request ID untuk prevent race condition
+    const requestId = ++this._statusRequestId;
 
     try {
       const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
@@ -154,9 +166,14 @@ export const AI = {
 
       const result = await response.json();
 
+      // ⚠️ FIX: Discard response kalau bukan request terbaru
+      if (requestId !== this._statusRequestId) {
+        return null;
+      }
+
       if (result.success) {
         this._statusCache = result.status;
-        this._statusCacheTime = now;
+        this._statusCacheTime = Date.now();
 
         if (typeof result.status.token === 'number') {
           TokenManager.updateFromResponse(result.status.token);
@@ -205,39 +222,39 @@ export const AI = {
     }
   },
 
-buildQuotaHTML(status) {
-  const dailyPct = status.dailyLimit > 0 ?
-    Math.min(100, (status.dailyUsed / status.dailyLimit) * 100) : 0;
-  
-  let barClass = '';
-  if (dailyPct >= 80) barClass = 'error';
-  else if (dailyPct >= 50) barClass = 'warning';
-  
-  const remaining = Math.max(0, status.dailyLimit - status.dailyUsed);
-  
-  return `
-    <div class="quota-card">
-      <div class="quota-header">
-        <span class="quota-title">📊 Kuota AI Hari Ini</span>
-        <span class="quota-badge ${remaining === 0 ? 'empty' : ''}">
-          ${remaining > 0 ? remaining + ' sisa' : 'HABIS'}
-        </span>
+  buildQuotaHTML(status) {
+    const dailyPct = status.dailyLimit > 0 ?
+      Math.min(100, (status.dailyUsed / status.dailyLimit) * 100) : 0;
+
+    let barClass = '';
+    if (dailyPct >= 80) barClass = 'error';
+    else if (dailyPct >= 50) barClass = 'warning';
+
+    const remaining = Math.max(0, status.dailyLimit - status.dailyUsed);
+
+    return `
+      <div class="quota-card">
+        <div class="quota-header">
+          <span class="quota-title">📊 Kuota AI Hari Ini</span>
+          <span class="quota-badge ${remaining === 0 ? 'empty' : ''}">
+            ${remaining > 0 ? remaining + ' sisa' : 'HABIS'}
+          </span>
+        </div>
+        <div class="quota-numbers">
+          <span class="quota-used">${status.dailyUsed}</span>
+          <span class="quota-sep">/</span>
+          <span class="quota-limit">${status.dailyLimit}</span>
+        </div>
+        <div class="quota-progress">
+          <div class="quota-progress-bar ${barClass}" style="width:${dailyPct}%"></div>
+        </div>
+        <div class="quota-info">
+          <span>⏱️ Per jam: ${status.hourlyUsed}/${status.hourlyLimit}</span>
+          <span>💎 Token: ${status.token}</span>
+        </div>
       </div>
-      <div class="quota-numbers">
-        <span class="quota-used">${status.dailyUsed}</span>
-        <span class="quota-sep">/</span>
-        <span class="quota-limit">${status.dailyLimit}</span>
-      </div>
-      <div class="quota-progress">
-        <div class="quota-progress-bar ${barClass}" style="width:${dailyPct}%"></div>
-      </div>
-      <div class="quota-info">
-        <span>⏱️ Per jam: ${status.hourlyUsed}/${status.hourlyLimit}</span>
-        <span>💎 Token: ${status.token}</span>
-      </div>
-    </div>
-  `;
-},
+    `;
+  },
 
   validateForm(formData) {
     const { topic, mode, customPrompt, type } = formData;
@@ -362,7 +379,7 @@ buildQuotaHTML(status) {
       type: formData.type
     };
 
-    this._currentRequest = { formData, prompt, cacheKey };
+    this._currentRequest = { formData, prompt, cacheKey, createdAt: Date.now() };
     return requestBody;
   },
 
@@ -431,15 +448,22 @@ buildQuotaHTML(status) {
   },
 
   setBusyCooldown(seconds) {
+    // ⚠️ FIX: Cleanup timer lama
+    if (this._busyCooldownTimer) {
+      clearInterval(this._busyCooldownTimer);
+      this._busyCooldownTimer = null;
+    }
+
     this._busyCooldownUntil = Date.now() + (seconds * 1000);
     const btn = document.getElementById('btnGenerate');
     if (btn) {
       btn.disabled = true;
       let remaining = seconds;
-      const interval = setInterval(() => {
+      this._busyCooldownTimer = setInterval(() => {
         remaining--;
         if (remaining <= 0) {
-          clearInterval(interval);
+          clearInterval(this._busyCooldownTimer);
+          this._busyCooldownTimer = null;
           btn.disabled = false;
           btn.title = '';
           this._busyCooldownUntil = 0;
@@ -521,8 +545,11 @@ buildQuotaHTML(status) {
 
     this._currentDocId = doc.id;
 
+    // ⚠️ FIX: Reset cache + bump request ID untuk prevent race
     this._statusCache = null;
     this._statusCacheTime = 0;
+    this._statusRequestId++;
+
     setTimeout(() => this.refreshUserStatus(true), 2000);
 
     return doc;
@@ -531,6 +558,13 @@ buildQuotaHTML(status) {
   getCurrentDocId() { return this._currentDocId; },
   setCurrentDocId(id) { this._currentDocId = id; },
   getCurrentRequest() { return this._currentRequest; },
+
+  /**
+   * ⚠️ FIX: Clear request lama
+   */
+  clearCurrentRequest() {
+    this._currentRequest = null;
+  },
 
   cancel() {
     if (this._abortController) {

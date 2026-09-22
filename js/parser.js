@@ -1,6 +1,12 @@
 /* ============================================================
-   ZHENIN - Markdown Parser (v2.6.0)
-   FIX: serialize table, table detection, edge cases
+   ZHENIN - Markdown Parser (v2.7.2 FIXED)
+   FIX:
+   - <br> handling di parseInline (untuk DOCX line break)
+   - escape \| di table cell splitRow
+   - nested list indent presisi (0.25 spasi, max 4)
+   - autonumber force option
+   - guard empty table rows
+   - computeColumnWidths lebih proporsional
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -20,6 +26,7 @@ export const Parser = {
       const trimmed = rawLine.trim();
       if (!trimmed) { i++; continue; }
 
+      // ===== HTML Comments (modifiers) =====
       if (/^<!--\s*width:\s*[\d\s,.]+\s*-->$/i.test(trimmed)) {
         const m = trimmed.match(/width:\s*([\d\s,.]+)/i);
         if (m) {
@@ -42,6 +49,7 @@ export const Parser = {
         i++; continue;
       }
 
+      // ===== Special tokens =====
       if (trimmed === '\\page' || trimmed === '[PAGE_BREAK]') {
         blocks.push({ type: 'pagebreak' }); i++; continue;
       }
@@ -57,6 +65,7 @@ export const Parser = {
         i++; continue;
       }
 
+      // ===== Table =====
       if (trimmed.startsWith('|')) {
         const tStart = i;
         const tLines = [];
@@ -82,6 +91,7 @@ export const Parser = {
         continue;
       }
 
+      // ===== Headings =====
       if (trimmed.startsWith('#### ')) {
         blocks.push({ type: 'h4', text: trimmed.slice(5).trim() }); i++; continue;
       }
@@ -95,10 +105,12 @@ export const Parser = {
         blocks.push({ type: 'h1', text: trimmed.slice(2).trim() }); i++; continue;
       }
 
+      // ===== Quote =====
       if (trimmed.startsWith('> ')) {
         blocks.push({ type: 'quote', text: trimmed.slice(2).trim() }); i++; continue;
       }
 
+      // ===== Numbered list =====
       if (/^\d+\.\s/.test(trimmed)) {
         const indent = this.getIndentLevel(rawLine);
         const numMatch = trimmed.match(/^(\d+)/);
@@ -111,6 +123,7 @@ export const Parser = {
         i++; continue;
       }
 
+      // ===== Bullet list =====
       if (/^[-*•]\s/.test(trimmed)) {
         const indent = this.getIndentLevel(rawLine);
         blocks.push({
@@ -121,6 +134,7 @@ export const Parser = {
         i++; continue;
       }
 
+      // ===== Paragraph =====
       const indent = this.getIndentLevel(rawLine);
       blocks.push({ type: 'paragraph', indent, text: trimmed });
       i++;
@@ -160,14 +174,20 @@ export const Parser = {
     });
 
     const firstHeader = (headers[0] || '').toLowerCase().trim();
-    const autonumber = opts.autonumber ||
-                       firstHeader === 'no' ||
-                       firstHeader === 'no.' ||
-                       firstHeader === '#';
+    const isNoColumn = firstHeader === 'no' || firstHeader === 'no.' || firstHeader === '#';
+
+    // Force autonumber jika header "No" atau explicit autonumber
+    const autonumber = opts.autonumber || isNoColumn;
 
     if (autonumber) {
       rows.forEach((row, i) => {
-        if (!row[0] || !row[0].trim()) row[0] = String(i + 1);
+        // Force replace kalau header "No" atau explicit autonumber
+        // Kalau tidak ada explicit, hanya fill yang kosong
+        if (opts.autonumber && isNoColumn) {
+          row[0] = String(i + 1);
+        } else if (!row[0] || !row[0].trim()) {
+          row[0] = String(i + 1);
+        }
       });
     }
 
@@ -191,13 +211,40 @@ export const Parser = {
     };
   },
 
+  /**
+   * Split row dengan handle escape \|
+   */
   splitRow(line) {
     let s = line.trim();
     if (s.startsWith('|')) s = s.slice(1);
     if (s.endsWith('|')) s = s.slice(0, -1);
-    return s.split('|').map(c => c.trim());
+
+    // Split dengan respect escaped \|
+    const cells = [];
+    let current = '';
+    let i = 0;
+    while (i < s.length) {
+      if (s[i] === '\\' && s[i + 1] === '|') {
+        current += '|';
+        i += 2;
+      } else if (s[i] === '|') {
+        cells.push(current.trim());
+        current = '';
+        i++;
+      } else {
+        current += s[i];
+        i++;
+      }
+    }
+    cells.push(current.trim());
+    return cells;
   },
 
+  /**
+   * Compute column widths lebih proporsional
+   * - Minimum 8%, maximum 55%
+   * - Weighted average antara header dan max content
+   */
   computeColumnWidths(headers, rows) {
     const colCount = headers.length;
     const MIN_PCT = 8;
@@ -205,11 +252,27 @@ export const Parser = {
 
     const lengths = new Array(colCount).fill(0);
     for (let c = 0; c < colCount; c++) {
-      lengths[c] = headers[c].length;
+      // Header weight 2x (header biasanya pendek tapi penting)
+      let headerLen = (headers[c] || '').length * 2;
+      let maxContentLen = 0;
+      let totalContentLen = 0;
+      let contentCount = 0;
+
       for (const row of rows) {
-        lengths[c] = Math.max(lengths[c], (row[c] || '').length);
+        const cellLen = (row[c] || '').length;
+        maxContentLen = Math.max(maxContentLen, cellLen);
+        totalContentLen += cellLen;
+        contentCount++;
       }
-      lengths[c] = Math.max(lengths[c], 3);
+
+      const avgContentLen = contentCount > 0 ? totalContentLen / contentCount : 0;
+
+      // Weighted: 60% max, 40% avg, tapi header punya boost
+      lengths[c] = Math.max(
+        headerLen,
+        maxContentLen * 0.6 + avgContentLen * 0.4,
+        3
+      );
     }
 
     const total = lengths.reduce((a, b) => a + b, 0) || 1;
@@ -218,16 +281,25 @@ export const Parser = {
     return pcts.map(p => Math.min(MAX_PCT, (p / newTotal) * 100));
   },
 
+  /**
+   * Get indent level — presisi
+   * tab = 1 level, spasi = 0.25 level
+   * Cap di 4 level
+   */
   getIndentLevel(line) {
     let level = 0;
     for (const ch of line) {
       if (ch === '\t') level += 1;
-      else if (ch === ' ') level += 0.5;
+      else if (ch === ' ') level += 0.25;
       else break;
+      if (level >= 4) break;
     }
     return Math.floor(level);
   },
 
+  /**
+   * Parse inline markdown dengan special handling <br>
+   */
   parseInline(text) {
     const runs = [];
     let i = 0;
@@ -243,12 +315,33 @@ export const Parser = {
     }
 
     while (i < text.length) {
+      // <br> handling → flush current + push break marker
+      if (text.substr(i, 4).toLowerCase() === '<br>') {
+        flush();
+        runs.push({ type: 'br' });
+        i += 4;
+        continue;
+      }
+      if (text.substr(i, 5).toLowerCase() === '<br/>') {
+        flush();
+        runs.push({ type: 'br' });
+        i += 5;
+        continue;
+      }
+      if (text.substr(i, 6).toLowerCase() === '<br />') {
+        flush();
+        runs.push({ type: 'br' });
+        i += 6;
+        continue;
+      }
+
       if (text.substr(i, 2) === '**') { flush(); bold = !bold; i += 2; continue; }
       if (text.substr(i, 2) === '__') { flush(); underline = !underline; i += 2; continue; }
       if (text.substr(i, 2) === '~~') { flush(); strike = !strike; i += 2; continue; }
       if (text.substr(i, 2) === '==') { flush(); highlight = !highlight; i += 2; continue; }
       if (text[i] === '*' && text.substr(i, 2) !== '**') { flush(); italic = !italic; i += 1; continue; }
       if (text[i] === '`') { flush(); code = !code; i += 1; continue; }
+
       buffer += text[i];
       i++;
     }
@@ -296,7 +389,7 @@ export const Parser = {
           if (block.style) md += `<!-- table:${block.style} -->\n`;
           if (block.fontSize) md += `<!-- table:font=${block.fontSize} -->\n`;
 
-          md += '| ' + block.headers.map(h => h || ' ').join(' | ') + ' |\n';
+          md += '| ' + block.headers.map(h => (h || ' ').replace(/\|/g, '\\|')).join(' | ') + ' |\n';
           md += '|' + block.headers.map((_, i) => {
             const a = (block.aligns && block.aligns[i]) || 'left';
             if (a === 'center') return ':---:';
@@ -304,7 +397,7 @@ export const Parser = {
             return '---';
           }).join('|') + '|\n';
           block.rows.forEach(row => {
-            md += '| ' + block.headers.map((_, i) => row[i] || ' ').join(' | ') + ' |\n';
+            md += '| ' + block.headers.map((_, i) => (row[i] || ' ').replace(/\|/g, '\\|')).join(' | ') + ' |\n';
           });
           return md.trimEnd();
         }

@@ -56,43 +56,43 @@ export const SessionGuard = {
   },
   
   async check(source = 'manual') {
-    if (this._checking) return { success: true, reason: 'in_progress' };
-    if (!Auth.isLoggedIn()) return { success: false, reason: 'not_logged_in' };
-    
-    this._checking = true;
-    
-    try {
-      const session = Data.getSession();
-      if (!session || !session.password || !session.deviceHash) {
-        this._forceLogout('Session data tidak valid');
-        return { success: false, reason: 'invalid_session_data' };
-      }
-      
-      if (!navigator.onLine) {
-        return { success: true, reason: 'offline' };
-      }
-      
-      const result = await this.callValidate(session.password, session.deviceHash);
-      
-      if (result.valid) {
-        if (typeof result.token === 'number' && result.token !== session.token) {
-          session.token = result.token;
-          session.lastActive = Date.now();
-          Data.saveSession(session);
-        }
-        return { success: true };
-      }
-      
-      this.handleInvalidReason(result.reason);
-      return { success: false, reason: result.reason };
-      
-    } catch (err) {
-      console.warn('[SessionGuard] Check error:', err.message);
-      return { success: true, reason: 'network_error' };
-    } finally {
-      this._checking = false;
+  if (this._checking) return { success: false, reason: 'in_progress' };
+  if (!Auth.isLoggedIn()) return { success: false, reason: 'not_logged_in' };
+  
+  this._checking = true;
+  
+  try {
+    const session = Data.getSession();
+    if (!session || !session.password || !session.deviceHash) {
+      this._forceLogout('Session data tidak valid');
+      return { success: false, reason: 'invalid_session_data' };
     }
-  },
+    
+    if (!navigator.onLine) {
+      return { success: true, reason: 'offline' };
+    }
+    
+    const result = await this.callValidate(session.password, session.deviceHash);
+    
+    if (result.valid) {
+      if (typeof result.token === 'number' && result.token !== session.token) {
+        session.token = result.token;
+        session.lastActive = Date.now();
+        Data.saveSession(session);
+      }
+      return { success: true };
+    }
+    
+    this.handleInvalidReason(result.reason);
+    return { success: false, reason: result.reason };
+    
+  } catch (err) {
+    console.warn('[SessionGuard] Check error:', err.message);
+    return { success: true, reason: 'network_error' };
+  } finally {
+    this._checking = false;
+  }
+},
   
   /**
    * ⚠️ FIXED: Validate response dengan shape checking

@@ -1,9 +1,10 @@
 /* ============================================================
-   ZHENIN - HTML Renderer (v2.6.3)
+   ZHENIN - HTML Renderer (v2.7.2 FIXED)
    FIX:
-   - Hapus table actions (edit/copy MD)
-   - Support <br> di table cell
-   - Bug check: escape safe, placeholder safe
+   - Konsistensi font size tabel dengan DOCX (10pt)
+   - <br> di table cell & list di-render proper
+   - Guard block null
+   - renderInline handle br di paragraph
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -11,9 +12,6 @@ import { Data } from './storage.js';
 import Parser from './parser.js';
 
 export const Renderer = {
-  /**
-   * Main render: blocks → HTML
-   */
   render(blocks) {
     if (!Array.isArray(blocks) || blocks.length === 0) {
       return '<p style="color:#94a3b8;text-align:center;padding:40px;font-family:-apple-system,sans-serif;">Dokumen kosong</p>';
@@ -21,11 +19,8 @@ export const Renderer = {
     return blocks.map((block, idx) => this.renderBlock(block, idx)).join('\n');
   },
 
-  /**
-   * Render single block
-   */
   renderBlock(block, idx) {
-    if (!block) return '';
+    if (!block || !block.type) return '';
 
     switch (block.type) {
       case 'h1': return `<h1 class="pv-h1">${this.renderInline(block.text)}</h1>`;
@@ -60,7 +55,8 @@ export const Renderer = {
 
   /**
    * Render inline markdown
-   * ⚠️ FIX: Support <br> dalam cell
+   * FIX: Handle <br> di paragraph → <br> tag
+   * FIX: Handle br marker dari parseInline
    */
   renderInline(text) {
     if (!text) return '';
@@ -68,6 +64,9 @@ export const Renderer = {
     const runs = Parser.parseInline(withPlaceholders);
 
     let html = runs.map(run => {
+      // Handle br marker dari parseInline
+      if (run.type === 'br') return '<br>';
+
       let part = this.escapeHtml(run.text);
       if (run.bold) part = `<strong>${part}</strong>`;
       if (run.italic) part = `<em>${part}</em>`;
@@ -78,16 +77,12 @@ export const Renderer = {
       return part;
     }).join('');
 
-    // ⚠️ FIX: Restore <br> yang ter-escape jadi line break
+    // Legacy: restore &lt;br&gt; yang ter-escape jadi line break
     html = html.replace(/&lt;br\s*\/?&gt;/gi, '<br>');
 
     return html;
   },
 
-  /**
-   * Render table
-   * ⚠️ FIX: Hapus wrapper .pv-table-wrap dan .pv-table-actions
-   */
   renderTable(block, tableIdx) {
     if (!block || !block.headers) return '';
 
@@ -112,7 +107,6 @@ export const Renderer = {
     if (style) styleCls = ` ${style}`;
     if (fontSize) inlineStyle = ` style="font-size:${fontSize}pt"`;
 
-    // ⚠️ FIX: Tidak ada wrapper / action buttons
     return `<table class="pv-table${styleCls}"${inlineStyle}>
       <colgroup>${colgroup}</colgroup>
       <thead>${thead}</thead>
@@ -120,14 +114,11 @@ export const Renderer = {
     </table>`;
   },
 
-  /**
-   * Render signature table
-   */
   renderSignature() {
     return `<table class="pv-ttd">
       <tr>
         <th>Yang Membuat/Mahasiswa</th>
-        <th>Yang Memverifikasi/Clinical Instructure(CI)</th>
+        <th>Yang Memverifikasi/Clinical Instructor (CI)</th>
       </tr>
       <tr>
         <td>Nama Lengkap &amp; Tanda Tangan</td>
@@ -136,9 +127,6 @@ export const Renderer = {
     </table>`;
   },
 
-  /**
-   * Replace placeholders dengan nilai actual
-   */
   replacePlaceholders(text) {
     if (!text) return '';
     const profile = Data.getProfile();
@@ -154,9 +142,6 @@ export const Renderer = {
       .replace(/\[IDENTITAS_MHS\]/g, '__IDENTITAS_MHS_MARKER__');
   },
 
-  /**
-   * Format tanggal Indonesia
-   */
   formatTanggalIndo() {
     const bulan = ['Januari','Februari','Maret','April','Mei','Juni',
                    'Juli','Agustus','September','Oktober','November','Desember'];
@@ -164,9 +149,6 @@ export const Renderer = {
     return `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
   },
 
-  /**
-   * Escape HTML
-   */
   escapeHtml(str) {
     return String(str == null ? '' : str)
       .replace(/&/g, '&amp;')
