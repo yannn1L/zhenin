@@ -1,6 +1,12 @@
 /* ============================================================
-   ZHENIN - App.js (v2.6.3 FINAL)
-   FIX: username display priority, unified editor, bug check
+   ZHENIN - App.js (v2.9.0 MODIFIED)
+   Multi-step AI flow: Image → Outline → Confirm → Generate
+
+   CHANGELOG:
+   - IMPORT: ImageHandler, OutlineModal
+   - REWRITE: handleAISubmit() — outline flow
+   - ADD: initImageUpload(), renderImagePreview()
+   - ADD: setLoadingMessage(), setLoadingProgress()
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -18,6 +24,8 @@ import Parser from './parser.js';
 import Renderer from './renderer.js';
 import Exporter from './exporter.js';
 import Username from './username.js';
+import ImageHandler from './image-handler.js';
+import OutlineModal from './outline-modal.js';
 
 /* ============================================================
    STATE
@@ -57,10 +65,10 @@ function formatTimeAgo(timestamp) {
   const days = Math.floor(diff / 86400000);
 
   if (mins < 1) return 'baru saja';
-  if (mins < 60) return `${mins} menit lalu`;
-  if (hours < 24) return `${hours} jam lalu`;
-  if (days < 7) return `${days} hari lalu`;
-  if (days < 30) return `${Math.floor(days / 7)} minggu lalu`;
+  if (mins < 60) return mins + ' menit lalu';
+  if (hours < 24) return hours + ' jam lalu';
+  if (days < 7) return days + ' hari lalu';
+  if (days < 30) return Math.floor(days / 7) + ' minggu lalu';
   return new Date(timestamp).toLocaleDateString('id-ID', {
     day: 'numeric', month: 'short', year: 'numeric'
   });
@@ -79,7 +87,7 @@ function sleep(ms) {
 }
 
 /* ============================================================
-   UI
+   UI (sama seperti v2.7.2, ditambah helper loading)
    ============================================================ */
 const UI = {
   toast(message, type = 'info', duration = CONFIG.TIMING.TOAST_DURATION_MS) {
@@ -89,11 +97,10 @@ const UI = {
     const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
 
     const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.innerHTML = `
-      <span class="toast-icon">${icons[type] || 'ℹ'}</span>
-      <span class="toast-message">${escapeHtml(message)}</span>
-    `;
+    toast.className = 'toast toast-' + type;
+    toast.innerHTML =
+      '<span class="toast-icon">' + (icons[type] || 'ℹ') + '</span>' +
+      '<span class="toast-message">' + escapeHtml(message) + '</span>';
     container.appendChild(toast);
 
     setTimeout(() => {
@@ -141,17 +148,14 @@ const UI = {
       item.classList.toggle('active', screenMap[nav] === screenId);
     });
 
-    const scroll = $(`.screen[data-screen="${screenId}"] .screen-scroll`);
+    const scroll = $('.screen[data-screen="' + screenId + '"] .screen-scroll');
     if (scroll) scroll.scrollTop = 0;
 
     if (screenId === 'profile') {
       Profile.init();
       StorageWidget.refresh();
-
-      // ⚠️ FIX: Refresh user UI (nama dari username)
       updateUserUI();
 
-      // Sync username dari backend
       Username.checkHasUsername().then(({ username }) => {
         if (username) {
           Username.saveLocalCache(username);
@@ -165,7 +169,7 @@ const UI = {
     if (screenId !== 'splash' && screenId !== 'login') {
       try {
         history.pushState({ screen: screenId }, '', '#' + screenId);
-      } catch (e) { /* ignore */ }
+      } catch (e) {}
     }
   },
 
@@ -189,6 +193,7 @@ const UI = {
     $$('.modal-overlay').forEach(m => {
       if (m.id === 'modalSessionExpired' && !m.hidden) return;
       if (m.id === 'modalUsernameRequired' && !m.hidden) return;
+      if (m.id === 'modalOutline' && !m.hidden) return;  // Don't close outline via global
       m.hidden = true;
     });
     document.body.style.overflow = '';
@@ -207,7 +212,7 @@ const UI = {
       descEl.textContent = desc;
       iconEl.textContent = options.icon || '❓';
       okBtn.textContent = options.okText || 'Ya, Lanjutkan';
-      okBtn.className = `btn ${options.danger === false ? 'btn-primary' : 'btn-danger'}`;
+      okBtn.className = 'btn ' + (options.danger === false ? 'btn-primary' : 'btn-danger');
 
       modal.hidden = false;
 
@@ -235,7 +240,20 @@ const UI = {
 window.UI = UI;
 
 /* ============================================================
-   LAYOUT MANAGER
+   LOADING HELPERS (v2.9.0 NEW)
+   ============================================================ */
+function setLoadingMessage(msg) {
+  const el = document.getElementById('loadingMessage');
+  if (el) el.textContent = msg;
+}
+
+function setLoadingProgress(pct) {
+  const el = document.getElementById('loadingBarFill');
+  if (el) el.style.width = Math.min(100, Math.max(0, pct)) + '%';
+}
+
+/* ============================================================
+   LAYOUT MANAGER (unchanged)
    ============================================================ */
 const LayoutManager = {
   currentMode: null,
@@ -262,9 +280,8 @@ const LayoutManager = {
 };
 
 /* ============================================================
-   SESSION MANAGER
+   SESSION MANAGER (unchanged)
    ============================================================ */
-// ===== GANTI FUNGSI SessionManager.refresh() =====
 const SessionManager = {
   refreshTimer: null,
   isRefreshing: false,
@@ -316,7 +333,7 @@ const SessionManager = {
 };
 
 /* ============================================================
-   BACK BUTTON
+   BACK BUTTON (unchanged)
    ============================================================ */
 const BackButton = {
   initialized: false,
@@ -349,12 +366,12 @@ const BackButton = {
 };
 
 /* ============================================================
-   SPLASH
+   SPLASH (unchanged)
    ============================================================ */
 async function initSplash() {
   ['splashVersion', 'loginVersion', 'appVersionInfo'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.textContent = `v${CONFIG.APP_VERSION}`;
+    if (el) el.textContent = 'v' + CONFIG.APP_VERSION;
   });
 
   await sleep(CONFIG.TIMING.SPLASH_DURATION_MS);
@@ -363,13 +380,11 @@ async function initSplash() {
   if (isLoggedIn) {
     State.session = Data.getSession();
 
-    // Load username cache dulu
     const cachedUsername = Username.getLocalCache();
     if (cachedUsername) Username.updateUI(cachedUsername);
 
     await initUserApp();
 
-    // Enforce username jika belum ada
     const usernameCheck = await Username.enforce();
     if (usernameCheck.username) Username.updateUI(usernameCheck.username);
 
@@ -380,7 +395,7 @@ async function initSplash() {
 }
 
 /* ============================================================
-   LOGIN
+   LOGIN (unchanged)
    ============================================================ */
 function initLogin() {
   const form = $('#loginForm');
@@ -420,7 +435,6 @@ function initLogin() {
         StorageMonitor.invalidateCache();
         TokenManager.reset();
 
-        // Save username dari backend ke cache
         if (result.username) {
           Username.saveLocalCache(result.username);
         }
@@ -430,7 +444,6 @@ function initLogin() {
         await initUserApp();
         await sleep(300);
 
-        // Enforce username (first login)
         const usernameCheck = await Username.enforce();
         if (usernameCheck.username) {
           Username.updateUI(usernameCheck.username);
@@ -459,13 +472,12 @@ function initLogin() {
 }
 
 /* ============================================================
-   USER APP INIT
+   USER APP INIT (unchanged)
    ============================================================ */
 async function initUserApp() {
   window.Profile = Profile;
   window.Username = Username;
 
-  // ⚠️ FIX: Load username dulu dari backend sebelum render UI
   try {
     const usernameCheck = await Username.checkHasUsername();
     if (usernameCheck.username) {
@@ -475,7 +487,6 @@ async function initUserApp() {
     console.warn('[initUserApp] Username load failed:', e.message);
   }
 
-  // Render UI dengan username yang sudah ada
   updateUserUI();
 
   Profile.init();
@@ -502,34 +513,28 @@ async function initUserApp() {
 }
 
 /* ============================================================
-   UPDATE USER UI
+   UPDATE USER UI (unchanged)
    ============================================================ */
 function updateUserUI() {
   const session = Data.getSession();
   if (!session) return;
 
-  // ⚠️ FIX: Prioritas username > nama mahasiswa > "User"
   const username = Username.getLocalCache();
   const profile = Data.getProfile();
   const displayName = username || profile.nama || 'User';
 
   const initial = displayName.charAt(0).toUpperCase();
 
-  // Avatar
-  const avatars = ['userAvatar', 'profileAvatar'];
-  avatars.forEach(id => {
+  ['userAvatar', 'profileAvatar'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.textContent = initial;
   });
 
-  // Name display
-  const nameEls = ['userNameDisplay', 'profileName'];
-  nameEls.forEach(id => {
+  ['userNameDisplay', 'profileName'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.textContent = displayName;
   });
 
-  // Profile code
   const codeEl = $('#profileCode');
   if (codeEl) codeEl.textContent = session.password || '';
 
@@ -547,9 +552,7 @@ function updateTokenUI() {
   const token = session?.token || 0;
 
   const tokenCount = $('#tokenCount');
-  if (tokenCount) {
-    animateNumber(tokenCount, token);
-  }
+  if (tokenCount) animateNumber(tokenCount, token);
 
   const costRemaining = $('#costRemaining');
   if (costRemaining) costRemaining.textContent = token;
@@ -558,9 +561,7 @@ function updateTokenUI() {
   if (statToken) statToken.textContent = token;
 
   const warning = $('#tokenWarning');
-  if (warning) {
-    warning.hidden = token >= CONFIG.LIMITS.TOKEN_WARNING_THRESHOLD;
-  }
+  if (warning) warning.hidden = token >= CONFIG.LIMITS.TOKEN_WARNING_THRESHOLD;
 }
 
 function animateNumber(el, target) {
@@ -568,10 +569,7 @@ function animateNumber(el, target) {
   if (current === target) return;
   const diff = target - current;
   const steps = Math.min(Math.abs(diff), 10);
-  if (steps === 0) {
-    el.textContent = target;
-    return;
-  }
+  if (steps === 0) { el.textContent = target; return; }
   let step = 0;
   const interval = setInterval(() => {
     step++;
@@ -591,7 +589,7 @@ function getInitials(name) {
 }
 
 /* ============================================================
-   SESSION EXPIRED
+   SESSION EXPIRED (unchanged)
    ============================================================ */
 function showSessionExpiredDialog(title, message, icon = '⚠️') {
   if (window._sessionExpiredShown) return;
@@ -627,6 +625,7 @@ function performForceLogout() {
   SessionGuard.destroy();
   Onboarding.hide(false);
   try { Editor.cleanup(); } catch (e) {}
+  try { ImageHandler.clear(); } catch (e) {}
 
   Auth.logout();
   State.session = null;
@@ -639,7 +638,7 @@ function performForceLogout() {
 }
 
 /* ============================================================
-   HOME
+   HOME (unchanged + image clear)
    ============================================================ */
 function initHome() {
   renderDocList();
@@ -698,27 +697,28 @@ function renderDocItem(doc) {
   const icon = doc._type === 'lp' ? '📄' : '📋';
   const typeLabel = doc._type === 'lp' ? 'LP' : 'Askep';
   const timeAgo = formatTimeAgo(doc.createdAt || Date.now());
+  const partialBadge = doc.partial ? ' ⚠️' : '';
 
-  return `
-    <div class="doc-item" data-doc-id="${escapeHtml(doc.id)}" data-doc-type="${doc._type}">
-      <div class="doc-icon ${doc._type}">${icon}</div>
-      <div class="doc-info">
-        <div class="doc-title">${escapeHtml(doc.judul || 'Tanpa Judul')}</div>
-        <div class="doc-meta">
-          <span>${typeLabel}</span>
-          <span class="dot"></span>
-          <span>${timeAgo}</span>
-        </div>
-      </div>
-      <button class="doc-menu" data-doc-menu="${escapeHtml(doc.id)}" data-doc-menu-type="${doc._type}">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="1"/>
-          <circle cx="19" cy="12" r="1"/>
-          <circle cx="5" cy="12" r="1"/>
-        </svg>
-      </button>
-    </div>
-  `;
+  return (
+    '<div class="doc-item" data-doc-id="' + escapeHtml(doc.id) + '" data-doc-type="' + doc._type + '">' +
+      '<div class="doc-icon ' + doc._type + '">' + icon + '</div>' +
+      '<div class="doc-info">' +
+        '<div class="doc-title">' + escapeHtml(doc.judul || 'Tanpa Judul') + partialBadge + '</div>' +
+        '<div class="doc-meta">' +
+          '<span>' + typeLabel + '</span>' +
+          '<span class="dot"></span>' +
+          '<span>' + timeAgo + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<button class="doc-menu" data-doc-menu="' + escapeHtml(doc.id) + '" data-doc-menu-type="' + doc._type + '">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+          '<circle cx="12" cy="12" r="1"/>' +
+          '<circle cx="19" cy="12" r="1"/>' +
+          '<circle cx="5" cy="12" r="1"/>' +
+        '</svg>' +
+      '</button>' +
+    '</div>'
+  );
 }
 
 function bindDocListEvents(container) {
@@ -738,7 +738,7 @@ function bindDocListEvents(container) {
 }
 
 /* ============================================================
-   NAVIGATION
+   NAVIGATION (unchanged)
    ============================================================ */
 function goToGenerate(type = 'askep') {
   UI.goTo('ai');
@@ -773,10 +773,11 @@ function openDocument(docId, docType) {
 }
 
 /* ============================================================
-   AI SCREEN
+   AI SCREEN (v2.9.0 MODIFIED — add image upload)
    ============================================================ */
 function initAIScreen() {
   AI.initAIScreen();
+  initImageUpload();  // ⚠️ NEW
 
   $('#btnTopicSuggest')?.addEventListener('click', (e) => {
     e.preventDefault();
@@ -789,6 +790,85 @@ function initAIScreen() {
   });
 }
 
+/**
+ * ⚠️ NEW: Image upload binding
+ */
+function initImageUpload() {
+  const dropzone = document.getElementById('imageDropzone');
+  const input = document.getElementById('imageInput');
+  const grid = document.getElementById('imagePreviewGrid');
+
+  if (!dropzone || !input || !grid) return;
+
+  dropzone.addEventListener('click', () => {
+    if (!ImageHandler.canAddMore()) {
+      UI.toast('Maksimal ' + ImageHandler.MAX_IMAGES + ' gambar', 'warning');
+      return;
+    }
+    input.click();
+  });
+
+  input.addEventListener('change', async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    UI.showLoading('Memproses gambar...');
+    try {
+      const added = await ImageHandler.addFiles(files);
+      UI.hideLoading();
+
+      if (added.length > 0) {
+        UI.toast('✅ ' + added.length + ' gambar ditambahkan', 'success');
+        renderImagePreview();
+      }
+    } catch (err) {
+      UI.hideLoading();
+      UI.toast('❌ ' + err.message, 'error', 4000);
+    }
+
+    input.value = '';
+  });
+}
+
+/**
+ * ⚠️ NEW: Render image preview grid
+ */
+function renderImagePreview() {
+  const grid = document.getElementById('imagePreviewGrid');
+  const dropzone = document.getElementById('imageDropzone');
+  if (!grid || !dropzone) return;
+
+  const images = ImageHandler.getImages();
+
+  if (images.length === 0) {
+    grid.hidden = true;
+    dropzone.hidden = false;
+    return;
+  }
+
+  grid.hidden = false;
+  dropzone.hidden = !ImageHandler.canAddMore();
+
+  grid.innerHTML = images.map(img => (
+    '<div class="image-preview-item" data-img-id="' + img.id + '">' +
+      '<img src="' + img.thumbnail + '" alt="Preview">' +
+      '<button type="button" class="image-preview-remove" data-remove="' + img.id + '">✕</button>' +
+    '</div>'
+  )).join('');
+
+  grid.querySelectorAll('[data-remove]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      ImageHandler.removeImage(btn.dataset.remove);
+      renderImagePreview();
+      UI.toast('Gambar dihapus', 'info', 2000);
+    });
+  });
+}
+
+/**
+ * ⚠️ REWRITE: handleAISubmit — multi-step flow
+ */
 async function handleAISubmit(e) {
   e.preventDefault();
 
@@ -796,17 +876,96 @@ async function handleAISubmit(e) {
   UI.setBtnLoading(btn, true);
 
   try {
+    // ===== Session guard check =====
     const guardResult = await SessionGuard.checkNow();
     if (!guardResult.success && !['network_error', 'offline'].includes(guardResult.reason)) {
       return;
     }
 
-    const requestBody = await AI.generate();
-
+    // ===== STEP 1: Request outline =====
     UI.goTo('loading');
     AI.startLoadingScreen();
+    setLoadingMessage('Menyusun rencana dokumen...');
+    setLoadingProgress(15);
 
-    const result = await AI.callBackend(requestBody);
+    let outlineRequest;
+    try {
+      outlineRequest = await AI.requestOutline();
+    } catch (err) {
+      AI.stopLoadingScreen();
+      UI.goTo('ai');
+      const mapped = AI.mapError(err);
+      UI.toast(mapped.text, mapped.type, 5000);
+      return;
+    }
+
+    // Cache hit → langsung tampil outline
+    let outlineResult;
+    if (outlineRequest.fromCache) {
+      outlineResult = { success: true, outline: outlineRequest.outline };
+    } else {
+      setLoadingProgress(35);
+      outlineResult = await AI.callBackend(outlineRequest);
+    }
+
+    AI.stopLoadingScreen();
+    setLoadingProgress(0);
+
+    if (!outlineResult.success) {
+      const mapped = AI.mapError({ message: outlineResult.error || 'Gagal buat rencana' });
+      UI.goTo('ai');
+      UI.toast(mapped.text, mapped.type, 5000);
+      return;
+    }
+
+    // Cache outline
+    if (outlineRequest.cacheKey) {
+      AI.cacheOutline(outlineResult.outline, outlineRequest.cacheKey);
+    }
+
+    // ===== STEP 2: Show outline modal =====
+    const formData = AI.collectFormData();
+    const patientLabel = formData.patient.nama
+      ? formData.patient.nama + (formData.topic ? ' · ' + formData.topic : '')
+      : (formData.topic || '');
+
+    const userChoice = await OutlineModal.show(outlineResult.outline, {
+      patient: patientLabel,
+      type: formData.type
+    });
+
+    if (!userChoice.confirmed || !userChoice.outline) {
+      // User batal — kembali ke form (outline tetap cached)
+      UI.goTo('ai');
+      return;
+    }
+
+    // ===== STEP 3: Request full generate =====
+    let fullRequest;
+    try {
+      fullRequest = await AI.requestFullGenerate(userChoice.outline);
+    } catch (err) {
+      const mapped = AI.mapError(err);
+      UI.toast(mapped.text, mapped.type, 5000);
+      if (err.code === 'NO_TOKEN') {
+        UI.confirm(
+          'Token Habis',
+          'Token Anda habis. Hubungi admin untuk top-up.',
+          { icon: '💎', okText: 'Hubungi Admin', danger: false }
+        ).then(confirmed => {
+          if (confirmed) showContactModal('topup');
+        });
+      }
+      return;
+    }
+
+    // ===== STEP 4: Full generate with loading =====
+    UI.goTo('loading');
+    AI.startLoadingScreen();
+    setLoadingMessage('Menghasilkan dokumen lengkap...');
+    setLoadingProgress(30);
+
+    const result = await AI.callBackend(fullRequest);
 
     AI.stopLoadingScreen();
 
@@ -819,6 +978,7 @@ async function handleAISubmit(e) {
       return;
     }
 
+    // ===== STEP 5: Validate result =====
     const validation = AI.validateResult(result);
     if (!validation.valid) {
       await SessionManager.refresh(true);
@@ -827,12 +987,13 @@ async function handleAISubmit(e) {
       return;
     }
 
-    const formData = AI.collectFormData();
-    const prompt = requestBody.prompt;
-
+    // ===== STEP 6: Save result =====
     let doc;
     try {
-      doc = AI.saveResult(validation.content, formData, prompt);
+      doc = AI.saveResult(validation.content, formData, fullRequest.prompt, {
+        judul: userChoice.outline.judul,
+        partial: result.partial || false
+      });
     } catch (saveErr) {
       console.error('[AI Submit] Save error:', saveErr);
       await SessionManager.refresh(true);
@@ -841,10 +1002,12 @@ async function handleAISubmit(e) {
       return;
     }
 
+    // Update token
     if (typeof result.remainingToken === 'number') {
       TokenManager.updateFromResponse(result.remainingToken);
     }
 
+    // ===== STEP 7: Load editor =====
     State.currentDoc = { ...doc, _type: formData.type };
     AI.setCurrentDocId(doc.id);
 
@@ -859,7 +1022,19 @@ async function handleAISubmit(e) {
       return;
     }
 
-    UI.toast('✅ Dokumen berhasil dibuat!', 'success');
+    // ⚠️ Clear images setelah sukses
+    try {
+      ImageHandler.clear();
+      renderImagePreview();
+    } catch (e) {}
+
+    // Toast notification
+    if (result.partial && result.warning) {
+      UI.toast('⚠️ ' + result.warning, 'warning', 6000);
+    } else {
+      UI.toast('✅ Dokumen berhasil dibuat!', 'success');
+    }
+
     UI.goTo('result');
 
   } catch (err) {
@@ -891,7 +1066,7 @@ async function handleAISubmit(e) {
 window.handleAISubmit = handleAISubmit;
 
 /* ============================================================
-   RESULT SCREEN
+   RESULT SCREEN (unchanged)
    ============================================================ */
 function initResultScreen() {
   $$('[data-view-mode]').forEach(btn => {
@@ -916,17 +1091,6 @@ function initResultScreen() {
   });
 }
 
-function renderResultScreen() {
-  const doc = State.currentDoc;
-  if (!doc) return;
-
-  const titleEl = $('#resultTitle');
-  if (titleEl) titleEl.textContent = doc.judul || 'Dokumen';
-
-  Editor.render();
-}
-
-// ===== GANTI FUNGSI handleRegenerate() =====
 async function handleRegenerate() {
   const request = AI.getCurrentRequest();
   if (!request) {
@@ -946,13 +1110,11 @@ async function handleRegenerate() {
     return;
   }
 
-  // ⚠️ FIX: Clear request lama + force rebuild
   AI.clearCurrentRequest();
+  AI.clearOutlineCache();
 
-  // Reset form state ke dokumen aktif
   const form = $('#aiForm');
   if (form) {
-    // Trigger submit baru
     form.dispatchEvent(new Event('submit'));
   }
 }
@@ -985,7 +1147,7 @@ async function handleExportDocx() {
 }
 
 /* ============================================================
-   PROFILE SCREEN
+   PROFILE (unchanged)
    ============================================================ */
 function initProfile() {
   $$('[data-menu]').forEach(item => {
@@ -1009,7 +1171,6 @@ function initProfile() {
     btn.addEventListener('click', () => UI.goTo(btn.dataset.back));
   });
 
-  // Username field
   const usernameInput = $('#profileUsernameInput');
   const saveUsernameBtn = $('#btnSaveUsername');
 
@@ -1064,7 +1225,7 @@ async function handleExportJSON() {
   try {
     const result = await ExportImport.exportJSON();
     UI.hideLoading();
-    UI.toast(`Berhasil export: ${result.filename}`, 'success');
+    UI.toast('Berhasil export: ' + result.filename, 'success');
   } catch (err) {
     UI.hideLoading();
     UI.toast('Gagal export: ' + err.message, 'error');
@@ -1092,7 +1253,7 @@ function handleImportJSON() {
       const result = await ExportImport.importJSON(file, 'merge');
       UI.hideLoading();
       UI.toast(
-        `Import berhasil: ${result.imported.lp} LP, ${result.imported.askep} Askep`,
+        'Import berhasil: ' + result.imported.lp + ' LP, ' + result.imported.askep + ' Askep',
         'success', 5000
       );
       renderDocList();
@@ -1118,6 +1279,7 @@ async function handleLogout() {
   if (confirmed) {
     try { Profile.saveNow(); } catch (e) {}
     try { Editor.cleanup(); } catch (e) {}
+    try { ImageHandler.clear(); } catch (e) {}
 
     SessionManager.stop();
     SessionGuard.destroy();
@@ -1130,7 +1292,7 @@ async function handleLogout() {
 }
 
 /* ============================================================
-   FILES SCREEN
+   FILES SCREEN (unchanged)
    ============================================================ */
 let filesFilter = 'all';
 
@@ -1167,7 +1329,7 @@ function renderFilesList() {
 }
 
 /* ============================================================
-   DOC ACTIONS
+   DOC ACTIONS (unchanged)
    ============================================================ */
 let docActionTarget = null;
 
@@ -1299,7 +1461,7 @@ function duplicateDoc(docId, docType) {
 }
 
 /* ============================================================
-   BOTTOM NAV
+   BOTTOM NAV (unchanged)
    ============================================================ */
 function initBottomNav() {
   $$('.bottom-nav .nav-item').forEach(item => {
@@ -1316,7 +1478,7 @@ function initBottomNav() {
 }
 
 /* ============================================================
-   MODALS
+   MODALS (unchanged)
    ============================================================ */
 function initModals() {
   $$('[data-close]').forEach(btn => {
@@ -1331,6 +1493,7 @@ function initModals() {
       if (e.target === overlay) {
         if (overlay.id === 'modalSessionExpired') return;
         if (overlay.id === 'modalUsernameRequired') return;
+        if (overlay.id === 'modalOutline') return;
         UI.closeModal(overlay.id);
       }
     });
@@ -1344,6 +1507,9 @@ function initModals() {
       const usernameModal = document.getElementById('modalUsernameRequired');
       if (usernameModal && !usernameModal.hidden) return;
 
+      const outlineModal = document.getElementById('modalOutline');
+      if (outlineModal && !outlineModal.hidden) return;
+
       UI.closeAllModals();
     }
   });
@@ -1352,8 +1518,8 @@ function initModals() {
   if (waBtn) {
     waBtn.addEventListener('click', () => {
       const session = Data.getSession();
-      const pw = session ? ` (password: ${session.password})` : '';
-      ContactAdmin.openWA(`Halo Admin Tian, saya ingin bertanya tentang Zhenin${pw}.`);
+      const pw = session ? ' (password: ' + session.password + ')' : '';
+      ContactAdmin.openWA('Halo Admin Tian, saya ingin bertanya tentang Zhenin' + pw + '.');
     });
   }
 
@@ -1378,9 +1544,9 @@ function showTopicSuggestions() {
   const grid = $('#topicGrid');
   if (!grid) return;
 
-  grid.innerHTML = CONFIG.TOPIC_SUGGESTIONS.map(topic => `
-    <button class="topic-chip" data-topic="${escapeHtml(topic)}">${escapeHtml(topic)}</button>
-  `).join('');
+  grid.innerHTML = CONFIG.TOPIC_SUGGESTIONS.map(topic => (
+    '<button class="topic-chip" data-topic="' + escapeHtml(topic) + '">' + escapeHtml(topic) + '</button>'
+  )).join('');
 
   grid.querySelectorAll('.topic-chip').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1397,7 +1563,7 @@ function showTopicSuggestions() {
 }
 
 /* ============================================================
-   KEYBOARD
+   KEYBOARD (unchanged)
    ============================================================ */
 function initShortcuts() {
   document.addEventListener('keydown', (e) => {
@@ -1411,7 +1577,7 @@ function initShortcuts() {
 }
 
 /* ============================================================
-   AUTO BACKUP
+   AUTO BACKUP (unchanged)
    ============================================================ */
 let autoBackupTimer = null;
 
@@ -1427,10 +1593,10 @@ function startAutoBackup() {
 }
 
 /* ============================================================
-   INIT
+   INIT (unchanged)
    ============================================================ */
 async function init() {
-  console.log(`[Zhenin] v${CONFIG.APP_VERSION} starting...`);
+  console.log('[Zhenin] v' + CONFIG.APP_VERSION + ' starting...');
 
   LayoutManager.init();
   setupPrismLanguage();

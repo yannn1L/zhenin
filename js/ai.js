@@ -1,15 +1,20 @@
 /* ============================================================
-   ZHENIN - AI Module (v2.7.2 FIXED)
-   FIX:
-   - Race condition status cache (pakai request ID)
-   - Regenerate pakai request lama → force rebuild
-   - _statusCache reset lebih konsisten
-   - setBusyCooldown cleanup timer
+   ZHENIN - AI Module (v2.9.0 MODIFIED)
+   Multi-step flow: Outline → Confirm → Full Generate
+
+   CHANGELOG:
+   - ADD: requestOutline() — buat outline (gratis)
+   - ADD: requestFullGenerate() — generate full (1 token)
+   - ADD: cacheOutline() / clearOutlineCache()
+   - ADD: Image support di collectFormData()
+   - MOD: saveResult() support partial flag
+   - REMOVE: generate() lama (digantikan 2 method baru)
    ============================================================ */
 
 import { CONFIG } from './config.js';
 import { Data, StorageMonitor } from './storage.js';
 import TokenManager from './token-manager.js';
+import ImageHandler from './image-handler.js';
 
 export const AI = {
   _currentRequest: null,
@@ -25,13 +30,18 @@ export const AI = {
   _statusCacheTime: 0,
   _statusInterval: null,
   _statusRequestId: 0,
+
+  // ⚠️ Outline cache
+  _cachedOutline: null,
+  _cachedOutlineKey: null,
+
   STATUS_CACHE_TTL: 30000,
 
   LOADING_MESSAGES: [
     'Menganalisis topik...',
     'Menghubungkan ke AI...',
     'Menyusun struktur dokumen...',
-    'Menulis BAB...',
+    'Menulis BAB I...',
     'Menyusun konsep penyakit...',
     'Membuat patofisiologi...',
     'Menyusun pemeriksaan...',
@@ -138,7 +148,7 @@ export const AI = {
   },
 
   /**
-   * Refresh user status dengan race condition guard
+   * Refresh user status
    */
   async refreshUserStatus(silent = true) {
     const now = Date.now();
@@ -150,7 +160,6 @@ export const AI = {
     const session = Data.getSession();
     if (!session) return null;
 
-    // ⚠️ FIX: Request ID untuk prevent race condition
     const requestId = ++this._statusRequestId;
 
     try {
@@ -166,10 +175,7 @@ export const AI = {
 
       const result = await response.json();
 
-      // ⚠️ FIX: Discard response kalau bukan request terbaru
-      if (requestId !== this._statusRequestId) {
-        return null;
-      }
+      if (requestId !== this._statusRequestId) return null;
 
       if (result.success) {
         this._statusCache = result.status;
@@ -223,8 +229,9 @@ export const AI = {
   },
 
   buildQuotaHTML(status) {
-    const dailyPct = status.dailyLimit > 0 ?
-      Math.min(100, (status.dailyUsed / status.dailyLimit) * 100) : 0;
+    const dailyPct = status.dailyLimit > 0
+      ? Math.min(100, (status.dailyUsed / status.dailyLimit) * 100)
+      : 0;
 
     let barClass = '';
     if (dailyPct >= 80) barClass = 'error';
@@ -268,20 +275,23 @@ export const AI = {
         return { valid: false, error: 'Prompt custom minimal 10 karakter' };
       }
       if (customPrompt.length > CONFIG.LIMITS.PROMPT_MAX) {
-        return { valid: false, error: `Prompt terlalu panjang (max ${CONFIG.LIMITS.PROMPT_MAX} char)` };
+        return { valid: false, error: 'Prompt terlalu panjang (max ' + CONFIG.LIMITS.PROMPT_MAX + ' char)' };
       }
     } else {
       if (!topic || topic.trim().length < 3) {
         return { valid: false, error: 'Topik minimal 3 karakter' };
       }
       if (topic.length > CONFIG.LIMITS.TOPIC_MAX) {
-        return { valid: false, error: `Topik terlalu panjang (max ${CONFIG.LIMITS.TOPIC_MAX} char)` };
+        return { valid: false, error: 'Topik terlalu panjang (max ' + CONFIG.LIMITS.TOPIC_MAX + ' char)' };
       }
     }
 
     return { valid: true };
   },
 
+  /**
+   * Collect form data + images
+   */
   collectFormData() {
     const type = document.getElementById('aiType')?.value || 'askep';
     const topic = document.getElementById('aiTopic')?.value.trim() || '';
@@ -298,7 +308,10 @@ export const AI = {
       detail: document.getElementById('pDetail')?.value.trim() || ''
     };
 
-    return { type, topic, mode, customPrompt, patient };
+    // ⚠️ Collect images from ImageHandler
+    const images = ImageHandler.getImagesForAPI();
+
+    return { type, topic, mode, customPrompt, patient, images };
   },
 
   buildPrompt(formData) {
@@ -306,34 +319,49 @@ export const AI = {
     if (mode === 'custom') return customPrompt;
 
     const typeLabel = type === 'lp' ? 'Laporan Pendahuluan (LP)' : 'Asuhan Keperawatan (Askep)';
-    let prompt = `Buatkan ${typeLabel} tentang "${topic}"`;
+    let prompt = 'Buatkan ' + typeLabel + ' tentang "' + topic + '"';
 
     const hasPatientData = Object.values(patient).some(v => v && v.trim());
     if (hasPatientData) {
-      prompt += `\n\nData Pasien:`;
-      if (patient.nama) prompt += `\n- Nama: ${patient.nama}`;
-      if (patient.umur) prompt += `\n- Umur: ${patient.umur} tahun`;
-      if (patient.gender) prompt += `\n- Jenis Kelamin: ${patient.gender}`;
-      if (patient.room) prompt += `\n- Ruang Rawat: ${patient.room}`;
-      if (patient.dx) prompt += `\n- Dx. Medis: ${patient.dx}`;
-      if (patient.complaint) prompt += `\n- Keluhan Utama: ${patient.complaint}`;
-      if (patient.detail) prompt += `\n- Detail Tambahan: ${patient.detail}`;
+      prompt += '\n\nData Pasien:';
+      if (patient.nama) prompt += '\n- Nama: ' + patient.nama;
+      if (patient.umur) prompt += '\n- Umur: ' + patient.umur + ' tahun';
+      if (patient.gender) prompt += '\n- Jenis Kelamin: ' + patient.gender;
+      if (patient.room) prompt += '\n- Ruang Rawat: ' + patient.room;
+      if (patient.dx) prompt += '\n- Dx. Medis: ' + patient.dx;
+      if (patient.complaint) prompt += '\n- Keluhan Utama: ' + patient.complaint;
+      if (patient.detail) prompt += '\n- Detail Tambahan: ' + patient.detail;
     } else {
-      prompt += `\n\nGunakan data pasien yang realistis dan umum untuk kasus ini.`;
+      prompt += '\n\nGunakan data pasien yang realistis dan umum untuk kasus ini.';
     }
 
     if (type === 'askep') {
-      prompt += `\n\nSertakan implementasi dan evaluasi 3 hari (SOAP).`;
+      prompt += '\n\nSertakan implementasi dan evaluasi 3 hari (SOAP).';
     }
 
     return prompt;
   },
 
-  async generate() {
+  /**
+   * ⚠️ NEW: Build cache key
+   */
+  buildCacheKey(formData, prompt) {
+    const key = formData.type + '|' + (formData.topic || formData.customPrompt) + '|' + (formData.images.length || 0);
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+      hash = ((hash << 5) - hash + key.charCodeAt(i)) | 0;
+    }
+    return 'ai_' + hash;
+  },
+
+  /**
+   * ⚠️ NEW: Request outline (gratis, throttled 30s di backend)
+   */
+  async requestOutline() {
     const now = Date.now();
     if (this._busyCooldownUntil > now) {
       const waitSec = Math.ceil((this._busyCooldownUntil - now) / 1000);
-      const error = new Error(`Server AI sedang sibuk. Tunggu ${waitSec} detik lagi.`);
+      const error = new Error('Server AI sedang sibuk. Tunggu ' + waitSec + ' detik lagi.');
       error.code = 'BUSY_COOLDOWN';
       error.waitSec = waitSec;
       throw error;
@@ -343,27 +371,12 @@ export const AI = {
     const validation = this.validateForm(formData);
     if (!validation.valid) throw new Error(validation.error);
 
-    if (!TokenManager.hasEnough(1)) {
-      const error = new Error('Token habis. Hubungi admin untuk top-up.');
-      error.code = 'NO_TOKEN';
-      throw error;
-    }
-
-    const status = this._statusCache;
-    if (status && status.remaining === 0) {
-      const error = new Error('Kuota AI hari ini habis. Coba lagi besok atau hubungi admin.');
-      error.code = 'NO_QUOTA';
-      throw error;
-    }
-
-    if (!Data.isProfileComplete()) this._showProfileWarning();
-
     const prompt = this.buildPrompt(formData);
-
     const cacheKey = this.buildCacheKey(formData, prompt);
-    if (this._resultCache.has(cacheKey)) {
-      const cached = this._resultCache.get(cacheKey);
-      return { action: 'aiGenerate', fromCache: true, cachedResult: cached };
+
+    // ⚠️ Cache hit: kalau form tidak berubah, pakai outline cached
+    if (this._cachedOutline && this._cachedOutlineKey === cacheKey) {
+      return { fromCache: true, outline: this._cachedOutline, cacheKey };
     }
 
     const session = Data.getSession();
@@ -371,43 +384,85 @@ export const AI = {
       throw new Error('Session tidak valid. Silakan login kembali.');
     }
 
-    const requestBody = {
-      action: 'aiGenerate',
+    // Simpan current request untuk reuse saat generate full
+    this._currentRequest = {
+      formData,
+      prompt,
+      cacheKey,
+      createdAt: Date.now()
+    };
+
+    return {
+      action: 'aiGenerateOutline',
       password: session.password,
       deviceHash: session.deviceHash,
       prompt,
-      type: formData.type
+      type: formData.type,
+      images: formData.images
     };
-
-    this._currentRequest = { formData, prompt, cacheKey, createdAt: Date.now() };
-    return requestBody;
   },
 
-  buildCacheKey(formData, prompt) {
-    const key = formData.type + '|' + (formData.topic || formData.customPrompt);
-    let hash = 0;
-    for (let i = 0; i < key.length; i++) {
-      hash = ((hash << 5) - hash + key.charCodeAt(i)) | 0;
+  /**
+   * ⚠️ NEW: Request full generate dengan outline
+   */
+  async requestFullGenerate(editedOutline) {
+    // Validate token
+    if (!TokenManager.hasEnough(1)) {
+      const error = new Error('Token habis. Hubungi admin untuk top-up.');
+      error.code = 'NO_TOKEN';
+      throw error;
     }
-    return 'ai_' + hash;
-  },
 
-  _showProfileWarning() {
-    if (window.UI) {
-      window.UI.toast(
-        '💡 Tips: Isi profil mahasiswa dulu agar identitas otomatis muncul',
-        'info', 4000
-      );
+    const request = this._currentRequest;
+    if (!request) {
+      throw new Error('Request tidak valid. Silakan isi form ulang.');
     }
+
+    const session = Data.getSession();
+    if (!session || !session.password || !session.deviceHash) {
+      throw new Error('Session tidak valid. Silakan login kembali.');
+    }
+
+    return {
+      action: 'aiGenerateFull',
+      password: session.password,
+      deviceHash: session.deviceHash,
+      prompt: request.prompt,
+      type: request.formData.type,
+      images: request.formData.images,
+      outline: {
+        judul: String(editedOutline.judul || '').slice(0, 120),
+        poin: (editedOutline.poin || []).slice(0, 7)
+      }
+    };
   },
 
+  /**
+   * ⚠️ NEW: Cache outline untuk form tertentu
+   */
+  cacheOutline(outline, cacheKey) {
+    this._cachedOutline = outline;
+    this._cachedOutlineKey = cacheKey;
+  },
+
+  /**
+   * ⚠️ NEW: Clear outline cache (form berubah)
+   */
+  clearOutlineCache() {
+    this._cachedOutline = null;
+    this._cachedOutlineKey = null;
+  },
+
+  /**
+   * Call backend
+   */
   async callBackend(requestBody) {
     if (!CONFIG.APPS_SCRIPT_URL) throw new Error('Backend belum dikonfigurasi');
 
     this._abortController = new AbortController();
     const timeoutId = setTimeout(() => {
       if (this._abortController) this._abortController.abort();
-    }, CONFIG.TIMING.AI_TIMEOUT_MS);
+    }, CONFIG.TIMING.AI_TIMEOUT_MS * 2);  // 2x untuk auto-resume
 
     try {
       const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
@@ -419,7 +474,7 @@ export const AI = {
 
       clearTimeout(timeoutId);
 
-      if (!response.ok) throw new Error(`Network error: HTTP ${response.status}`);
+      if (!response.ok) throw new Error('Network error: HTTP ' + response.status);
 
       const result = await response.json();
 
@@ -448,7 +503,6 @@ export const AI = {
   },
 
   setBusyCooldown(seconds) {
-    // ⚠️ FIX: Cleanup timer lama
     if (this._busyCooldownTimer) {
       clearInterval(this._busyCooldownTimer);
       this._busyCooldownTimer = null;
@@ -468,14 +522,14 @@ export const AI = {
           btn.title = '';
           this._busyCooldownUntil = 0;
         } else {
-          btn.title = `Server sibuk. Tunggu ${remaining}s`;
+          btn.title = 'Server sibuk. Tunggu ' + remaining + 's';
         }
       }, 1000);
     }
 
     if (window.UI) {
       window.UI.toast(
-        `⚠️ Server AI sedang sibuk. Tunggu ${seconds} detik ya.`,
+        '⚠️ Server AI sedang sibuk. Tunggu ' + seconds + ' detik ya.',
         'warning', 5000
       );
     }
@@ -487,7 +541,7 @@ export const AI = {
     const content = String(result.result || '').trim();
     if (!content) return { valid: false, reason: 'AI menghasilkan dokumen kosong' };
     if (content.length < 500) {
-      return { valid: false, reason: `Dokumen terlalu pendek (${content.length} char). Coba lagi.` };
+      return { valid: false, reason: 'Dokumen terlalu pendek (' + content.length + ' char). Coba lagi.' };
     }
 
     const lower = content.toLowerCase();
@@ -504,16 +558,20 @@ export const AI = {
     return { valid: true, content };
   },
 
-  saveResult(result, formData, prompt) {
+  /**
+   * Save result ke localStorage
+   */
+  saveResult(result, formData, prompt, options = {}) {
     const type = formData.type;
     const doc = {
       id: generateId(),
-      judul: (formData.topic || formData.customPrompt.slice(0, 80) || 'Dokumen').trim(),
+      judul: (options.judul || formData.topic || formData.customPrompt.slice(0, 80) || 'Dokumen').trim(),
       type: type,
       tanggal: new Date().toISOString().slice(0, 10),
       content: result,
       originalPrompt: prompt,
       patient: formData.patient,
+      partial: options.partial || false,
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
@@ -535,17 +593,9 @@ export const AI = {
       throw new Error('Dokumen gagal tersimpan. Coba lagi.');
     }
 
-    if (this._currentRequest && this._currentRequest.cacheKey) {
-      this._resultCache.set(this._currentRequest.cacheKey, result);
-      if (this._resultCache.size > 10) {
-        const firstKey = this._resultCache.keys().next().value;
-        this._resultCache.delete(firstKey);
-      }
-    }
-
     this._currentDocId = doc.id;
 
-    // ⚠️ FIX: Reset cache + bump request ID untuk prevent race
+    // Reset status cache & bump request id
     this._statusCache = null;
     this._statusCacheTime = 0;
     this._statusRequestId++;
@@ -559,9 +609,6 @@ export const AI = {
   setCurrentDocId(id) { this._currentDocId = id; },
   getCurrentRequest() { return this._currentRequest; },
 
-  /**
-   * ⚠️ FIX: Clear request lama
-   */
   clearCurrentRequest() {
     this._currentRequest = null;
   },
@@ -596,10 +643,10 @@ export const AI = {
         const sec = Math.floor(elapsed / 1000);
         const mm = String(Math.floor(sec / 60)).padStart(2, '0');
         const ss = String(sec % 60).padStart(2, '0');
-        timerEl.textContent = `${mm}:${ss}`;
+        timerEl.textContent = mm + ':' + ss;
 
         if (fillEl) {
-          const pct = Math.min(95, (elapsed / 30000) * 100);
+          const pct = Math.min(95, (elapsed / 60000) * 100);  // 60s baseline (auto-resume bisa lebih lama)
           fillEl.style.width = pct + '%';
         }
 
@@ -639,11 +686,14 @@ export const AI = {
     if (err.code === 'NO_TOKEN') return { type: 'warning', text: 'Token habis. Hubungi admin.' };
     if (err.code === 'NO_QUOTA') return { type: 'warning', text: 'Kuota AI hari ini habis. Coba besok.' };
     if (err.code === 'BUSY_COOLDOWN') {
-      return { type: 'warning', text: `Server sibuk. Tunggu ${err.waitSec || 30} detik.` };
+      return { type: 'warning', text: 'Server sibuk. Tunggu ' + (err.waitSec || 30) + ' detik.' };
     }
     if (msg.includes('token habis')) return { type: 'warning', text: 'Token habis. Hubungi admin.' };
     if (msg.includes('sibuk') || msg.includes('503') || msg.includes('502') || msg.includes('504')) {
       return { type: 'warning', text: 'Server AI sedang sibuk. Tunggu 30 detik ya.' };
+    }
+    if (msg.includes('tunggu') && msg.includes('detik')) {
+      return { type: 'warning', text: err.message };
     }
     if (msg.includes('timeout') || msg.includes('aborted')) {
       return { type: 'warning', text: 'AI butuh waktu lebih lama. Coba lagi.' };
@@ -656,6 +706,12 @@ export const AI = {
     }
     if (msg.includes('kosong') || msg.includes('empty') || msg.includes('pendek')) {
       return { type: 'error', text: err.message };
+    }
+    if (msg.includes('gambar') || msg.includes('image')) {
+      return { type: 'warning', text: err.message };
+    }
+    if (msg.includes('outline') || msg.includes('rencana')) {
+      return { type: 'warning', text: err.message };
     }
     if (msg.includes('401') || msg.includes('403')) {
       return { type: 'error', text: 'Session tidak valid. Login ulang.' };

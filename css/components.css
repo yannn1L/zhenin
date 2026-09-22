@@ -2152,3 +2152,421 @@ select.form-input {
   color: var(--z-error);
   animation: z-pulse 1s ease-in-out infinite;
 }
+
+/* ============================================================
+   IMAGE UPLOAD (v2.9.0 NEW)
+   ============================================================ */
+.image-upload-area {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.image-dropzone {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(74, 44, 90, 0.2);
+  border: 2px dashed rgba(201, 169, 97, 0.3);
+  border-radius: var(--z-r-md);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--z-text);
+  font-family: inherit;
+}
+.image-dropzone:hover,
+.image-dropzone:active {
+  background: rgba(74, 44, 90, 0.35);
+  border-color: var(--z-gold);
+}
+.image-dropzone:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.image-dropzone-icon {
+  font-size: 1.75rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.image-dropzone-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.image-dropzone-text strong {
+  font-size: 0.875rem;
+  color: var(--z-gold);
+  font-weight: 700;
+}
+.image-dropzone-text span {
+  font-size: 0.6875rem;
+  color: var(--z-text-muted);
+}
+
+/* Preview Grid */
+.image-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.image-preview-item {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--z-r-sm);
+  overflow: hidden;
+  background: var(--z-night);
+  border: 1px solid var(--z-border);
+  animation: z-fade-in 0.25s ease;
+}
+
+.image-preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.image-preview-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(248, 113, 113, 0.9);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.15s;
+  padding: 0;
+  line-height: 1;
+}
+.image-preview-remove:hover,
+.image-preview-remove:active {
+  background: var(--z-error);
+  transform: scale(1.1);
+}
+
+.form-label-optional {
+  font-weight: 400;
+  font-size: 0.625rem;
+  color: var(--z-text-dim);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 4px;
+}
+
+/* ============================================================
+   OUTLINE MODAL (v2.9.0 NEW)
+   ============================================================ */
+
+/* Meta info */
+.outline-meta {
+  font-size: 0.75rem;
+  color: var(--z-text-muted);
+  padding: 8px 12px;
+  background: rgba(107, 63, 160, 0.12);
+  border-left: 3px solid var(--z-lavender);
+  border-radius: var(--z-r-sm);
+  margin-bottom: 16px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.outline-divider {
+  height: 1px;
+  background: var(--z-border);
+  margin: 16px 0;
+}
+
+/* Section */
+.outline-section {
+  margin-bottom: 16px;
+}
+.outline-section:last-child {
+  margin-bottom: 0;
+}
+
+.outline-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--z-gold);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+/* Display mode */
+.outline-judul-display {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--z-text);
+  padding: 12px 14px;
+  background: rgba(74, 44, 90, 0.25);
+  border: 1px solid var(--z-border);
+  border-radius: var(--z-r-md);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.outline-poin-list {
+  list-style: none;
+  counter-reset: outline-counter;
+  padding-left: 0;
+  margin: 0;
+}
+.outline-poin-list li {
+  position: relative;
+  padding: 10px 12px 10px 40px;
+  margin-bottom: 8px;
+  background: rgba(74, 44, 90, 0.2);
+  border: 1px solid var(--z-border);
+  border-radius: var(--z-r-md);
+  font-size: 0.8125rem;
+  color: var(--z-text);
+  line-height: 1.5;
+  counter-increment: outline-counter;
+  word-break: break-word;
+}
+.outline-poin-list li::before {
+  content: counter(outline-counter);
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--z-grad-primary);
+  color: var(--z-gold);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--z-border-strong);
+}
+.outline-poin-list li:last-child {
+  margin-bottom: 0;
+}
+
+.outline-empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--z-text-dim);
+  background: rgba(74, 44, 90, 0.15);
+  border-radius: var(--z-r-md);
+  font-style: italic;
+}
+
+/* Note */
+.outline-note {
+  padding: 10px 14px;
+  background: rgba(96, 165, 250, 0.08);
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  border-radius: var(--z-r-md);
+  font-size: 0.75rem;
+  color: var(--z-info);
+  line-height: 1.5;
+  margin-top: 16px;
+}
+.outline-note strong {
+  color: var(--z-gold);
+}
+
+/* Cost info */
+.outline-cost {
+  text-align: center;
+  padding: 10px 14px;
+  margin-top: 12px;
+  background: rgba(201, 169, 97, 0.08);
+  border: 1px solid rgba(201, 169, 97, 0.2);
+  border-radius: var(--z-r-md);
+  font-size: 0.75rem;
+  color: var(--z-text-muted);
+}
+.outline-cost strong {
+  color: var(--z-gold);
+  font-weight: 700;
+}
+
+/* Edit mode */
+.outline-input {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.outline-poin-edit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.outline-poin-edit-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.outline-poin-number {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin-top: 8px;
+  border-radius: 50%;
+  background: var(--z-grad-primary);
+  color: var(--z-gold);
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--z-border-strong);
+}
+
+.outline-poin-input-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.outline-textarea {
+  resize: vertical;
+  min-height: 60px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  font-family: inherit;
+}
+
+/* Counter */
+.outline-counter {
+  font-size: 0.625rem;
+  color: var(--z-text-dim);
+  font-family: 'JetBrains Mono', monospace;
+  text-align: right;
+  padding-right: 4px;
+}
+.outline-counter span {
+  color: var(--z-lavender);
+  font-weight: 600;
+}
+
+/* Warning */
+.outline-warning {
+  padding: 12px 14px;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-left: 3px solid var(--z-warning);
+  border-radius: var(--z-r-sm);
+  font-size: 0.75rem;
+  color: var(--z-warning);
+  line-height: 1.5;
+  margin-top: 16px;
+}
+.outline-warning strong {
+  color: var(--z-warning);
+  font-weight: 700;
+}
+
+/* Modal specific sizing */
+#modalOutline .modal {
+  max-height: 92vh;
+}
+
+#modalOutline .modal-body {
+  padding: 16px 20px;
+}
+
+#modalOutline .modal-footer {
+  gap: 8px;
+  padding: 12px 20px calc(12px + var(--z-safe-bottom));
+}
+
+@media (min-width: 600px) {
+  #modalOutline .modal-footer {
+    padding-bottom: 16px;
+  }
+}
+
+/* ============================================================
+   MOBILE RESPONSIVE (Image + Outline)
+   ============================================================ */
+@media (max-width: 480px) {
+  .image-preview-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .image-preview-remove {
+    width: 22px;
+    height: 22px;
+    font-size: 0.625rem;
+  }
+  .image-dropzone {
+    padding: 14px;
+  }
+  .image-dropzone-icon {
+    font-size: 1.5rem;
+  }
+  .outline-poin-list li {
+    padding: 8px 10px 8px 36px;
+    font-size: 0.75rem;
+  }
+  .outline-poin-list li::before {
+    width: 18px;
+    height: 18px;
+    font-size: 0.625rem;
+    left: 10px;
+  }
+  .outline-poin-number {
+    width: 24px;
+    height: 24px;
+    font-size: 0.6875rem;
+    margin-top: 10px;
+  }
+  #modalOutline .modal-body {
+    padding: 14px 16px;
+  }
+}
+
+/* ============================================================
+   PAPER LIST STYLING (v2.8.1 — jangan hapus!)
+   Sudah ada di file existing. Pastikan tidak hilang.
+   ============================================================ */
+.paper ul,
+.paper ol {
+  padding-left: 0.75in;
+  margin: 0 0 6pt;
+  list-style-position: outside !important;
+}
+.paper ul { list-style-type: disc !important; }
+.paper ul ul { list-style-type: circle !important; }
+.paper ul ul ul { list-style-type: square !important; }
+.paper ol { list-style-type: decimal !important; }
+.paper ol ol { list-style-type: lower-alpha !important; }
+.paper ol ol ol { list-style-type: lower-roman !important; }
+.paper li {
+  margin-bottom: 2pt;
+  padding-left: 4pt;
+  text-align: justify;
+}
+.paper li > ul,
+.paper li > ol {
+  margin-top: 2pt;
+  margin-bottom: 2pt;
+  padding-left: 0.4in;
+}

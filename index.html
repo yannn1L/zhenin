@@ -57,7 +57,7 @@
     <h1 class="splash-title">ZHENIN</h1>
     <p class="splash-subtitle">Keperawatan Suite</p>
     <div class="splash-loader"><div class="splash-loader-fill"></div></div>
-    <div class="splash-version" id="splashVersion">v2.6.2</div>
+    <div class="splash-version" id="splashVersion">v2.9.0</div>
   </section>
 
   <!-- ============================================================
@@ -106,7 +106,7 @@
       </form>
 
       <div class="login-footer">
-        <div class="login-version" id="loginVersion">v2.6.2</div>
+        <div class="login-version" id="loginVersion">v2.9.0</div>
         <div class="login-legal">
           Dengan masuk, Anda menyetujui Syarat & Ketentuan Zhenin
         </div>
@@ -348,6 +348,33 @@
           </div>
         </div>
 
+        <!-- ============================================================
+             IMAGE SUPPORT (v2.9.0 NEW)
+             ============================================================ -->
+        <div class="form-section">
+          <label class="form-label">
+            📷 Gambar Pendukung
+            <span class="form-label-optional">(Opsional)</span>
+          </label>
+          <div class="form-hint" style="margin-bottom:10px;">
+            Hasil lab, askep manual, data pasien, atau buku teori
+          </div>
+
+          <div class="image-upload-area" id="imageUploadArea">
+            <button type="button" class="image-dropzone" id="imageDropzone">
+              <div class="image-dropzone-icon">📷</div>
+              <div class="image-dropzone-text">
+                <strong>Tambah Gambar</strong>
+                <span>Max 3 gambar · 2 MB/gambar</span>
+              </div>
+            </button>
+
+            <div class="image-preview-grid" id="imagePreviewGrid" hidden></div>
+          </div>
+
+          <input type="file" id="imageInput" accept="image/*" multiple hidden>
+        </div>
+
         <!-- Prompt Mode -->
         <div class="form-section">
           <label class="form-label">Mode Prompt</label>
@@ -520,7 +547,7 @@
         <div class="profile-fields">
           <div class="form-field">
             <label class="form-label" for="profileUsernameInput">Username</label>
-            <input type="text" id="profileUsernameInput" class="form-input" placeholder="Contoh: dio" maxlength="40">
+            <input type="text" id="profileUsernameInput" class="form-input" placeholder="Contoh: Christian" maxlength="40">
             <div class="form-hint">Minimal 2 karakter. Huruf, angka, spasi, titik, _ , -</div>
           </div>
           <button class="btn btn-primary btn-block" id="btnSaveUsername" style="margin-top: 8px;">
@@ -603,7 +630,7 @@
 
       <div class="app-info">
         <div>Zhenin Keperawatan Suite</div>
-        <div id="appVersionInfo">v2.6.2</div>
+        <div id="appVersionInfo">v2.9.0</div>
       </div>
 
       <div class="screen-bottom-spacer"></div>
@@ -799,23 +826,43 @@
           <li>Pilih jenis: <strong>LP</strong> atau <strong>Askep</strong></li>
           <li>Isi <strong>Topik</strong> (wajib) — contoh: "Hipertensi"</li>
           <li>Isi <strong>Data Pasien</strong> (opsional) — kalau kosong, AI generate sendiri</li>
+          <li>(Opsional) Upload <strong>📷 Gambar Pendukung</strong> — hasil lab, askep manual, dll</li>
           <li>Klik <strong>Generate dengan AI</strong></li>
-          <li>Tunggu ~30 detik sampai dokumen selesai</li>
+          <li>Review <strong>Rencana Dokumen</strong> di popup, edit jika perlu</li>
+          <li>Klik <strong>Generate Sekarang</strong> untuk buat dokumen lengkap</li>
           <li>Export ke <strong>DOCX</strong> untuk dikumpulkan</li>
         </ol>
       </div>
 
       <div class="help-section">
-        <h4>2. Lengkapi Profil Anda</h4>
+        <h4>2. Gambar Pendukung (Baru!)</h4>
+        <p style="font-size:13px;color:var(--z-text-muted);line-height:1.6;">
+          Upload gambar <strong>hasil lab</strong>, <strong>lembar askep manual</strong>, atau <strong>data pasien</strong>.
+          AI akan baca semua data yang relevan dan integrasikan ke dokumen Anda secara otomatis.
+          Max 3 gambar, 2 MB per gambar.
+        </p>
+      </div>
+
+      <div class="help-section">
+        <h4>3. Rencana Dokumen (Baru!)</h4>
+        <p style="font-size:13px;color:var(--z-text-muted);line-height:1.6;">
+          Sebelum AI buat dokumen lengkap, Anda lihat dulu <strong>garis besar</strong> poin yang akan dibuat.
+          Bisa edit poin 1x sebelum generate. Ini hemat token — Anda tahu isinya sebelum bayar!
+        </p>
+      </div>
+
+      <div class="help-section">
+        <h4>4. Lengkapi Profil Anda</h4>
         <p style="font-size:13px;color:var(--z-text-muted);line-height:1.6;">
           Buka <strong>Profile</strong> → isi <strong>Username</strong> dan <strong>Identitas Mahasiswa</strong>. Data ini otomatis muncul di bagian IDENTITAS MAHASISWA pada Askep/LP.
         </p>
       </div>
 
       <div class="help-section">
-        <h4>3. Token & Kuota</h4>
+        <h4>5. Token & Kuota</h4>
         <ul class="help-list">
           <li><strong>1 token = 1 dokumen</strong> yang di-generate AI</li>
+          <li>Outline / rencana dokumen <strong>GRATIS</strong> (tidak pakai token)</li>
           <li>Token <strong>tidak akan hangus</strong></li>
           <li>Kuota harian: <strong>10 AI/hari</strong> (default)</li>
           <li>Kalau AI gagal, token <strong>dikembalikan otomatis</strong></li>
@@ -823,21 +870,23 @@
       </div>
 
       <div class="help-section">
-        <h4>4. Tips Prompt</h4>
+        <h4>6. Tips Prompt</h4>
         <ul class="help-list">
           <li>✅ Gunakan bahasa keperawatan yang profesional</li>
           <li>✅ Sebutkan diagnosis dan umur pasien untuk hasil akurat</li>
+          <li>✅ Kalau ada hasil lab, upload fotonya</li>
           <li>❌ Hindari prompt di luar topik keperawatan</li>
         </ul>
       </div>
 
       <div class="help-section">
-        <h4>5. Masalah Umum</h4>
+        <h4>7. Masalah Umum</h4>
         <ul class="help-list">
           <li><strong>Password tidak bisa login?</strong> Hubungi admin untuk reset device</li>
           <li><strong>Token tidak bertambah?</strong> Refresh aplikasi</li>
           <li><strong>AI error/timeout?</strong> Coba lagi, token otomatis kembali</li>
-          <li><strong>AI sibuk terus?</strong> Tunggu 30 detik, coba lagi</li>
+          <li><strong>Gambar tidak terbaca?</strong> Pastikan ukuran max 2MB, format JPG/PNG</li>
+          <li><strong>Dokumen terpotong?</strong> Sistem auto-resume, tapi kalau masih terpotong bisa regenerate</li>
         </ul>
       </div>
     </div>
@@ -956,6 +1005,24 @@
       <button class="btn btn-secondary" data-close="modalRename">Batal</button>
       <button class="btn btn-primary" id="renameSave">Simpan</button>
     </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     OUTLINE MODAL (v2.9.0 NEW)
+     ============================================================ -->
+<div class="modal-overlay" id="modalOutline" hidden>
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 class="modal-title" id="outlineModalTitle">📋 Rencana Dokumen</h3>
+      <button class="icon-btn modal-close" data-close-outline="1" aria-label="Tutup">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body" id="outlineModalBody"></div>
+    <div class="modal-footer modal-footer-row" id="outlineModalFooter"></div>
   </div>
 </div>
 
