@@ -15,21 +15,33 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* ============================================================
+   HTML & BODY (v2.9.2 FIXED)
+   Full viewport dengan dvh fallback
+   ============================================================ */
 html {
   height: 100%;
+  width: 100%;
   font-size: 15px;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  background: #0F0B1A;
 }
 
 body {
   height: 100%;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
   overflow: hidden;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 1rem;
   line-height: 1.5;
   color: var(--z-text);
   background: var(--z-bg);
+  margin: 0;
+  padding: 0;
+  position: relative;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior: none;

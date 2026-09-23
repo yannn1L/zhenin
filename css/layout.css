@@ -4,11 +4,14 @@
    ============================================================ */
 
 /* ============================================================
-   APP SHELL
+   APP SHELL (v2.9.2 FIXED)
+   Full viewport dengan dvh fallback (bukan position:fixed)
    ============================================================ */
 .app {
-  position: fixed;
-  inset: 0;
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--z-bg);
@@ -218,12 +221,16 @@
    SPLASH SCREEN
    ============================================================ */
 .screen-splash {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   background: radial-gradient(circle at center, var(--z-plum) 0%, var(--z-night) 70%);
-  padding: var(--z-s-3xl);
+  padding: calc(var(--z-safe-top, 0px) + 24px) 24px calc(var(--z-safe-bottom, 0px) + 24px);
   text-align: center;
-  position: relative;
+  overflow: hidden;
 }
 
 .splash-logo {
