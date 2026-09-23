@@ -7,11 +7,11 @@ export const CONFIG = {
   // ===== APP =====
   APP_NAME: 'Zhenin',
   APP_FULL_NAME: 'Zhenin Nurse Suite',
-  APP_VERSION: '2.9.0',
+  APP_VERSION: '2.9.1',
   APP_BUILD: '2025-09-19',
 
   // ===== BACKEND =====
-  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbw3_UBASAC9omqCTNlygqbaKkVUwPLMn5FyjjwN_kFU7fq9kI_f7-EpuX7ppw4P03Zw/exec',
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwFEyBHOUAja-UUOJMgvBwNcPKVkD44xxJS3PNcYI4c_J9dujFSUcIiqiguCDQFJXjx/exec',
 
   // ===== CONTACT =====
   CONTACT: {
