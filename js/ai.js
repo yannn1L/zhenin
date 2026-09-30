@@ -1,14 +1,6 @@
 /* ============================================================
-   ZHENIN - AI Module (v2.9.0 MODIFIED)
-   Multi-step flow: Outline → Confirm → Full Generate
-
-   CHANGELOG:
-   - ADD: requestOutline() — buat outline (gratis)
-   - ADD: requestFullGenerate() — generate full (1 token)
-   - ADD: cacheOutline() / clearOutlineCache()
-   - ADD: Image support di collectFormData()
-   - MOD: saveResult() support partial flag
-   - REMOVE: generate() lama (digantikan 2 method baru)
+   ZHENIN - AI Module (v2.10.0 MODIFIED)
+   Tambahan: offline-resilient jobId + pending jobs API
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -31,7 +23,6 @@ export const AI = {
   _statusInterval: null,
   _statusRequestId: 0,
 
-  // ⚠️ Outline cache
   _cachedOutline: null,
   _cachedOutlineKey: null,
 
@@ -147,9 +138,6 @@ export const AI = {
     if (customSection) customSection.hidden = mode !== 'custom';
   },
 
-  /**
-   * Refresh user status
-   */
   async refreshUserStatus(silent = true) {
     const now = Date.now();
     if (this._statusCache && (now - this._statusCacheTime) < this.STATUS_CACHE_TTL) {
@@ -186,6 +174,12 @@ export const AI = {
         }
 
         this.renderUserStatus(result.status);
+
+        // ⚠️ Kalau ada pending jobs, trigger JobSync
+        if (result.status.pendingJobs > 0 && window.JobSync) {
+          setTimeout(() => window.JobSync.checkNow(), 500);
+        }
+
         return result.status;
       }
     } catch (err) {
@@ -238,29 +232,39 @@ export const AI = {
     else if (dailyPct >= 50) barClass = 'warning';
 
     const remaining = Math.max(0, status.dailyLimit - status.dailyUsed);
+    const pendingJobs = status.pendingJobs || 0;
 
-    return `
-      <div class="quota-card">
-        <div class="quota-header">
-          <span class="quota-title">📊 Kuota AI Hari Ini</span>
-          <span class="quota-badge ${remaining === 0 ? 'empty' : ''}">
-            ${remaining > 0 ? remaining + ' sisa' : 'HABIS'}
-          </span>
-        </div>
-        <div class="quota-numbers">
-          <span class="quota-used">${status.dailyUsed}</span>
-          <span class="quota-sep">/</span>
-          <span class="quota-limit">${status.dailyLimit}</span>
-        </div>
-        <div class="quota-progress">
-          <div class="quota-progress-bar ${barClass}" style="width:${dailyPct}%"></div>
-        </div>
-        <div class="quota-info">
-          <span>⏱️ Per jam: ${status.hourlyUsed}/${status.hourlyLimit}</span>
-          <span>💎 Token: ${status.token}</span>
-        </div>
-      </div>
-    `;
+    let pendingBanner = '';
+    if (pendingJobs > 0) {
+      pendingBanner =
+        '<div class="quota-pending">' +
+          '<span class="quota-pending-icon">🔄</span>' +
+          '<span class="quota-pending-text">' + pendingJobs + ' dokumen sedang diproses di server</span>' +
+        '</div>';
+    }
+
+    return '' +
+      '<div class="quota-card">' +
+        '<div class="quota-header">' +
+          '<span class="quota-title">📊 Kuota AI Hari Ini</span>' +
+          '<span class="quota-badge ' + (remaining === 0 ? 'empty' : '') + '">' +
+            (remaining > 0 ? remaining + ' sisa' : 'HABIS') +
+          '</span>' +
+        '</div>' +
+        '<div class="quota-numbers">' +
+          '<span class="quota-used">' + status.dailyUsed + '</span>' +
+          '<span class="quota-sep">/</span>' +
+          '<span class="quota-limit">' + status.dailyLimit + '</span>' +
+        '</div>' +
+        '<div class="quota-progress">' +
+          '<div class="quota-progress-bar ' + barClass + '" style="width:' + dailyPct + '%"></div>' +
+        '</div>' +
+        '<div class="quota-info">' +
+          '<span>⏱️ Per jam: ' + status.hourlyUsed + '/' + status.hourlyLimit + '</span>' +
+          '<span>💎 Token: ' + status.token + '</span>' +
+        '</div>' +
+        pendingBanner +
+      '</div>';
   },
 
   validateForm(formData) {
@@ -289,9 +293,6 @@ export const AI = {
     return { valid: true };
   },
 
-  /**
-   * Collect form data + images
-   */
   collectFormData() {
     const type = document.getElementById('aiType')?.value || 'askep';
     const topic = document.getElementById('aiTopic')?.value.trim() || '';
@@ -308,7 +309,6 @@ export const AI = {
       detail: document.getElementById('pDetail')?.value.trim() || ''
     };
 
-    // ⚠️ Collect images from ImageHandler
     const images = ImageHandler.getImagesForAPI();
 
     return { type, topic, mode, customPrompt, patient, images };
@@ -342,9 +342,6 @@ export const AI = {
     return prompt;
   },
 
-  /**
-   * ⚠️ NEW: Build cache key
-   */
   buildCacheKey(formData, prompt) {
     const key = formData.type + '|' + (formData.topic || formData.customPrompt) + '|' + (formData.images.length || 0);
     let hash = 0;
@@ -354,9 +351,6 @@ export const AI = {
     return 'ai_' + hash;
   },
 
-  /**
-   * ⚠️ NEW: Request outline (gratis, throttled 30s di backend)
-   */
   async requestOutline() {
     const now = Date.now();
     if (this._busyCooldownUntil > now) {
@@ -374,7 +368,6 @@ export const AI = {
     const prompt = this.buildPrompt(formData);
     const cacheKey = this.buildCacheKey(formData, prompt);
 
-    // ⚠️ Cache hit: kalau form tidak berubah, pakai outline cached
     if (this._cachedOutline && this._cachedOutlineKey === cacheKey) {
       return { fromCache: true, outline: this._cachedOutline, cacheKey };
     }
@@ -384,7 +377,6 @@ export const AI = {
       throw new Error('Session tidak valid. Silakan login kembali.');
     }
 
-    // Simpan current request untuk reuse saat generate full
     this._currentRequest = {
       formData,
       prompt,
@@ -403,10 +395,9 @@ export const AI = {
   },
 
   /**
-   * ⚠️ NEW: Request full generate dengan outline
+   * ⚠️ v2.10.0: Tambah clientId untuk offline-resilient
    */
   async requestFullGenerate(editedOutline) {
-    // Validate token
     if (!TokenManager.hasEnough(1)) {
       const error = new Error('Token habis. Hubungi admin untuk top-up.');
       error.code = 'NO_TOKEN';
@@ -423,6 +414,9 @@ export const AI = {
       throw new Error('Session tidak valid. Silakan login kembali.');
     }
 
+    // ⚠️ Generate clientId untuk tracking
+    const clientId = generateJobId();
+
     return {
       action: 'aiGenerateFull',
       password: session.password,
@@ -430,6 +424,8 @@ export const AI = {
       prompt: request.prompt,
       type: request.formData.type,
       images: request.formData.images,
+      clientId: clientId,
+      patient: request.formData.patient,
       outline: {
         judul: String(editedOutline.judul || '').slice(0, 120),
         poin: (editedOutline.poin || []).slice(0, 7)
@@ -437,32 +433,23 @@ export const AI = {
     };
   },
 
-  /**
-   * ⚠️ NEW: Cache outline untuk form tertentu
-   */
   cacheOutline(outline, cacheKey) {
     this._cachedOutline = outline;
     this._cachedOutlineKey = cacheKey;
   },
 
-  /**
-   * ⚠️ NEW: Clear outline cache (form berubah)
-   */
   clearOutlineCache() {
     this._cachedOutline = null;
     this._cachedOutlineKey = null;
   },
 
-  /**
-   * Call backend
-   */
   async callBackend(requestBody) {
     if (!CONFIG.APPS_SCRIPT_URL) throw new Error('Backend belum dikonfigurasi');
 
     this._abortController = new AbortController();
     const timeoutId = setTimeout(() => {
       if (this._abortController) this._abortController.abort();
-    }, CONFIG.TIMING.AI_TIMEOUT_MS * 2);  // 2x untuk auto-resume
+    }, CONFIG.TIMING.AI_TIMEOUT_MS * 2);
 
     try {
       const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
@@ -490,9 +477,62 @@ export const AI = {
         abortErr.code = 'ABORTED';
         throw abortErr;
       }
+      // ⚠️ Kalau network error, tambah flag
+      if (err.name === 'TypeError' || err.message.includes('fetch') || err.message.includes('Failed')) {
+        err.code = 'NETWORK_ERROR';
+      }
       throw err;
     } finally {
       this._abortController = null;
+    }
+  },
+
+  /**
+   * ⚠️ NEW: Get pending jobs (manual, tanpa JobSync)
+   */
+  async getPendingJobs() {
+    const session = Data.getSession();
+    if (!session || !session.password || !session.deviceHash) {
+      return { success: false, jobs: [] };
+    }
+
+    try {
+      const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'getPendingJobs',
+          password: session.password,
+          deviceHash: session.deviceHash
+        })
+      });
+
+      return await response.json();
+    } catch (e) {
+      return { success: false, jobs: [], error: e.message };
+    }
+  },
+
+  /**
+   * ⚠️ NEW: Mark job retrieved
+   */
+  async markJobRetrieved(jobId) {
+    const session = Data.getSession();
+    if (!session || !session.password || !session.deviceHash) return;
+
+    try {
+      await fetch(CONFIG.APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'markJobRetrieved',
+          password: session.password,
+          deviceHash: session.deviceHash,
+          jobId: jobId
+        })
+      });
+    } catch (e) {
+      console.warn('[AI] markJobRetrieved failed:', e.message);
     }
   },
 
@@ -558,13 +598,10 @@ export const AI = {
     return { valid: true, content };
   },
 
-  /**
-   * Save result ke localStorage
-   */
   saveResult(result, formData, prompt, options = {}) {
     const type = formData.type;
     const doc = {
-      id: generateId(),
+      id: options.docId || generateId(),
       judul: (options.judul || formData.topic || formData.customPrompt.slice(0, 80) || 'Dokumen').trim(),
       type: type,
       tanggal: new Date().toISOString().slice(0, 10),
@@ -578,24 +615,29 @@ export const AI = {
 
     if (type === 'lp') {
       const list = Data.getLP();
-      list.unshift(doc);
+      // ⚠️ Dedupe by id
+      if (!list.find(d => d.id === doc.id)) {
+        list.unshift(doc);
+      } else {
+        const idx = list.findIndex(d => d.id === doc.id);
+        list[idx] = doc;
+      }
       const saveResult = Data.saveLP(list);
       if (!saveResult || !saveResult.success) throw new Error('Gagal menyimpan dokumen');
     } else {
       const list = Data.getAskep();
-      list.unshift(doc);
+      if (!list.find(d => d.id === doc.id)) {
+        list.unshift(doc);
+      } else {
+        const idx = list.findIndex(d => d.id === doc.id);
+        list[idx] = doc;
+      }
       const saveResult = Data.saveAskep(list);
       if (!saveResult || !saveResult.success) throw new Error('Gagal menyimpan dokumen');
     }
 
-    const saved = this.getDocument(doc.id, type);
-    if (!saved || !saved.content || saved.content.length < 100) {
-      throw new Error('Dokumen gagal tersimpan. Coba lagi.');
-    }
-
     this._currentDocId = doc.id;
 
-    // Reset status cache & bump request id
     this._statusCache = null;
     this._statusCacheTime = 0;
     this._statusRequestId++;
@@ -646,7 +688,7 @@ export const AI = {
         timerEl.textContent = mm + ':' + ss;
 
         if (fillEl) {
-          const pct = Math.min(95, (elapsed / 60000) * 100);  // 60s baseline (auto-resume bisa lebih lama)
+          const pct = Math.min(95, (elapsed / 60000) * 100);
           fillEl.style.width = pct + '%';
         }
 
@@ -683,6 +725,9 @@ export const AI = {
     const msg = (err.message || '').toLowerCase();
 
     if (err.code === 'ABORTED') return { type: 'info', text: 'Dibatalkan' };
+    if (err.code === 'NETWORK_ERROR') {
+      return { type: 'warning', text: 'Koneksi terputus. Cek internet Anda.' };
+    }
     if (err.code === 'NO_TOKEN') return { type: 'warning', text: 'Token habis. Hubungi admin.' };
     if (err.code === 'NO_QUOTA') return { type: 'warning', text: 'Kuota AI hari ini habis. Coba besok.' };
     if (err.code === 'BUSY_COOLDOWN') {
@@ -747,6 +792,11 @@ export const AI = {
 
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+function generateJobId() {
+  return 'JOB-' + Date.now().toString(36).toUpperCase() + '-' +
+         Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
 export default AI;

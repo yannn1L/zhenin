@@ -2577,3 +2577,114 @@ select.form-input {
   margin-bottom: 2pt;
   padding-left: 0.4in;
 }
+
+/* ============================================================
+   JOB SYNC BANNER (v2.10.0 NEW)
+   ============================================================ */
+.job-sync-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 var(--z-s-lg) var(--z-s-lg);
+  padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(74, 222, 128, 0.15), rgba(34, 197, 94, 0.08));
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  border-left: 4px solid var(--z-success);
+  border-radius: var(--z-r-md);
+  box-shadow: 0 4px 16px rgba(74, 222, 128, 0.15);
+  animation: z-slide-down 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.job-sync-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.job-sync-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.job-sync-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--z-success);
+  margin-bottom: 2px;
+}
+
+.job-sync-desc {
+  font-size: 0.75rem;
+  color: var(--z-text);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-sync-action {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  background: var(--z-success);
+  color: #000;
+  border: none;
+  border-radius: var(--z-r-sm);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.job-sync-action:hover {
+  background: #22C55E;
+  transform: translateY(-1px);
+}
+
+.job-sync-close {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  color: var(--z-text-muted);
+  font-size: 0.875rem;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.job-sync-close:hover {
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--z-error);
+}
+
+/* ============================================================
+   QUOTA PENDING (v2.10.0 NEW)
+   ============================================================ */
+.quota-pending {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: rgba(96, 165, 250, 0.1);
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  border-radius: var(--z-r-sm);
+  font-size: 0.6875rem;
+  color: var(--z-info);
+  line-height: 1.4;
+}
+
+.quota-pending-icon {
+  font-size: 0.875rem;
+  animation: z-spin 2s linear infinite;
+  display: inline-block;
+}
+
+.quota-pending-text {
+  flex: 1;
+}

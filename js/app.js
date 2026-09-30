@@ -1,12 +1,6 @@
 /* ============================================================
-   ZHENIN - App.js (v2.9.0 MODIFIED)
-   Multi-step AI flow: Image → Outline → Confirm → Generate
-
-   CHANGELOG:
-   - IMPORT: ImageHandler, OutlineModal
-   - REWRITE: handleAISubmit() — outline flow
-   - ADD: initImageUpload(), renderImagePreview()
-   - ADD: setLoadingMessage(), setLoadingProgress()
+   ZHENIN - App.js (v2.10.0 MODIFIED)
+   Tambahan: JobSync integration + offline-resilient flow
    ============================================================ */
 
 import { CONFIG } from './config.js';
@@ -26,6 +20,7 @@ import Exporter from './exporter.js';
 import Username from './username.js';
 import ImageHandler from './image-handler.js';
 import OutlineModal from './outline-modal.js';
+import JobSync from './job-sync.js';
 
 /* ============================================================
    STATE
@@ -87,7 +82,7 @@ function sleep(ms) {
 }
 
 /* ============================================================
-   UI (sama seperti v2.7.2, ditambah helper loading)
+   UI
    ============================================================ */
 const UI = {
   toast(message, type = 'info', duration = CONFIG.TIMING.TOAST_DURATION_MS) {
@@ -193,7 +188,7 @@ const UI = {
     $$('.modal-overlay').forEach(m => {
       if (m.id === 'modalSessionExpired' && !m.hidden) return;
       if (m.id === 'modalUsernameRequired' && !m.hidden) return;
-      if (m.id === 'modalOutline' && !m.hidden) return;  // Don't close outline via global
+      if (m.id === 'modalOutline' && !m.hidden) return;
       m.hidden = true;
     });
     document.body.style.overflow = '';
@@ -240,7 +235,7 @@ const UI = {
 window.UI = UI;
 
 /* ============================================================
-   LOADING HELPERS (v2.9.0 NEW)
+   LOADING HELPERS
    ============================================================ */
 function setLoadingMessage(msg) {
   const el = document.getElementById('loadingMessage');
@@ -253,7 +248,7 @@ function setLoadingProgress(pct) {
 }
 
 /* ============================================================
-   LAYOUT MANAGER (unchanged)
+   LAYOUT MANAGER
    ============================================================ */
 const LayoutManager = {
   currentMode: null,
@@ -280,7 +275,7 @@ const LayoutManager = {
 };
 
 /* ============================================================
-   SESSION MANAGER (unchanged)
+   SESSION MANAGER
    ============================================================ */
 const SessionManager = {
   refreshTimer: null,
@@ -333,7 +328,7 @@ const SessionManager = {
 };
 
 /* ============================================================
-   BACK BUTTON (unchanged)
+   BACK BUTTON
    ============================================================ */
 const BackButton = {
   initialized: false,
@@ -366,7 +361,7 @@ const BackButton = {
 };
 
 /* ============================================================
-   SPLASH (unchanged)
+   SPLASH
    ============================================================ */
 async function initSplash() {
   ['splashVersion', 'loginVersion', 'appVersionInfo'].forEach(id => {
@@ -395,7 +390,7 @@ async function initSplash() {
 }
 
 /* ============================================================
-   LOGIN (unchanged)
+   LOGIN
    ============================================================ */
 function initLogin() {
   const form = $('#loginForm');
@@ -472,11 +467,14 @@ function initLogin() {
 }
 
 /* ============================================================
-   USER APP INIT (unchanged)
+   USER APP INIT
    ============================================================ */
 async function initUserApp() {
   window.Profile = Profile;
   window.Username = Username;
+  window.JobSync = JobSync;  // ⚠️ Expose untuk AI module
+  window.renderDocList = renderDocList;  // ⚠️ Untuk JobSync refresh
+  window.renderFilesList = renderFilesList;
 
   try {
     const usernameCheck = await Username.checkHasUsername();
@@ -504,6 +502,9 @@ async function initUserApp() {
   SessionManager.init();
   BackButton.init();
 
+  // ⚠️ Init JobSync (offline-resilient)
+  JobSync.init();
+
   SessionGuard.init(({ title, message, icon }) => {
     showSessionExpiredDialog(title, message, icon);
   });
@@ -513,7 +514,7 @@ async function initUserApp() {
 }
 
 /* ============================================================
-   UPDATE USER UI (unchanged)
+   UPDATE USER UI
    ============================================================ */
 function updateUserUI() {
   const session = Data.getSession();
@@ -581,15 +582,8 @@ function animateNumber(el, target) {
   }, 30);
 }
 
-function getInitials(name) {
-  if (!name) return 'U';
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
 /* ============================================================
-   SESSION EXPIRED (unchanged)
+   SESSION EXPIRED
    ============================================================ */
 function showSessionExpiredDialog(title, message, icon = '⚠️') {
   if (window._sessionExpiredShown) return;
@@ -623,6 +617,7 @@ function showSessionExpiredDialog(title, message, icon = '⚠️') {
 function performForceLogout() {
   SessionManager.stop();
   SessionGuard.destroy();
+  JobSync.destroy();
   Onboarding.hide(false);
   try { Editor.cleanup(); } catch (e) {}
   try { ImageHandler.clear(); } catch (e) {}
@@ -638,7 +633,7 @@ function performForceLogout() {
 }
 
 /* ============================================================
-   HOME (unchanged + image clear)
+   HOME
    ============================================================ */
 function initHome() {
   renderDocList();
@@ -655,6 +650,7 @@ function initHome() {
     setTimeout(() => this.style.transform = '', 500);
     await SessionManager.refresh(false);
     await SessionGuard.checkNow();
+    await JobSync.checkNow(false);  // ⚠️ Force check
     await Username.checkHasUsername().then(({ username }) => {
       if (username) {
         Username.saveLocalCache(username);
@@ -668,6 +664,17 @@ function initHome() {
   $('#btnWarningTopup')?.addEventListener('click', () => showContactModal('topup'));
   $('#btnSeeAll')?.addEventListener('click', () => UI.goTo('files'));
   $('#promoClose')?.addEventListener('click', () => Promo.dismiss());
+
+  // ⚠️ Job sync banner
+  const banner = document.getElementById('jobSyncBanner');
+  if (banner) {
+    const closeBtn = banner.querySelector('.job-sync-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        banner.hidden = true;
+      });
+    }
+  }
 }
 
 function renderDocList() {
@@ -698,12 +705,13 @@ function renderDocItem(doc) {
   const typeLabel = doc._type === 'lp' ? 'LP' : 'Askep';
   const timeAgo = formatTimeAgo(doc.createdAt || Date.now());
   const partialBadge = doc.partial ? ' ⚠️' : '';
+  const bgBadge = doc._fromBackground ? ' 🔄' : '';
 
   return (
     '<div class="doc-item" data-doc-id="' + escapeHtml(doc.id) + '" data-doc-type="' + doc._type + '">' +
       '<div class="doc-icon ' + doc._type + '">' + icon + '</div>' +
       '<div class="doc-info">' +
-        '<div class="doc-title">' + escapeHtml(doc.judul || 'Tanpa Judul') + partialBadge + '</div>' +
+        '<div class="doc-title">' + escapeHtml(doc.judul || 'Tanpa Judul') + partialBadge + bgBadge + '</div>' +
         '<div class="doc-meta">' +
           '<span>' + typeLabel + '</span>' +
           '<span class="dot"></span>' +
@@ -738,7 +746,7 @@ function bindDocListEvents(container) {
 }
 
 /* ============================================================
-   NAVIGATION (unchanged)
+   NAVIGATION
    ============================================================ */
 function goToGenerate(type = 'askep') {
   UI.goTo('ai');
@@ -773,11 +781,11 @@ function openDocument(docId, docType) {
 }
 
 /* ============================================================
-   AI SCREEN (v2.9.0 MODIFIED — add image upload)
+   AI SCREEN
    ============================================================ */
 function initAIScreen() {
   AI.initAIScreen();
-  initImageUpload();  // ⚠️ NEW
+  initImageUpload();
 
   $('#btnTopicSuggest')?.addEventListener('click', (e) => {
     e.preventDefault();
@@ -790,9 +798,6 @@ function initAIScreen() {
   });
 }
 
-/**
- * ⚠️ NEW: Image upload binding
- */
 function initImageUpload() {
   const dropzone = document.getElementById('imageDropzone');
   const input = document.getElementById('imageInput');
@@ -830,9 +835,6 @@ function initImageUpload() {
   });
 }
 
-/**
- * ⚠️ NEW: Render image preview grid
- */
 function renderImagePreview() {
   const grid = document.getElementById('imagePreviewGrid');
   const dropzone = document.getElementById('imageDropzone');
@@ -867,7 +869,7 @@ function renderImagePreview() {
 }
 
 /**
- * ⚠️ REWRITE: handleAISubmit — multi-step flow
+ * ⚠️ v2.10.0: Handle network drop → background process
  */
 async function handleAISubmit(e) {
   e.preventDefault();
@@ -876,7 +878,6 @@ async function handleAISubmit(e) {
   UI.setBtnLoading(btn, true);
 
   try {
-    // ===== Session guard check =====
     const guardResult = await SessionGuard.checkNow();
     if (!guardResult.success && !['network_error', 'offline'].includes(guardResult.reason)) {
       return;
@@ -899,7 +900,6 @@ async function handleAISubmit(e) {
       return;
     }
 
-    // Cache hit → langsung tampil outline
     let outlineResult;
     if (outlineRequest.fromCache) {
       outlineResult = { success: true, outline: outlineRequest.outline };
@@ -918,7 +918,6 @@ async function handleAISubmit(e) {
       return;
     }
 
-    // Cache outline
     if (outlineRequest.cacheKey) {
       AI.cacheOutline(outlineResult.outline, outlineRequest.cacheKey);
     }
@@ -935,7 +934,6 @@ async function handleAISubmit(e) {
     });
 
     if (!userChoice.confirmed || !userChoice.outline) {
-      // User batal — kembali ke form (outline tetap cached)
       UI.goTo('ai');
       return;
     }
@@ -959,7 +957,7 @@ async function handleAISubmit(e) {
       return;
     }
 
-    // ===== STEP 4: Full generate with loading =====
+    // ===== STEP 4: Full generate =====
     UI.goTo('loading');
     AI.startLoadingScreen();
     setLoadingMessage('Menghasilkan dokumen lengkap...');
@@ -978,7 +976,6 @@ async function handleAISubmit(e) {
       return;
     }
 
-    // ===== STEP 5: Validate result =====
     const validation = AI.validateResult(result);
     if (!validation.valid) {
       await SessionManager.refresh(true);
@@ -987,12 +984,12 @@ async function handleAISubmit(e) {
       return;
     }
 
-    // ===== STEP 6: Save result =====
     let doc;
     try {
       doc = AI.saveResult(validation.content, formData, fullRequest.prompt, {
         judul: userChoice.outline.judul,
-        partial: result.partial || false
+        partial: result.partial || false,
+        docId: result.jobId  // ⚠️ pakai jobId sebagai docId (dedupe)
       });
     } catch (saveErr) {
       console.error('[AI Submit] Save error:', saveErr);
@@ -1002,12 +999,10 @@ async function handleAISubmit(e) {
       return;
     }
 
-    // Update token
     if (typeof result.remainingToken === 'number') {
       TokenManager.updateFromResponse(result.remainingToken);
     }
 
-    // ===== STEP 7: Load editor =====
     State.currentDoc = { ...doc, _type: formData.type };
     AI.setCurrentDocId(doc.id);
 
@@ -1022,13 +1017,11 @@ async function handleAISubmit(e) {
       return;
     }
 
-    // ⚠️ Clear images setelah sukses
     try {
       ImageHandler.clear();
       renderImagePreview();
     } catch (e) {}
 
-    // Toast notification
     if (result.partial && result.warning) {
       UI.toast('⚠️ ' + result.warning, 'warning', 6000);
     } else {
@@ -1042,6 +1035,21 @@ async function handleAISubmit(e) {
     AI.stopLoadingScreen();
 
     const mapped = AI.mapError(err);
+
+    // ⚠️ v2.10.0: Kalau network error SETELAH kirim request
+    // (artinya backend sedang process)
+    if (err.code === 'NETWORK_ERROR' && AI._currentRequest) {
+      UI.goTo('home');
+      UI.toast(
+        '📡 Koneksi terputus. Dokumen sedang diproses di server. Cek nanti ya.',
+        'warning', 8000
+      );
+      // Trigger JobSync untuk check nanti
+      if (window.JobSync) {
+        setTimeout(() => window.JobSync.checkNow(false), 5000);
+      }
+      return;
+    }
 
     if (State.currentScreen === 'loading') {
       UI.goTo('ai');
@@ -1066,7 +1074,7 @@ async function handleAISubmit(e) {
 window.handleAISubmit = handleAISubmit;
 
 /* ============================================================
-   RESULT SCREEN (unchanged)
+   RESULT SCREEN
    ============================================================ */
 function initResultScreen() {
   $$('[data-view-mode]').forEach(btn => {
@@ -1147,7 +1155,7 @@ async function handleExportDocx() {
 }
 
 /* ============================================================
-   PROFILE (unchanged)
+   PROFILE
    ============================================================ */
 function initProfile() {
   $$('[data-menu]').forEach(item => {
@@ -1280,6 +1288,7 @@ async function handleLogout() {
     try { Profile.saveNow(); } catch (e) {}
     try { Editor.cleanup(); } catch (e) {}
     try { ImageHandler.clear(); } catch (e) {}
+    JobSync.destroy();
 
     SessionManager.stop();
     SessionGuard.destroy();
@@ -1292,7 +1301,7 @@ async function handleLogout() {
 }
 
 /* ============================================================
-   FILES SCREEN (unchanged)
+   FILES SCREEN
    ============================================================ */
 let filesFilter = 'all';
 
@@ -1329,7 +1338,7 @@ function renderFilesList() {
 }
 
 /* ============================================================
-   DOC ACTIONS (unchanged)
+   DOC ACTIONS
    ============================================================ */
 let docActionTarget = null;
 
@@ -1441,7 +1450,8 @@ function duplicateDoc(docId, docType) {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
     judul: (doc.judul || 'Dokumen') + ' (copy)',
     createdAt: Date.now(),
-    updatedAt: Date.now()
+    updatedAt: Date.now(),
+    _fromBackground: false
   };
 
   if (docType === 'lp') {
@@ -1461,7 +1471,7 @@ function duplicateDoc(docId, docType) {
 }
 
 /* ============================================================
-   BOTTOM NAV (unchanged)
+   BOTTOM NAV
    ============================================================ */
 function initBottomNav() {
   $$('.bottom-nav .nav-item').forEach(item => {
@@ -1478,7 +1488,7 @@ function initBottomNav() {
 }
 
 /* ============================================================
-   MODALS (unchanged)
+   MODALS
    ============================================================ */
 function initModals() {
   $$('[data-close]').forEach(btn => {
@@ -1563,7 +1573,7 @@ function showTopicSuggestions() {
 }
 
 /* ============================================================
-   KEYBOARD (unchanged)
+   KEYBOARD
    ============================================================ */
 function initShortcuts() {
   document.addEventListener('keydown', (e) => {
@@ -1577,7 +1587,7 @@ function initShortcuts() {
 }
 
 /* ============================================================
-   AUTO BACKUP (unchanged)
+   AUTO BACKUP
    ============================================================ */
 let autoBackupTimer = null;
 
@@ -1593,7 +1603,7 @@ function startAutoBackup() {
 }
 
 /* ============================================================
-   INIT (unchanged)
+   INIT
    ============================================================ */
 async function init() {
   console.log('[Zhenin] v' + CONFIG.APP_VERSION + ' starting...');
