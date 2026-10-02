@@ -380,10 +380,13 @@ async function initSplash() {
 
     await initUserApp();
 
-    const usernameCheck = await Username.enforce();
-    if (usernameCheck.username) Username.updateUI(usernameCheck.username);
+const usernameCheck = await Username.enforce();
+if (usernameCheck.enforced === false && usernameCheck.username) {
+  Username.updateUI(usernameCheck.username);
+}
+// Kalau enforced=true (baru diisi), UI sudah di-update oleh enforce
 
-    UI.goTo('home');
+UI.goTo('home');
   } else {
     UI.goTo('login');
   }
@@ -432,6 +435,7 @@ function initLogin() {
 
         if (result.username) {
           Username.saveLocalCache(result.username);
+          Username.updateUI(result.username);
         }
 
         UI.toast('Login berhasil!', 'success');
@@ -440,10 +444,10 @@ function initLogin() {
         await sleep(300);
 
         const usernameCheck = await Username.enforce();
-        if (usernameCheck.username) {
-          Username.updateUI(usernameCheck.username);
-        }
-
+          if (usernameCheck.enforced === false && usernameCheck.username) {
+            Username.updateUI(usernameCheck.username);
+          }
+          
         UI.goTo('home');
 
         if (!Data.isOnboarded()) {
@@ -476,13 +480,9 @@ async function initUserApp() {
   window.renderDocList = renderDocList;  // ⚠️ Untuk JobSync refresh
   window.renderFilesList = renderFilesList;
 
-  try {
-    const usernameCheck = await Username.checkHasUsername();
-    if (usernameCheck.username) {
-      Username.saveLocalCache(usernameCheck.username);
-    }
-  } catch (e) {
-    console.warn('[initUserApp] Username load failed:', e.message);
+  const cachedUsername = Username.getLocalCache();
+  if (cachedUsername) {
+    Username.updateUI(cachedUsername);
   }
 
   updateUserUI();
