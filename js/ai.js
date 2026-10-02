@@ -246,9 +246,9 @@ export const AI = {
     return '' +
       '<div class="quota-card">' +
         '<div class="quota-header">' +
-          '<span class="quota-title">📊 Kuota AI Hari Ini</span>' +
+          '<span class="quota-title">📊 Kuota Hari Ini ada: </span>' +
           '<span class="quota-badge ' + (remaining === 0 ? 'empty' : '') + '">' +
-            (remaining > 0 ? remaining + ' sisa' : 'HABIS') +
+            (remaining > 0 ? remaining + '' : 'HABIS') +
           '</span>' +
         '</div>' +
         '<div class="quota-numbers">' +

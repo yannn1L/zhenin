@@ -2825,3 +2825,210 @@ select.form-input {
     text-align: center;
   }
 }
+
+/* ============================================================
+   QUOTA CARD (v2.10.3 FIXED)
+   Styling untuk kuota AI harian di home & AI screen
+   ============================================================ */
+
+.quota-wrapper {
+  margin: 0 var(--z-s-lg) var(--z-s-lg);
+  padding: 0;
+}
+
+.quota-card {
+  padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(107, 63, 160, 0.25), rgba(45, 27, 61, 0.5));
+  border: 1px solid rgba(201, 169, 97, 0.25);
+  border-radius: var(--z-r-md);
+  box-shadow: 0 4px 16px rgba(107, 63, 160, 0.15);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.quota-card::before {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -10%;
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle, rgba(201, 169, 97, 0.15), transparent 70%);
+  pointer-events: none;
+}
+
+.quota-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(201, 169, 97, 0.4);
+  box-shadow: 0 8px 24px rgba(107, 63, 160, 0.25);
+}
+
+/* Header: title + badge */
+.quota-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.quota-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--z-gold);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  line-height: 1.3;
+}
+
+.quota-badge {
+  font-size: 0.625rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--z-r-full);
+  background: rgba(74, 222, 128, 0.15);
+  color: var(--z-success);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.quota-badge.empty {
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--z-error);
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+/* Numbers: used / limit */
+.quota-numbers {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.quota-used {
+  font-family: 'Cinzel', serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--z-white);
+  line-height: 1;
+  text-shadow: 0 0 12px rgba(201, 169, 97, 0.4);
+}
+
+.quota-sep {
+  font-family: 'Cinzel', serif;
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: var(--z-text-muted);
+  opacity: 0.6;
+}
+
+.quota-limit {
+  font-family: 'Cinzel', serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--z-lavender);
+}
+
+/* Progress bar */
+.quota-progress {
+  height: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.quota-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #4ADE80, #22C55E);
+  border-radius: 3px;
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s;
+  box-shadow: 0 0 12px rgba(74, 222, 128, 0.4);
+  width: 0%;
+}
+
+.quota-progress-bar.warning {
+  background: linear-gradient(90deg, #FBBF24, #F59E0B);
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.4);
+}
+
+.quota-progress-bar.error {
+  background: linear-gradient(90deg, #F87171, #DC2626);
+  box-shadow: 0 0 12px rgba(248, 113, 113, 0.4);
+}
+
+/* Info row */
+.quota-info {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.6875rem;
+  color: var(--z-text-dim);
+  font-family: 'JetBrains Mono', monospace;
+  position: relative;
+  z-index: 1;
+  line-height: 1.4;
+}
+
+.quota-info span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Pending jobs banner (v2.10.0) */
+.quota-pending {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: rgba(96, 165, 250, 0.1);
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  border-radius: var(--z-r-sm);
+  font-size: 0.6875rem;
+  color: var(--z-info);
+  line-height: 1.4;
+  position: relative;
+  z-index: 1;
+}
+
+.quota-pending-icon {
+  font-size: 0.875rem;
+  animation: z-spin 2s linear infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.quota-pending-text {
+  flex: 1;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .quota-card {
+    padding: 12px 14px;
+  }
+  .quota-title {
+    font-size: 0.6875rem;
+  }
+  .quota-used {
+    font-size: 1.5rem;
+  }
+  .quota-info {
+    font-size: 0.625rem;
+    gap: 8px;
+  }
+}
