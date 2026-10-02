@@ -57,7 +57,7 @@
     <h1 class="splash-title">ZHENIN</h1>
     <p class="splash-subtitle">Keperawatan Suite</p>
     <div class="splash-loader"><div class="splash-loader-fill"></div></div>
-    <div class="splash-version" id="splashVersion">v2.9.0</div>
+    <div class="splash-version" id="splashVersion">v2.10.2</div>
   </section>
 
   <!-- ============================================================
@@ -106,7 +106,7 @@
       </form>
 
       <div class="login-footer">
-        <div class="login-version" id="loginVersion">v2.9.0</div>
+        <div class="login-version" id="loginVersion">v2.10.2</div>
         <div class="login-legal">
           Dengan masuk, Anda menyetujui Syarat & Ketentuan Zhenin
         </div>
@@ -201,7 +201,7 @@
       <div class="section-header">
         <h2 class="section-title">Buat Dokumen</h2>
       </div>
-      <div class="quick-actions">
+      <div class="quick-actions quick-actions-3">
         <button class="quick-action" data-action="create-lp">
           <div class="quick-action-glow glow-lp"></div>
           <div class="quick-action-icon">📄</div>
@@ -216,8 +216,15 @@
           <div class="quick-action-desc">Buat Askep + SOAP</div>
           <div class="quick-action-arrow">→</div>
         </button>
+        <button class="quick-action" data-action="create-makalah">
+          <div class="quick-action-glow glow-makalah"></div>
+          <div class="quick-action-icon">📚</div>
+          <div class="quick-action-title">Makalah</div>
+          <div class="quick-action-desc">Cover + 3 BAB</div>
+          <div class="quick-action-arrow">→</div>
+        </button>
       </div>
-
+      
       <div class="section-header">
         <h2 class="section-title">Dokumen Terbaru</h2>
         <button class="link-btn" id="btnSeeAll">Lihat Semua →</button>
@@ -293,6 +300,11 @@
               <span class="type-option-icon">📄</span>
               <span class="type-option-label">LP</span>
               <span class="type-option-desc">5 BAB lengkap</span>
+            </button>
+            <button type="button" class="type-option" data-type="makalah">
+              <span class="type-option-icon">📚</span>
+              <span class="type-option-label">MAKALAH</span>
+              <span class="type-option-desc">Cover + 3 BAB</span>
             </button>
           </div>
           <input type="hidden" id="aiType" value="askep">
@@ -641,7 +653,7 @@
 
       <div class="app-info">
         <div>Zhenin Keperawatan Suite</div>
-        <div id="appVersionInfo">v2.9.0</div>
+        <div id="appVersionInfo">v2.10.2</div>
       </div>
 
       <div class="screen-bottom-spacer"></div>
@@ -687,6 +699,7 @@
       <button class="files-filter-btn active" data-filter="all">Semua</button>
       <button class="files-filter-btn" data-filter="lp">📄 LP</button>
       <button class="files-filter-btn" data-filter="askep">📋 Askep</button>
+      <button class="files-filter-btn" data-filter="makalah">📚 Makalah</button>
     </div>
 
     <div class="screen-scroll">

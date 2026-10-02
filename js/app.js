@@ -644,6 +644,9 @@ function initHome() {
   $$('[data-action="create-askep"]').forEach(btn => {
     btn.addEventListener('click', () => goToGenerate('askep'));
   });
+  $$('[data-action="create-makalah"]').forEach(btn => {
+    btn.addEventListener('click', () => goToGenerate('makalah'));
+  });
 
   $('#btnRefresh')?.addEventListener('click', async function() {
     this.style.transform = 'rotate(360deg)';
@@ -697,12 +700,25 @@ function renderDocList() {
 function getAllDocs() {
   const lp = Data.getLP().map(d => ({ ...d, _type: 'lp' }));
   const askep = Data.getAskep().map(d => ({ ...d, _type: 'askep' }));
-  return [...lp, ...askep].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const makalah = Data.getMakalah().map(d => ({ ...d, _type: 'makalah' }));
+  return [...lp, ...askep, ...makalah].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 }
 
 function renderDocItem(doc) {
-  const icon = doc._type === 'lp' ? '📄' : '📋';
-  const typeLabel = doc._type === 'lp' ? 'LP' : 'Askep';
+  let icon, typeLabel;
+  if (doc._type === 'lp') {
+    icon = '📄';
+    typeLabel = 'LP';
+  } else if (doc._type === 'askep') {
+    icon = '📋';
+    typeLabel = 'Askep';
+  } else if (doc._type === 'makalah') {
+    icon = '📚';
+    typeLabel = 'Makalah';
+  } else {
+    icon = '📄';
+    typeLabel = 'Doc';
+  }
   const timeAgo = formatTimeAgo(doc.createdAt || Date.now());
   const partialBadge = doc.partial ? ' ⚠️' : '';
   const bgBadge = doc._fromBackground ? ' 🔄' : '';
@@ -749,6 +765,9 @@ function bindDocListEvents(container) {
    NAVIGATION
    ============================================================ */
 function goToGenerate(type = 'askep') {
+  // Validasi type (v2.10.2)
+  if (!['lp', 'askep', 'makalah'].includes(type)) type = 'askep';
+  
   UI.goTo('ai');
   setTimeout(() => {
     $$('.type-option').forEach(btn => {
@@ -1261,7 +1280,9 @@ function handleImportJSON() {
       const result = await ExportImport.importJSON(file, 'merge');
       UI.hideLoading();
       UI.toast(
-        'Import berhasil: ' + result.imported.lp + ' LP, ' + result.imported.askep + ' Askep',
+        'Import berhasil: ' + result.imported.lp + ' LP, ' +
+        result.imported.askep + ' Askep, ' +
+        (result.imported.makalah || 0) + ' Makalah',
         'success', 5000
       );
       renderDocList();
@@ -1318,10 +1339,11 @@ function initFilesScreen() {
 
 function renderFilesList() {
   let docs = getAllDocs();
-
+  
   if (filesFilter === 'lp') docs = docs.filter(d => d._type === 'lp');
   if (filesFilter === 'askep') docs = docs.filter(d => d._type === 'askep');
-
+  if (filesFilter === 'makalah') docs = docs.filter(d => d._type === 'makalah');
+  
   const listEl = $('#filesDocList');
   const emptyEl = $('#filesEmpty');
 

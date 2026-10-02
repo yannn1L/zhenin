@@ -118,7 +118,7 @@ export const AI = {
   },
 
   setType(type) {
-    if (!['lp', 'askep'].includes(type)) return;
+    if (!['lp', 'askep', 'makalah'].includes(type)) return;
     document.querySelectorAll('.type-option').forEach(b => {
       b.classList.toggle('active', b.dataset.type === type);
     });
@@ -269,8 +269,8 @@ export const AI = {
 
   validateForm(formData) {
     const { topic, mode, customPrompt, type } = formData;
-
-    if (!type || !['lp', 'askep'].includes(type)) {
+    
+    if (!type || !['lp', 'askep', 'makalah'].includes(type)) {
       return { valid: false, error: 'Pilih jenis dokumen' };
     }
 
@@ -317,28 +317,40 @@ export const AI = {
   buildPrompt(formData) {
     const { type, topic, mode, customPrompt, patient } = formData;
     if (mode === 'custom') return customPrompt;
-
-    const typeLabel = type === 'lp' ? 'Laporan Pendahuluan (LP)' : 'Asuhan Keperawatan (Askep)';
+    
+    let typeLabel;
+    if (type === 'lp') typeLabel = 'Laporan Pendahuluan (LP)';
+    else if (type === 'askep') typeLabel = 'Asuhan Keperawatan (Askep)';
+    else if (type === 'makalah') typeLabel = 'Makalah';
+    else typeLabel = 'Dokumen';
+    
     let prompt = 'Buatkan ' + typeLabel + ' tentang "' + topic + '"';
-
-    const hasPatientData = Object.values(patient).some(v => v && v.trim());
-    if (hasPatientData) {
-      prompt += '\n\nData Pasien:';
-      if (patient.nama) prompt += '\n- Nama: ' + patient.nama;
-      if (patient.umur) prompt += '\n- Umur: ' + patient.umur + ' tahun';
-      if (patient.gender) prompt += '\n- Jenis Kelamin: ' + patient.gender;
-      if (patient.room) prompt += '\n- Ruang Rawat: ' + patient.room;
-      if (patient.dx) prompt += '\n- Dx. Medis: ' + patient.dx;
-      if (patient.complaint) prompt += '\n- Keluhan Utama: ' + patient.complaint;
-      if (patient.detail) prompt += '\n- Detail Tambahan: ' + patient.detail;
-    } else {
-      prompt += '\n\nGunakan data pasien yang realistis dan umum untuk kasus ini.';
+    
+    // Data pasien HANYA untuk LP/Askep
+    if (type === 'lp' || type === 'askep') {
+      const hasPatientData = Object.values(patient).some(v => v && v.trim());
+      if (hasPatientData) {
+        prompt += '\n\nData Pasien:';
+        if (patient.nama) prompt += '\n- Nama: ' + patient.nama;
+        if (patient.umur) prompt += '\n- Umur: ' + patient.umur + ' tahun';
+        if (patient.gender) prompt += '\n- Jenis Kelamin: ' + patient.gender;
+        if (patient.room) prompt += '\n- Ruang Rawat: ' + patient.room;
+        if (patient.dx) prompt += '\n- Dx. Medis: ' + patient.dx;
+        if (patient.complaint) prompt += '\n- Keluhan Utama: ' + patient.complaint;
+        if (patient.detail) prompt += '\n- Detail Tambahan: ' + patient.detail;
+      } else {
+        prompt += '\n\nGunakan data pasien yang realistis dan umum untuk kasus ini.';
+      }
     }
-
+    
     if (type === 'askep') {
       prompt += '\n\nSertakan implementasi dan evaluasi 3 hari (SOAP).';
     }
-
+    
+    if (type === 'makalah') {
+      prompt += '\n\nSertakan referensi/daftar pustaka yang relevan (min. 5 sumber eligible).';
+    }
+    
     return prompt;
   },
 
@@ -612,10 +624,9 @@ export const AI = {
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
-
+    
     if (type === 'lp') {
       const list = Data.getLP();
-      // ⚠️ Dedupe by id
       if (!list.find(d => d.id === doc.id)) {
         list.unshift(doc);
       } else {
@@ -624,7 +635,7 @@ export const AI = {
       }
       const saveResult = Data.saveLP(list);
       if (!saveResult || !saveResult.success) throw new Error('Gagal menyimpan dokumen');
-    } else {
+    } else if (type === 'askep') {
       const list = Data.getAskep();
       if (!list.find(d => d.id === doc.id)) {
         list.unshift(doc);
@@ -634,16 +645,27 @@ export const AI = {
       }
       const saveResult = Data.saveAskep(list);
       if (!saveResult || !saveResult.success) throw new Error('Gagal menyimpan dokumen');
+    } else if (type === 'makalah') {
+      const list = Data.getMakalah();
+      if (!list.find(d => d.id === doc.id)) {
+        list.unshift(doc);
+      } else {
+        const idx = list.findIndex(d => d.id === doc.id);
+        list[idx] = doc;
+      }
+      const saveResult = Data.saveMakalah(list);
+      if (!saveResult || !saveResult.success) throw new Error('Gagal menyimpan dokumen');
+    } else {
+      throw new Error('Tipe dokumen tidak dikenal');
     }
-
+    
     this._currentDocId = doc.id;
-
     this._statusCache = null;
     this._statusCacheTime = 0;
     this._statusRequestId++;
-
+    
     setTimeout(() => this.refreshUserStatus(true), 2000);
-
+    
     return doc;
   },
 
@@ -758,6 +780,9 @@ export const AI = {
     if (msg.includes('outline') || msg.includes('rencana')) {
       return { type: 'warning', text: err.message };
     }
+    if (msg.includes('makalah') || msg.includes('struktur makalah')) {
+      return { type: 'warning', text: err.message };
+    }
     if (msg.includes('401') || msg.includes('403')) {
       return { type: 'error', text: 'Session tidak valid. Login ulang.' };
     }
@@ -770,23 +795,34 @@ export const AI = {
 
   getDocument(docId, docType) {
     if (docType === 'lp') return Data.getLP().find(d => d.id === docId);
-    return Data.getAskep().find(d => d.id === docId);
+    if (docType === 'askep') return Data.getAskep().find(d => d.id === docId);
+    if (docType === 'makalah') return Data.getMakalah().find(d => d.id === docId);
+    return null;
   },
 
   updateDocument(docId, docType, updates) {
-    const list = docType === 'lp' ? Data.getLP() : Data.getAskep();
+    let list;
+    if (docType === 'lp') list = Data.getLP();
+    else if (docType === 'askep') list = Data.getAskep();
+    else if (docType === 'makalah') list = Data.getMakalah();
+    else return false;
+    
     const idx = list.findIndex(d => d.id === docId);
     if (idx === -1) return false;
-
+    
     list[idx] = { ...list[idx], ...updates, updatedAt: Date.now() };
-
+    
     if (docType === 'lp') return Data.saveLP(list).success;
-    return Data.saveAskep(list).success;
+    if (docType === 'askep') return Data.saveAskep(list).success;
+    if (docType === 'makalah') return Data.saveMakalah(list).success;
+    return false;
   },
 
   deleteDocument(docId, docType) {
     if (docType === 'lp') return Data.saveLP(Data.getLP().filter(d => d.id !== docId)).success;
-    return Data.saveAskep(Data.getAskep().filter(d => d.id !== docId)).success;
+    if (docType === 'askep') return Data.saveAskep(Data.getAskep().filter(d => d.id !== docId)).success;
+    if (docType === 'makalah') return Data.saveMakalah(Data.getMakalah().filter(d => d.id !== docId)).success;
+    return false;
   }
 };
 

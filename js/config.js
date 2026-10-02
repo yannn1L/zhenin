@@ -1,17 +1,17 @@
 /* ============================================================
-   ZHENIN - Config (v2.3.0)
-   Sprint 2C+ : Profile Enhancement + Onboarding + Promo
+   ZHENIN - Config (v2.10.2)
+   Sprint 2C+ : Profile + Onboarding + Promo + Makalah
    ============================================================ */
 
 export const CONFIG = {
   // ===== APP =====
   APP_NAME: 'Zhenin',
   APP_FULL_NAME: 'Zhenin Nurse Suite',
-  APP_VERSION: '2.10.0',
-  APP_BUILD: '2025-09-19',
+  APP_VERSION: '2.10.2',
+  APP_BUILD: '2025-10-02',
 
   // ===== BACKEND =====
-  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwuUo55cIQtRx98L-jQ5TPdNSqdCmjOJUv-ydKsyyPWaROTxiBAOEX1OKelIaibSBKT/exec',
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwCiHvmE1O8lNB6C92knp9VpcTYu_wJLvjBCrqYz8izJ2y86Y0Mu2kTgzqSbMh4T7vT/exec',
 
   // ===== CONTACT =====
   CONTACT: {
@@ -23,9 +23,9 @@ export const CONFIG = {
     note: 'Admin masih mahasiswa, jadwal bisa tidak menentu'
   },
 
-  // ===== PROFILE FIELDS (untuk Askep) =====
+  // ===== PROFILE FIELDS =====
   PROFILE_FIELDS: [
-    { key: 'nama', label: 'Nama Mahasiswa', placeholder: 'dio', required: true, maxLength: 80 },
+    { key: 'nama', label: 'Nama Mahasiswa', placeholder: 'Sumual', required: true, maxLength: 80 },
     { key: 'nim', label: 'NIM', placeholder: '-', required: false, maxLength: 30 },
     { key: 'kelompok', label: 'Kelompok', placeholder: '6', required: false, maxLength: 20 },
     { key: 'tempatPraktik', label: 'Tempat Praktik', placeholder: 'C5 - Ruang Infeksius', required: false, maxLength: 100 },
@@ -33,7 +33,7 @@ export const CONFIG = {
     { key: 'ci', label: 'Clinical Instruktur (CI)', placeholder: 'Ns., S.Kep', required: false, maxLength: 100 }
   ],
 
-  // ===== PLACEHOLDER MAPPING (untuk auto-fill markdown) =====
+  // ===== PLACEHOLDER MAPPING =====
   PLACEHOLDER_MAP: {
     '[NAMA_MHS]': 'nama',
     '[NIM]': 'nim',
@@ -48,17 +48,22 @@ export const CONFIG = {
     {
       icon: '🎓',
       title: 'Selamat Datang di Zhenin',
-      desc: 'Buat LP & Askep lengkap dengan AI hanya dalam 30 detik.'
+      desc: 'Buat LP, Askep & Makalah lengkap dengan AI hanya dalam 30 detik.'
     },
     {
       icon: '✨',
-      title: '3 Langkah Mudah',
-      desc: 'Pilih jenis → Isi topik → Generate dengan AI.'
+      title: '4 Langkah Mudah',
+      desc: 'Pilih jenis → Isi topik → Review rencana → Generate dengan AI.'
+    },
+    {
+      icon: '📷',
+      title: 'Upload Gambar Pendukung',
+      desc: 'Foto hasil lab atau askep manual — AI akan baca dan integrasikan.'
     },
     {
       icon: '💎',
       title: 'Tentang Token',
-      desc: '1 token = 1 dokumen. Token tidak hangus. Kalau AI gagal, token kembali.'
+      desc: '1 token = 1 dokumen. Kalau AI gagal, token kembali otomatis.'
     },
     {
       icon: '👤',
@@ -101,6 +106,7 @@ export const CONFIG = {
     DEVICE: 'zhenin_device_hash',
     LP: 'zhenin_lp_v1',
     ASKEP: 'zhenin_askep_v1',
+    MAKALAH: 'zhenin_makalah_v1',
     PROFILE: 'zhenin_profile_v2',
     BACKUP: 'zhenin_backup_v1',
     LAYOUT: 'zhenin_layout_v1',
@@ -122,8 +128,8 @@ export const CONFIG = {
     TOAST_DURATION_MS: 3200,
     TEMPLATES_CACHE_MS: 24 * 60 * 60 * 1000,
     PROFILE_DEBOUNCE_MS: 500,
-    PROMO_CACHE_MS: 60 * 60 * 1000,       // 1 jam
-    PROMO_DISMISS_MS: 7 * 24 * 60 * 60 * 1000  // 7 hari
+    PROMO_CACHE_MS: 60 * 60 * 1000,
+    PROMO_DISMISS_MS: 7 * 24 * 60 * 60 * 1000
   },
 
   // ===== LIMITS =====
@@ -132,7 +138,8 @@ export const CONFIG = {
     PROMPT_MAX: 1500,
     PATIENT_FIELD_MAX: 500,
     DOCS_MAX_PER_TYPE: 200,
-    TOKEN_WARNING_THRESHOLD: 2
+    TOKEN_WARNING_THRESHOLD: 2,
+    IMAGES_MAX: 3
   },
 
   // ===== BACKUP =====
@@ -180,7 +187,11 @@ export const CONFIG = {
     'Diabetes Ketoasidosis',
     'Hipoglikemia',
     'Luka Bakar Derajat II',
-    'Post Operasi Laparatomi'
+    'Post Operasi Laparatomi',
+    'Peran Perawat dalam Manajemen Nyeri',
+    'Penerapan Patient Safety di Rumah Sakit',
+    'Komunikasi Terapeutik Perawat-Pasien',
+    'Asuhan Keperawatan Berbasis Evidence-Based Practice'
   ],
 
   // ===== DEFAULT PRICING =====
@@ -193,7 +204,8 @@ export const CONFIG = {
 
   // ===== FALLBACK STRUCTURES =====
   FALLBACK_LP_STRUCTURE: '# BAB I : TINJAUAN TEORI KASUS\n## A. Konsep Penyakit\n...',
-  FALLBACK_ASKEP_STRUCTURE: '## A. IDENTITAS PASIEN\n\n\\page\n\n[TABEL_TTD]'
+  FALLBACK_ASKEP_STRUCTURE: '## A. IDENTITAS PASIEN\n\n\\page\n\n[TABEL_TTD]',
+  FALLBACK_MAKALAH_STRUCTURE: '# COVER\n# KATA PENGANTAR\n# BAB I : PENDAHULUAN\n# BAB II : PEMBAHASAN\n# BAB III : PENUTUP\n# DAFTAR PUSTAKA'
 };
 
 Object.freeze(CONFIG);

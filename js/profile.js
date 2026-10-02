@@ -136,7 +136,7 @@ export const Profile = {
   renderStats() {
     const session = Data.getSession();
     const token = session?.token || 0;
-    const totalDocs = Data.getLP().length + Data.getAskep().length;
+    const totalDocs = Data.getLP().length + Data.getAskep().length + Data.getMakalah().length;
     
     const statToken = document.getElementById('statToken');
     if (statToken) statToken.textContent = token;
@@ -150,7 +150,6 @@ export const Profile = {
       profileCode.textContent = session.password || '';
     }
   },
-  
   /**
    * Render storage widget
    */

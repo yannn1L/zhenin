@@ -109,7 +109,16 @@ export const Data = {
   saveAskep(list) {
     return Storage.save(CONFIG.STORAGE.ASKEP, list);
   },
-
+  
+  // ===== Makalah (v2.10.2) =====
+  getMakalah() {
+    const arr = Storage.load(CONFIG.STORAGE.MAKALAH, []);
+    return Array.isArray(arr) ? arr.filter(isValidDoc) : [];
+  },
+  saveMakalah(list) {
+    return Storage.save(CONFIG.STORAGE.MAKALAH, list);
+  },
+  
   // ===== Profile (Extended) =====
   getProfile() {
     const saved = Storage.load(CONFIG.STORAGE.PROFILE, null);
@@ -252,6 +261,7 @@ export const StorageMonitor = {
     const stats = {
       lp: getSize(CONFIG.STORAGE.LP),
       askep: getSize(CONFIG.STORAGE.ASKEP),
+      makalah: getSize(CONFIG.STORAGE.MAKALAH),
       profile: getSize(CONFIG.STORAGE.PROFILE),
       backup: getSize(CONFIG.STORAGE.BACKUP),
       layout: getSize(CONFIG.STORAGE.LAYOUT),
@@ -305,30 +315,33 @@ export const StorageMonitor = {
    ============================================================ */
 export const Backup = {
   createSnapshot(label = 'Manual backup') {
-    const lp = Data.getLP();
-    const askep = Data.getAskep();
-    const profile = Data.getProfile();
-    const layout = Data.getLayout();
-    const stats = StorageMonitor.getStats();
-
-    return {
-      id: generateId(),
-      timestamp: Date.now(),
-      label,
-      version: CONFIG.APP_VERSION,
-      stats: {
-        lp: lp.length,
-        askep: askep.length,
-        bytes: stats.total
-      },
-      data: {
-        lp: JSON.parse(JSON.stringify(lp)),
-        askep: JSON.parse(JSON.stringify(askep)),
-        profile: JSON.parse(JSON.stringify(profile)),
-        layout: JSON.parse(JSON.stringify(layout))
-      }
-    };
-  },
+  const lp = Data.getLP();
+  const askep = Data.getAskep();
+  const makalah = Data.getMakalah();
+  const profile = Data.getProfile();
+  const layout = Data.getLayout();
+  const stats = StorageMonitor.getStats();
+  
+  return {
+    id: generateId(),
+    timestamp: Date.now(),
+    label,
+    version: CONFIG.APP_VERSION,
+    stats: {
+      lp: lp.length,
+      askep: askep.length,
+      makalah: makalah.length,
+      bytes: stats.total
+    },
+    data: {
+      lp: JSON.parse(JSON.stringify(lp)),
+      askep: JSON.parse(JSON.stringify(askep)),
+      makalah: JSON.parse(JSON.stringify(makalah)),
+      profile: JSON.parse(JSON.stringify(profile)),
+      layout: JSON.parse(JSON.stringify(layout))
+    }
+  };
+},
 
   getAll() {
     const arr = Storage.load(CONFIG.STORAGE.BACKUP, []);
@@ -358,10 +371,11 @@ export const Backup = {
     const snapshots = this.getAll();
     const snap = snapshots.find(s => s.id === snapshotId);
     if (!snap) return { success: false, error: 'Snapshot tidak ditemukan' };
-
+    
     try {
       if (snap.data.lp) Data.saveLP(snap.data.lp);
       if (snap.data.askep) Data.saveAskep(snap.data.askep);
+      if (snap.data.makalah) Data.saveMakalah(snap.data.makalah);
       if (snap.data.profile) Data.saveProfile(snap.data.profile);
       if (snap.data.layout) Data.saveLayout(snap.data.layout);
       return { success: true, snapshot: snap };
@@ -393,7 +407,8 @@ export const ExportImport = {
       profile: Data.getProfile(),
       layout: Data.getLayout(),
       lp: Data.getLP(),
-      askep: Data.getAskep()
+      askep: Data.getAskep(),
+      makalah: Data.getMakalah()
     };
 
     const json = JSON.stringify(data, null, 2);
@@ -425,35 +440,45 @@ export const ExportImport = {
         try {
           const data = JSON.parse(e.target.result);
           if (!data || typeof data !== 'object') throw new Error('File tidak valid');
-
+          
           const lpIn = Array.isArray(data.lp) ? data.lp : [];
           const askepIn = Array.isArray(data.askep) ? data.askep : [];
+          const makalahIn = Array.isArray(data.makalah) ? data.makalah : [];
           const profileIn = data.profile || {};
-
+          
           if (mode === 'replace') {
             Data.saveLP(lpIn);
             Data.saveAskep(askepIn);
+            Data.saveMakalah(makalahIn);
             Data.saveProfile({ ...Data.getProfile(), ...profileIn });
           } else {
             const existingLP = Data.getLP();
             const existingAskep = Data.getAskep();
+            const existingMakalah = Data.getMakalah();
             const lpIds = new Set(existingLP.map(x => x.id));
             const askepIds = new Set(existingAskep.map(x => x.id));
-
+            const makalahIds = new Set(existingMakalah.map(x => x.id));
+            
             const mergedLP = [...existingLP, ...lpIn.filter(x => x.id && !lpIds.has(x.id))];
             const mergedAskep = [...existingAskep, ...askepIn.filter(x => x.id && !askepIds.has(x.id))];
-
+            const mergedMakalah = [...existingMakalah, ...makalahIn.filter(x => x.id && !makalahIds.has(x.id))];
+            
             Data.saveLP(mergedLP);
             Data.saveAskep(mergedAskep);
-
+            Data.saveMakalah(mergedMakalah);
+            
             const currentProfile = Data.getProfile();
             const mergedProfile = { ...profileIn, ...currentProfile };
             Data.saveProfile(mergedProfile);
           }
-
+          
           resolve({
             success: true,
-            imported: { lp: lpIn.length, askep: askepIn.length }
+            imported: {
+              lp: lpIn.length,
+              askep: askepIn.length,
+              makalah: makalahIn.length
+            }
           });
         } catch (err) {
           reject(new Error('File tidak valid: ' + err.message));
@@ -464,10 +489,10 @@ export const ExportImport = {
       reader.readAsText(file);
     });
   },
-
   async resetAll() {
     Storage.remove(CONFIG.STORAGE.LP);
     Storage.remove(CONFIG.STORAGE.ASKEP);
+    Storage.remove(CONFIG.STORAGE.MAKALAH);
     Storage.remove(CONFIG.STORAGE.PROFILE);
     Storage.remove(CONFIG.STORAGE.BACKUP);
     Storage.remove(CONFIG.STORAGE.LAYOUT);
@@ -477,7 +502,7 @@ export const ExportImport = {
     Storage.remove(CONFIG.STORAGE.PROMO_CACHE);
     return { success: true };
   }
-};
+}
 
 /* ============================================================
    HELPERS
