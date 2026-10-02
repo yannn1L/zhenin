@@ -1,11 +1,14 @@
 /* ============================================================
-   ZHENIN - Markdown Parser (v2.8.2 FIXED)
+   ZHENIN - Markdown Parser (v2.10.1 FINAL)
    
-   FIX v2.8.2 (CRITICAL):
-   - Reset numbered counter HANYA setelah non-list block
-   - Baris kosong TIDAK reset counter (list multi-baris tetap lanjut)
-   - Setiap heading/paragraph/table/quote reset counter
-   - Ini fix bug "1,1,1,1" di DOCX saat list di-break baris kosong
+   FIX v2.10.1:
+   - 🔥 CRITICAL: Numbered counter tidak reset saat paragraph
+   - Hanya reset saat heading/table/hr/pagebreak/signature
+   - List di-break oleh paragraph "penjelasan" tetap lanjut counter
+   
+   FIX v2.8.2:
+   - Reset counter HANYA setelah non-list block (bug regresi)
+   - Baris kosong TIDAK reset counter
    
    FIX v2.8.1:
    - CB1: Autonumber FORCE replace
@@ -31,7 +34,7 @@ export const Parser = {
     // ⚠️ Numbered list counter per indent level
     const numberedCounters = {};
 
-    // Helper: reset semua counter
+    // ⚠️ Reset counter — hanya dipanggil saat struktur block BARU muncul
     const resetNumberedCounters = () => {
       for (const key in numberedCounters) delete numberedCounters[key];
     };
@@ -40,8 +43,7 @@ export const Parser = {
       const rawLine = lines[i];
       const trimmed = rawLine.trim();
 
-      // ⚠️ FIX v2.8.2: Baris kosong TIDAK reset counter
-      // Counter akan di-reset saat ada block non-list
+      // ⚠️ Baris kosong TIDAK reset counter
       if (!trimmed) { i++; continue; }
 
       // ===== HTML Comments (modifiers) — TIDAK reset =====
@@ -148,7 +150,7 @@ export const Parser = {
         i++; continue;
       }
 
-      // ===== Numbered list — TIDAK reset, increment counter =====
+      // ===== Numbered list — JANGAN reset, increment counter =====
       if (/^\d+\.\s/.test(trimmed)) {
         const indent = this.getIndentLevel(rawLine);
 
@@ -169,7 +171,7 @@ export const Parser = {
         i++; continue;
       }
 
-      // ===== Bullet list — TIDAK reset =====
+      // ===== Bullet list — JANGAN reset =====
       if (/^[-*•]\s/.test(trimmed)) {
         const indent = this.getIndentLevel(rawLine);
         blocks.push({
@@ -180,10 +182,13 @@ export const Parser = {
         i++; continue;
       }
 
-      // ===== Paragraph — RESET counter =====
+      // ⚠️⚠️⚠️ CRITICAL FIX v2.10.1 ⚠️⚠️⚠️
+      // ===== Paragraph — JANGAN reset counter! =====
+      // Alasan: AI sering generate paragraph sebagai "penjelasan"
+      // dari list item sebelumnya. Reset akan bikin nomor ulang dari 1.
       const indent = this.getIndentLevel(rawLine);
       blocks.push({ type: 'paragraph', indent, text: trimmed });
-      resetNumberedCounters();
+      // ❌ TIDAK resetNumberedCounters() di sini!
       i++;
     }
 
@@ -214,7 +219,6 @@ export const Parser = {
       dataStart = 1;
     }
 
-    // Kalau hanya header tanpa rows
     if (valid.length <= dataStart) {
       return {
         type: 'table',
@@ -246,14 +250,12 @@ export const Parser = {
       'num', 'number', 'index', '#', 'urutan'
     ].includes(firstHeaderNormalized);
 
-    // Detect kalau semua rows kolom 1 punya pola increment
     const allRowsHaveIncrementPattern = rows.length > 0 && rows.every((row) => {
       const val = String(row[0] || '').trim();
       if (!val) return true;
       return /^\d+[.)]?$/.test(val);
     });
 
-    // Detect kalau kolom 1 isinya angka berulang (1,1,1,1)
     const hasRepeatingNumbers = (() => {
       if (rows.length < 2) return false;
       const vals = rows.map(r => String(r[0] || '').trim().replace(/[.)]/g, '')).filter(Boolean);
@@ -262,17 +264,12 @@ export const Parser = {
       return uniqueVals.size < vals.length;
     })();
 
-    // FORCE autonumber kalau:
-    // 1. Explicit <!-- autonumber -->
-    // 2. Header = No/Nomor/dll
-    // 3. AI generate pola increment tapi ada duplikat
     const shouldAutonumber = opts.autonumber ||
                               isNoColumn ||
                               (allRowsHaveIncrementPattern && hasRepeatingNumbers);
 
     if (shouldAutonumber) {
       rows.forEach((row, i) => {
-        // FORCE replace
         row[0] = String(i + 1);
       });
     }
@@ -285,7 +282,6 @@ export const Parser = {
       colWidths = this.computeColumnWidths(headers, rows);
     }
 
-    // Normalize total ke 100%
     const totalWidth = colWidths.reduce((a, b) => a + b, 0);
     if (totalWidth > 0 && Math.abs(totalWidth - 100) > 0.01) {
       colWidths = colWidths.map(w => (w / totalWidth) * 100);
@@ -408,7 +404,6 @@ export const Parser = {
         continue;
       }
 
-      // *** dulu (bold italic)
       if (text.substr(i, 3) === '***') {
         flush();
         bold = !bold;
