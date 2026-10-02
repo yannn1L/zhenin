@@ -48,22 +48,22 @@ export const CONFIG = {
     {
       icon: '🎓',
       title: 'Selamat Datang di Zhenin',
-      desc: 'Buat LP, Askep & Makalah lengkap dengan AI hanya dalam 30 detik.'
+      desc: 'Buat LP, Askep & Makalah lengkap hanya dalam 30 detik.'
     },
     {
       icon: '✨',
       title: '4 Langkah Mudah',
-      desc: 'Pilih jenis → Isi topik → Review rencana → Generate dengan AI.'
+      desc: 'Pilih jenis → Isi topik → Review rencana → Generate.'
     },
     {
       icon: '📷',
       title: 'Upload Gambar Pendukung',
-      desc: 'Foto hasil lab atau askep manual — AI akan baca dan integrasikan.'
+      desc: 'Foto hasil lab atau askep manual — Sistem akan baca dan integrasikan.'
     },
     {
       icon: '💎',
       title: 'Tentang Token',
-      desc: '1 token = 1 dokumen. Kalau AI gagal, token kembali otomatis.'
+      desc: '1 token = 1 dokumen. Kalau gagal, token kembali otomatis.'
     },
     {
       icon: '👤',
@@ -205,7 +205,7 @@ export const CONFIG = {
   // ===== FALLBACK STRUCTURES =====
   FALLBACK_LP_STRUCTURE: '# BAB I : TINJAUAN TEORI KASUS\n## A. Konsep Penyakit\n...',
   FALLBACK_ASKEP_STRUCTURE: '## A. IDENTITAS PASIEN\n\n\\page\n\n[TABEL_TTD]',
-  FALLBACK_MAKALAH_STRUCTURE: '# COVER\n# KATA PENGANTAR\n# BAB I : PENDAHULUAN\n# BAB II : PEMBAHASAN\n# BAB III : PENUTUP\n# DAFTAR PUSTAKA'
+  FALLBACK_MAKALAH_STRUCTURE: '# JUDUL MAKALAH\n# KATA PENGANTAR\n #DAFTAR ISI\n# BAB I : PENDAHULUAN\n# BAB II : PEMBAHASAN\n# BAB III : PENUTUP\n# DAFTAR PUSTAKA'
 };
 
 Object.freeze(CONFIG);
