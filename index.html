@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#1A1A2E">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="description" content="Zhenin - Generator dokumen keperawatan dengan AI">
+<meta name="description" content="Zhenin - Generator dokumen keperawatan">
 <title>Zhenin · Keperawatan Suite</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -175,7 +175,7 @@
           <div class="token-card-header">
             <div class="token-label">
               <span class="token-icon">💎</span>
-              Token AI Tersisa
+              Token Tersisa
             </div>
             <div class="token-status" id="tokenStatus">Aktif</div>
           </div>
@@ -206,7 +206,7 @@
     <div class="quick-action-glow glow-lp"></div>
     <div class="quick-action-icon">📄</div>
     <div class="quick-action-title">Laporan LP</div>
-    <div class="quick-action-desc">Buat LP dengan AI</div>
+    <div class="quick-action-desc">Buat LP</div>
     <div class="quick-action-arrow">→</div>
   </button>
   <button class="quick-action" data-action="create-askep">
@@ -234,7 +234,7 @@
       <div class="empty-state" id="emptyDocs" hidden>
         <div class="empty-icon">📭</div>
         <div class="empty-title">Belum ada dokumen</div>
-        <div class="empty-desc">Mulai buat dokumen pertama Anda dengan AI</div>
+        <div class="empty-desc">Mulai buat dokumen pertama Anda</div>
         <button class="btn btn-primary btn-sm" data-action="create-askep">✨ Buat Sekarang</button>
       </div>
 
@@ -272,7 +272,7 @@
         </svg>
       </button>
       <div class="app-header-center">
-        <div class="app-header-title">Generate AI</div>
+        <div class="app-header-title">Generate</div>
       </div>
       <button class="icon-btn" id="btnAiHelp" title="Panduan">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -327,7 +327,7 @@
             <span class="collapsible-icon">👤</span>
             <span class="collapsible-text">
               <span class="collapsible-title">Data Pasien</span>
-              <span class="collapsible-sub">Opsional · Kosongkan jika ingin AI generate</span>
+              <span class="collapsible-sub">Opsional · Kosongkan jika ingin buat skenario</span>
             </span>
             <span class="collapsible-chevron">▼</span>
           </button>
@@ -336,7 +336,7 @@
             <div class="form-field">
               <label for="pName">Nama Pasien</label>
               <input type="text" id="pName" class="form-input" placeholder="Tn. A" maxlength="60">
-              <div class="form-hint">Kosong = AI akan generate nama contoh</div>
+              <div class="form-hint">Kosong = akan generate nama contoh</div>
             </div>
             <div class="form-row">
               <div class="form-field">
@@ -437,7 +437,7 @@
         <div class="form-actions">
           <button type="submit" class="btn btn-primary btn-block btn-lg" id="btnGenerate">
             <span class="btn-icon">✨</span>
-            <span class="btn-text">Generate dengan AI</span>
+            <span class="btn-text">Generate</span>
             <span class="btn-spinner" hidden></span>
           </button>
         </div>
@@ -707,7 +707,7 @@
       <div class="empty-state" id="filesEmpty" hidden>
         <div class="empty-icon">📭</div>
         <div class="empty-title">Belum ada dokumen</div>
-        <div class="empty-desc">Mulai buat dokumen dengan AI</div>
+        <div class="empty-desc">Mulai buat dokumen</div>
       </div>
       <div class="screen-bottom-spacer"></div>
     </div>
@@ -846,12 +846,12 @@
       <div class="help-section">
         <h4>1. Cara Membuat Dokumen</h4>
         <ol class="help-list">
-          <li>Klik <strong>Generate AI</strong> atau tombol <strong>Buat</strong> di home</li>
+          <li>Klik <strong>Generate</strong> atau tombol <strong>Buat</strong> di home</li>
           <li>Pilih jenis: <strong>LP</strong> atau <strong>Askep</strong></li>
           <li>Isi <strong>Topik</strong> (wajib) — contoh: "Hipertensi"</li>
-          <li>Isi <strong>Data Pasien</strong> (opsional) — kalau kosong, AI generate sendiri</li>
+          <li>Isi <strong>Data Pasien</strong> (opsional) — kalau kosong, generate skenario sendiri</li>
           <li>(Opsional) Upload <strong>📷 Gambar Pendukung</strong> — hasil lab, askep manual, dll</li>
-          <li>Klik <strong>Generate dengan AI</strong></li>
+          <li>Klik <strong>Generate dengan</strong></li>
           <li>Review <strong>Rencana Dokumen</strong> di popup, edit jika perlu</li>
           <li>Klik <strong>Generate Sekarang</strong> untuk buat dokumen lengkap</li>
           <li>Export ke <strong>DOCX</strong> untuk dikumpulkan</li>
@@ -862,7 +862,7 @@
         <h4>2. Gambar Pendukung (Baru!)</h4>
         <p style="font-size:13px;color:var(--z-text-muted);line-height:1.6;">
           Upload gambar <strong>hasil lab</strong>, <strong>lembar askep manual</strong>, atau <strong>data pasien</strong>.
-          AI akan baca semua data yang relevan dan integrasikan ke dokumen Anda secara otomatis.
+          Sistem akan baca semua data yang relevan dan integrasikan ke dokumen Anda secara otomatis.
           Max 3 gambar, 2 MB per gambar.
         </p>
       </div>
@@ -870,7 +870,7 @@
       <div class="help-section">
         <h4>3. Rencana Dokumen (Baru!)</h4>
         <p style="font-size:13px;color:var(--z-text-muted);line-height:1.6;">
-          Sebelum AI buat dokumen lengkap, Anda lihat dulu <strong>garis besar</strong> poin yang akan dibuat.
+          Sebelum buat dokumen lengkap, Anda lihat dulu <strong>garis besar</strong> poin yang akan dibuat.
           Bisa edit poin 1x sebelum generate. Ini hemat token — Anda tahu isinya sebelum bayar!
         </p>
       </div>
@@ -885,11 +885,11 @@
       <div class="help-section">
         <h4>5. Token & Kuota</h4>
         <ul class="help-list">
-          <li><strong>1 token = 1 dokumen</strong> yang di-generate AI</li>
+          <li><strong>1 token = 1 dokumen</strong> yang di-generate</li>
           <li>Outline / rencana dokumen <strong>GRATIS</strong> (tidak pakai token)</li>
           <li>Token <strong>tidak akan hangus</strong></li>
-          <li>Kuota harian: <strong>10 AI/hari</strong> (default)</li>
-          <li>Kalau AI gagal, token <strong>dikembalikan otomatis</strong></li>
+          <li>Kuota harian: <strong>10 Generation/hari</strong> (default)</li>
+          <li>Kalau gagal, token <strong>dikembalikan otomatis</strong></li>
         </ul>
       </div>
 
@@ -908,7 +908,7 @@
         <ul class="help-list">
           <li><strong>Password tidak bisa login?</strong> Hubungi admin untuk reset device</li>
           <li><strong>Token tidak bertambah?</strong> Refresh aplikasi</li>
-          <li><strong>AI error/timeout?</strong> Coba lagi, token otomatis kembali</li>
+          <li><strong>System error/timeout?</strong> Coba lagi, token otomatis kembali</li>
           <li><strong>Gambar tidak terbaca?</strong> Pastikan ukuran max 2MB, format JPG/PNG</li>
           <li><strong>Dokumen terpotong?</strong> Sistem auto-resume, tapi kalau masih terpotong bisa regenerate</li>
         </ul>
